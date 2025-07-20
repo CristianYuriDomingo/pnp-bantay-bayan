@@ -1,4 +1,3 @@
-// src/app/users/quizStart/[id]/QuizUI.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -432,38 +431,38 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <div className="p-4 sm:p-6">
+      {/* Header with better margins and alignment */}
+      <div className="p-4 sm:p-6 mx-8 sm:mx-12 lg:mx-16">
         <div className="flex justify-between items-center text-gray-800 mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-blue-200 shadow-sm">
-              <span className="font-semibold">Score: {score}/{quizData.questions.length}</span>
+          <div className="flex items-center space-x-4 sm:space-x-6">
+            <div className="bg-white/80 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-blue-200 shadow-sm">
+              <span className="font-medium text-sm sm:text-base">Score: {score}/{quizData.questions.length}</span>
             </div>
             <div className="hidden sm:block">
-              <span className="text-lg font-medium text-blue-700">{quizData.title}</span>
+              <span className="text-base sm:text-lg font-medium text-blue-700">{quizData.title}</span>
             </div>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-blue-200 shadow-sm">
-              <span className="font-semibold">
+          <div className="flex items-center space-x-4 sm:space-x-6">
+            <div className="bg-white/80 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-blue-200 shadow-sm">
+              <span className="font-medium text-sm sm:text-base">
                 {currentQuestion + 1}/{quizData.questions.length}
               </span>
             </div>
             <button 
               onClick={handleCloseQuiz}
-              className="bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full transition-colors border border-blue-200 shadow-sm" 
+              className="bg-white/80 hover:bg-white backdrop-blur-md p-2.5 sm:p-3 rounded-full transition-colors border border-blue-200 shadow-sm" 
               aria-label="Close quiz"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
         </div>
         
-        {/* Progress Bar */}
-        <div className="bg-white/50 backdrop-blur-sm rounded-full h-3 border border-blue-200 shadow-sm">
+        {/* Progress Bar with better spacing */}
+        <div className="bg-white/50 backdrop-blur-sm rounded-full h-3 sm:h-4 border border-blue-200 shadow-sm">
           <div 
             className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 shadow-sm" 
             style={{ width: `${progressWidth}%` }}
@@ -471,25 +470,25 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="px-4 sm:px-6 pb-6">
-        <div className="max-w-4xl mx-auto">
-          {/* Timer - Large and Prominent */}
-          <div className="text-center mb-8">
-            <div className={`font-bold text-6xl sm:text-7xl ${getTimerColor()} drop-shadow-lg`}>
+      {/* Main Content with better margins */}
+      <div className="px-4 sm:px-8 pb-6 mx-8 sm:mx-12 lg:mx-16">
+        <div className="max-w-3xl mx-auto">
+          {/* Timer */}
+          <div className="text-center mb-6 sm:mb-8">
+            <div className={`font-bold text-4xl sm:text-5xl ${getTimerColor()} drop-shadow-lg`}>
               {formatTime(timeLeft)}
             </div>
-            <p className="text-gray-600 text-lg mt-2">Time Remaining</p>
+            <p className="text-gray-600 text-base sm:text-lg mt-1">Time Remaining</p>
           </div>
 
-          {/* Question Image */}
+          {/* Question Image - Made bigger */}
           {currentQuestionData.image && (
-            <div className="mb-8 flex justify-center">
-              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-blue-200 shadow-xl">
+            <div className="mb-6 sm:mb-8 flex justify-center">
+              <div className="bg-white/80 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-blue-200 shadow-lg">
                 <img 
                   src={currentQuestionData.image} 
                   alt="Question illustration"
-                  className="max-w-full max-h-48 object-contain rounded-lg"
+                  className="max-w-full max-h-48 sm:max-h-60 object-contain rounded-lg"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.parentElement!.style.display = 'none';
@@ -499,29 +498,29 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             </div>
           )}
 
-          {/* Question Text - No Container */}
-          <div className="mb-8 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 leading-relaxed">
+          {/* Question Text */}
+          <div className="mb-6 sm:mb-8 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 leading-relaxed px-2">
               {currentQuestionData.question}
             </h2>
           </div>
 
-          {/* Answer Options - 2 Rows Layout */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 max-w-3xl mx-auto">
+          {/* Answer Options - Better margins matching the progress bar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-4">
             {currentQuestionData.options.map((option: string, index: number) => (
               <button
                 key={index}
                 onClick={() => handleAnswerSelect(index)}
-                className={`p-6 rounded-2xl text-left font-medium transition-all duration-300 min-h-[80px] flex items-center ${getButtonStyle(index)} ${
-                  showFeedback || timeLeft === 0 ? "cursor-not-allowed" : "cursor-pointer hover:scale-105 hover:shadow-xl"
+                className={`p-4 sm:p-5 rounded-xl text-left font-medium transition-all duration-300 min-h-[70px] sm:min-h-[80px] flex items-center ${getButtonStyle(index)} ${
+                  showFeedback || timeLeft === 0 ? "cursor-not-allowed" : "cursor-pointer hover:scale-105 hover:shadow-lg"
                 }`}
                 disabled={showFeedback || timeLeft === 0}
               >
                 <div className="flex items-center w-full">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-current/20 flex items-center justify-center mr-4 text-sm font-bold">
+                  <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-current/20 flex items-center justify-center mr-3 text-sm sm:text-base font-bold">
                     {String.fromCharCode(65 + index)}
                   </div>
-                  <span className="flex-1">{option}</span>
+                  <span className="flex-1 text-base sm:text-lg">{option}</span>
                 </div>
               </button>
             ))}
@@ -529,19 +528,19 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
           {/* Feedback */}
           {showFeedback && answerFeedback && (
-            <div className="mb-8 max-w-2xl mx-auto">
-              <div className={`text-center py-6 px-6 rounded-2xl font-medium backdrop-blur-md border shadow-xl ${
+            <div className="mb-6 sm:mb-8 max-w-lg mx-auto px-2 sm:px-4">
+              <div className={`text-center py-3 sm:py-4 px-4 rounded-lg font-medium backdrop-blur-md border shadow-md ${
                 answerFeedback.isCorrect 
                   ? "bg-green-100/80 text-green-800 border-green-200" 
                   : "bg-red-100/80 text-red-800 border-red-200"
               }`}>
-                <div className="text-2xl mb-3">
+                <div className="text-base sm:text-lg mb-1">
                   {answerFeedback.isCorrect 
                     ? "🎉 Excellent!" 
                     : `❌ ${selectedAnswer !== null ? "Not quite right" : "Time's up!"}`}
                 </div>
                 {!answerFeedback.isCorrect && (
-                  <div className="text-lg">
+                  <div className="text-sm">
                     Correct answer: <strong>{answerFeedback.correctAnswerText}</strong>
                   </div>
                 )}
@@ -549,11 +548,11 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             </div>
           )}
 
-          {/* Next Button - Moved to right side */}
-          <div className="flex justify-end">
+          {/* Next Button - Moved more to the right */}
+          <div className="flex justify-end px-2 sm:px-8">
             <button
               onClick={handleNextQuestion}
-              className={`px-8 py-3 text-lg font-bold rounded-xl transition-all duration-300 ${
+              className={`px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl transition-all duration-300 ${
                 !showFeedback 
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300' 
                   : 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer shadow-lg hover:scale-105 transform border border-blue-600'
