@@ -7,10 +7,19 @@ interface QuizStartLayoutProps {
 
 export default function QuizStartLayout({ children }: QuizStartLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* This layout bypasses the parent layout styling */}
-      {/* Full screen layout for quiz pages */}
-      {children}
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Decorative fixed blobs - same as main layout */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full opacity-30 transform translate-x-1/3 -translate-y-1/4"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4"></div>
+        <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-[#7bc8ff] rounded-full opacity-20"></div>
+        <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-green-100 rounded-full opacity-20"></div>
+      </div>
+      
+      {/* Content with relative positioning to appear above background */}
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }

@@ -12,9 +12,8 @@ const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
   const [isActive, setIsActive] = useState(false);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-2xl border border-blue-100">
-        {/* Close Button */}
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="max-w-md w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
         <div className="flex justify-end mb-2">
           <button
             onClick={onClose}
@@ -27,22 +26,24 @@ const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
           </button>
         </div>
 
-        {/* Quiz Rules Image */}
         <div className="flex justify-center mb-5">
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-200 to-blue-100 rounded-lg blur opacity-30"></div>
-            <div className="w-60 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 relative">
-              Quiz Rules Image
+            <div className="w-60 h-24 bg-gray-200 rounded-lg flex items-center justify-center text-gray-500 relative overflow-hidden">
+              <img
+                src="/QuizImage/QuizRules.png"
+                alt="Quiz Rules"
+                className="w-full h-full object-contain"
+                style={{ maxHeight: '96px' }}
+              />
             </div>
           </div>
         </div>
         
-        {/* Topic Title */}
         <h2 className="text-xl font-bold text-center text-gray-800 mb-4">
           {topic} <span className="text-blue-600">Quiz</span>
         </h2>
 
-        {/* Instructions */}
         <p className="text-gray-700 text-center text-base mb-4">
           Welcome to the <strong className="text-blue-600">{topic}</strong> quiz! Here's how it works:
         </p>
@@ -84,7 +85,6 @@ const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
           </ul>
         </div>
 
-        {/* Start Quiz Button */}
         <div className="mt-6 flex justify-center">
           <button
             className={`relative px-6 py-2 text-base font-medium text-white bg-[#2d87ff] rounded-xl transition-all duration-150 ease-out ${
@@ -107,7 +107,10 @@ const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
 
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center min-h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mb-4"></div>
+      <p className="text-blue-600 text-lg font-medium">Loading Quiz...</p>
+    </div>
   </div>
 );
 
@@ -124,8 +127,8 @@ const QuizComplete = ({
   onRetakeQuiz: () => void;
   onClose: () => void;
 }) => (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="max-w-md w-full mx-auto p-6 bg-white shadow-lg rounded-2xl border border-blue-100">
+  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+    <div className="max-w-md w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
       <div className="flex justify-end mb-2">
         <button
           onClick={onClose}
@@ -200,8 +203,8 @@ interface AnswerFeedback {
 
 export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
-  const [showInstructions, setShowInstructions] = useState(false); // Changed to false initially
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [quizData, setQuizData] = useState<any>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
@@ -211,8 +214,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
   const [userAnswers, setUserAnswers] = useState<any[]>([]);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(false);
 
-  // Fetch quiz data from API
   const fetchQuizData = async () => {
     try {
       setIsLoading(true);
@@ -221,10 +224,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       const data = await response.json();
       setQuizData(data);
       setTimeLeft(data.timer);
-      setShowInstructions(true); // Show instructions after data is loaded
+      setShowInstructions(true);
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      // Fallback to sample data for demo
       setQuizData({
         id: "sample-quiz",
         title: "Cyber Security Quiz",
@@ -256,18 +258,16 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           }
         ]
       });
-      setShowInstructions(true); // Show instructions after fallback data is set
+      setShowInstructions(true);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Fetch quiz data on component mount
   useEffect(() => {
     fetchQuizData();
   }, [quizId]);
 
-  // Submit answer to API and get feedback
   const submitAnswer = async (questionId: string, selectedAnswerIndex: number) => {
     try {
       const response = await fetch(`/api/users/quizzes/${quizId}/submit`, {
@@ -291,8 +291,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       }
     } catch (error) {
       console.error('Error submitting answer:', error);
-      // Fallback feedback for demo
-      const isCorrect = selectedAnswerIndex === 1; // Assuming index 1 is correct for demo
+      const isCorrect = selectedAnswerIndex === 1;
       setAnswerFeedback({
         questionId,
         selectedAnswer: selectedAnswerIndex,
@@ -310,27 +309,24 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
-  // Timer effect
   useEffect(() => {
-    if (!showInstructions && timeLeft > 0 && !showFeedback && !isQuizComplete) {
+    if (quizStarted && timeLeft > 0 && !showFeedback && !isQuizComplete) {
       const timer = setTimeout(() => {
         setTimeLeft(timeLeft - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !showFeedback) {
+    } else if (timeLeft === 0 && !showFeedback && quizStarted) {
       handleTimeUp();
     }
-  }, [timeLeft, showInstructions, showFeedback, isQuizComplete]);
+  }, [timeLeft, quizStarted, showFeedback, isQuizComplete]);
 
-  // Handle time up
   const handleTimeUp = async () => {
     setShowFeedback(true);
     const currentQuestionData = quizData.questions[currentQuestion];
-    await submitAnswer(currentQuestionData.id, -1); // -1 indicates no answer selected
+    await submitAnswer(currentQuestionData.id, -1);
     setUserAnswers([...userAnswers, { questionId: currentQuestionData.id, answer: null, correct: false }]);
   };
 
-  // Handle answer selection
   const handleAnswerSelect = async (answerIndex: number) => {
     if (showFeedback || timeLeft === 0) return;
     
@@ -347,7 +343,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }]);
   };
 
-  // Handle next question
   const handleNextQuestion = () => {
     if (currentQuestion < quizData.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
@@ -360,13 +355,11 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
-  // Handle quiz start
   const handleStartQuiz = () => {
     setShowInstructions(false);
-    // Quiz data is already loaded, so we can start immediately
+    setQuizStarted(true);
   };
 
-  // Handle retake quiz
   const handleRetakeQuiz = () => {
     setCurrentQuestion(0);
     setScore(0);
@@ -375,90 +368,56 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setAnswerFeedback(null);
     setUserAnswers([]);
     setIsQuizComplete(false);
+    setQuizStarted(false);
     setTimeLeft(quizData.timer);
     setShowInstructions(true);
   };
 
-  // Handle close quiz
   const handleCloseQuiz = () => {
     router.push('/users/quiz');
   };
 
-  // Format time for display
   const formatTime = (seconds: number) => {
     return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   };
 
-  // Calculate timer color based on time left
   const getTimerColor = () => {
     if (timeLeft > 20) return "text-green-600";
-    if (timeLeft > 10) return "text-yellow-500";
+    if (timeLeft > 10) return "text-yellow-600";
     return "text-red-600";
   };
 
-  // Get button style based on selection and feedback
   const getButtonStyle = (optionIndex: number) => {
     if (!showFeedback) {
-      // Before feedback is shown
       if (selectedAnswer === optionIndex) {
-        return "bg-blue-500 text-white";
+        return "bg-blue-500 text-white shadow-lg border-2 border-blue-300 transform scale-105";
       }
-      return "bg-blue-100 text-blue-600 hover:bg-blue-200";
+      return "bg-white text-gray-800 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 shadow-sm";
     }
 
-    // After feedback is shown
     if (answerFeedback) {
       if (optionIndex === answerFeedback.correctAnswer) {
-        // Correct answer - always green
-        return "bg-green-500 text-white";
+        return "bg-green-500 text-white shadow-lg border border-green-400";
       } else if (optionIndex === selectedAnswer && !answerFeedback.isCorrect) {
-        // User's incorrect selection - red
-        return "bg-red-500 text-white";
+        return "bg-red-500 text-white shadow-lg border border-red-400";
       }
     }
 
-    // Default style for other options
-    return "bg-blue-100 text-blue-600";
+    return "bg-gray-100 text-gray-500 border border-gray-200";
   };
 
-  // Loading state
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  // Quiz complete modal
-  if (isQuizComplete && quizData) {
-    return (
-      <QuizComplete 
-        score={score}
-        totalQuestions={quizData.questions.length}
-        quizTitle={quizData.title}
-        onRetakeQuiz={handleRetakeQuiz}
-        onClose={handleCloseQuiz}
-      />
-    );
-  }
-
-  // Instructions modal
-  if (showInstructions && quizData) {
-    return (
-      <QuizInstructions 
-        topic={quizData.title}
-        onStartQuiz={handleStartQuiz}
-        onClose={handleCloseQuiz}
-      />
-    );
-  }
-
-  // No quiz data
   if (!quizData) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-center">
+      <div className="min-h-screen flex justify-center items-center p-4">
+        <div className="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Quiz not found</h2>
           <button 
             onClick={handleCloseQuiz}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md"
           >
             Go Back
           </button>
@@ -472,24 +431,31 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const isLastQuestion = currentQuestion === quizData.questions.length - 1;
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100 w-full p-4">
-      <div className="bg-white shadow-xl rounded-3xl w-full max-w-3xl overflow-hidden">
-        {/* Header with Score and Question Counter */}
-        <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-          <div className="flex items-center space-x-3">
-            <div className="bg-white text-blue-600 px-4 py-1 rounded-full text-sm font-medium">
-              Score: {score}/{quizData.questions.length}
+    <div className="min-h-screen">
+      {/* Header */}
+      <div className="p-4 sm:p-6">
+        <div className="flex justify-between items-center text-gray-800 mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-blue-200 shadow-sm">
+              <span className="font-semibold">Score: {score}/{quizData.questions.length}</span>
             </div>
-            <span className="font-medium">{currentQuestionData.lesson}</span>
+            <div className="hidden sm:block">
+              <span className="text-lg font-medium text-blue-700">{quizData.title}</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <span className="font-medium">Question {currentQuestion + 1}/{quizData.questions.length}</span>
+          
+          <div className="flex items-center space-x-4">
+            <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-blue-200 shadow-sm">
+              <span className="font-semibold">
+                {currentQuestion + 1}/{quizData.questions.length}
+              </span>
+            </div>
             <button 
               onClick={handleCloseQuiz}
-              className="text-white hover:text-blue-200 transition-colors" 
+              className="bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full transition-colors border border-blue-200 shadow-sm" 
               aria-label="Close quiz"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -497,86 +463,100 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         </div>
         
         {/* Progress Bar */}
-        <div className="w-full h-2 bg-blue-100">
-          <div className="bg-blue-500 h-full transition-all duration-300" style={{ width: `${progressWidth}%` }}></div>
+        <div className="bg-white/50 backdrop-blur-sm rounded-full h-3 border border-blue-200 shadow-sm">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 shadow-sm" 
+            style={{ width: `${progressWidth}%` }}
+          ></div>
         </div>
+      </div>
 
-        {/* Timer Display */}
-        <div className="flex justify-center mt-4">
-          <div className={`font-bold text-2xl ${getTimerColor()}`}>
-            {formatTime(timeLeft)}
+      {/* Main Content */}
+      <div className="px-4 sm:px-6 pb-6">
+        <div className="max-w-4xl mx-auto">
+          {/* Timer - Large and Prominent */}
+          <div className="text-center mb-8">
+            <div className={`font-bold text-6xl sm:text-7xl ${getTimerColor()} drop-shadow-lg`}>
+              {formatTime(timeLeft)}
+            </div>
+            <p className="text-gray-600 text-lg mt-2">Time Remaining</p>
           </div>
-        </div>
 
-        {/* Question Container */}
-        <div className="px-6 py-4">
           {/* Question Image */}
           {currentQuestionData.image && (
-            <div className="w-full flex justify-center mb-4">
-              <div className="w-48 h-48 flex items-center justify-center">
+            <div className="mb-8 flex justify-center">
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-blue-200 shadow-xl">
                 <img 
                   src={currentQuestionData.image} 
                   alt="Question illustration"
-                  className="w-full h-full object-cover rounded-lg"
+                  className="max-w-full max-h-48 object-contain rounded-lg"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const sibling = target.nextSibling as HTMLElement;
-                    if (sibling) sibling.style.display = 'flex';
+                    target.parentElement!.style.display = 'none';
                   }}
                 />
-                <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center text-gray-500" style={{ display: 'none' }}>
-                  Image Placeholder
-                </div>
               </div>
             </div>
           )}
 
-          {/* Question Text */}
-          <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">{currentQuestionData.question}</h2>
+          {/* Question Text - No Container */}
+          <div className="mb-8 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800 leading-relaxed">
+              {currentQuestionData.question}
+            </h2>
+          </div>
 
-          {/* Answer Options */}
-          <div className="grid grid-cols-1 gap-3 mb-6">
+          {/* Answer Options - 2 Rows Layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 max-w-3xl mx-auto">
             {currentQuestionData.options.map((option: string, index: number) => (
               <button
                 key={index}
                 onClick={() => handleAnswerSelect(index)}
-                className={`w-full py-3 px-4 rounded-lg text-base font-medium transition-all duration-200 ${getButtonStyle(index)} ${
-                  showFeedback || timeLeft === 0 ? "cursor-not-allowed" : "cursor-pointer"
+                className={`p-6 rounded-2xl text-left font-medium transition-all duration-300 min-h-[80px] flex items-center ${getButtonStyle(index)} ${
+                  showFeedback || timeLeft === 0 ? "cursor-not-allowed" : "cursor-pointer hover:scale-105 hover:shadow-xl"
                 }`}
                 disabled={showFeedback || timeLeft === 0}
               >
-                {option}
+                <div className="flex items-center w-full">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-current/20 flex items-center justify-center mr-4 text-sm font-bold">
+                    {String.fromCharCode(65 + index)}
+                  </div>
+                  <span className="flex-1">{option}</span>
+                </div>
               </button>
             ))}
           </div>
 
-          {/* Feedback Message */}
+          {/* Feedback */}
           {showFeedback && answerFeedback && (
-            <div className={`text-center mb-4 py-3 px-4 rounded-lg font-medium ${
-              answerFeedback.isCorrect 
-                ? "bg-green-100 text-green-800 border-l-4 border-green-500" 
-                : "bg-red-100 text-red-800 border-l-4 border-red-500"
-            }`}>
-              <div className="mb-2">
-                {answerFeedback.isCorrect 
-                  ? "✅ Correct! Great job!" 
-                  : `❌ ${selectedAnswer !== null ? "Incorrect" : "Time's up!"}. The correct answer is: ${answerFeedback.correctAnswerText}`}
-              </div>
-              {answerFeedback.explanation && (
-                <div className="text-sm opacity-90 mt-2">
-                  {answerFeedback.explanation}
+            <div className="mb-8 max-w-2xl mx-auto">
+              <div className={`text-center py-6 px-6 rounded-2xl font-medium backdrop-blur-md border shadow-xl ${
+                answerFeedback.isCorrect 
+                  ? "bg-green-100/80 text-green-800 border-green-200" 
+                  : "bg-red-100/80 text-red-800 border-red-200"
+              }`}>
+                <div className="text-2xl mb-3">
+                  {answerFeedback.isCorrect 
+                    ? "🎉 Excellent!" 
+                    : `❌ ${selectedAnswer !== null ? "Not quite right" : "Time's up!"}`}
                 </div>
-              )}
+                {!answerFeedback.isCorrect && (
+                  <div className="text-lg">
+                    Correct answer: <strong>{answerFeedback.correctAnswerText}</strong>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Next/Finish Button */}
-          <div className="flex justify-center mt-4 mb-4">
+          {/* Next Button - Moved to right side */}
+          <div className="flex justify-end">
             <button
               onClick={handleNextQuestion}
-              className={`px-6 py-2 text-base font-medium text-white bg-blue-500 rounded-lg transition-all duration-150 ${
-                !showFeedback ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-600'
+              className={`px-8 py-3 text-lg font-bold rounded-xl transition-all duration-300 ${
+                !showFeedback 
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300' 
+                  : 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer shadow-lg hover:scale-105 transform border border-blue-600'
               }`}
               disabled={!showFeedback}
             >
@@ -585,6 +565,25 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           </div>
         </div>
       </div>
+
+      {/* Overlay Modals */}
+      {showInstructions && (
+        <QuizInstructions 
+          topic={quizData.title}
+          onStartQuiz={handleStartQuiz}
+          onClose={handleCloseQuiz}
+        />
+      )}
+
+      {isQuizComplete && (
+        <QuizComplete 
+          score={score}
+          totalQuestions={quizData.questions.length}
+          quizTitle={quizData.title}
+          onRetakeQuiz={handleRetakeQuiz}
+          onClose={handleCloseQuiz}
+        />
+      )}
     </div>
   );
 }

@@ -19,7 +19,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   // Check if current page should render without sidebar
   const isLessonPage = pathname.includes('/lessons/');
   const isQuizStartPage = pathname.includes('/quizStart/');
-  // Add quiz start pages to full page layout
   const isFullPageLayout = isLessonPage || isQuizStartPage;
 
   const handleSignOut = async () => {
@@ -51,7 +50,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     { 
       name: 'Settings', 
       href: '/users/settings', 
-      icon: '/DashboardImage/settings.png',
+      icon: '/DashboardImage/setting.png',
       alt: 'Settings'
     },
   ];
@@ -65,7 +64,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     );
   }
 
-  // Default dashboard layout with responsive sidebar (includes regular quiz page)
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       {/* Decorative fixed blobs */}
@@ -77,24 +75,21 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       </div>
 
       <div className="flex h-screen relative z-10">
-        {/* Sidebar - Responsive width */}
+        {/* Sidebar */}
         <aside
           className="fixed top-0 left-0 z-40 h-full bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 transition-all duration-300 ease-in-out
                      w-16 md:w-72 border-r border-gray-200 dark:border-gray-700"
           aria-label="Sidebar"
         >
           <div className="h-full px-2 md:px-3 py-4 overflow-y-auto flex flex-col">
-            {/* Logo - Enhanced size */}
             <div className="flex justify-center items-center mb-4">
-              {/* Small screen logo - only visible on small screens */}
               <Image
-                src="/DashboardImage/logo-small.png"
+                src="/MainImage/Pibi.png"
                 className="h-10 w-auto md:hidden"
                 alt="Bantay Bayan Logo"
                 width={40}
                 height={40}
               />
-              {/* Large screen logo - enhanced size for medium+ screens */}
               <Image
                 src="/DashboardImage/logo.png"
                 className="hidden md:block h-20 w-auto"
@@ -104,7 +99,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
               />
             </div>
 
-            {/* Navigation Menu */}
             <nav className="flex-1">
               <ul className="space-y-2 md:space-y-4 font-medium">
                 {navigation.map((item) => {
@@ -118,7 +112,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                             ? 'text-gray-900 dark:text-white bg-blue-100 dark:bg-gray-700 border border-blue-300 dark:border-gray-600'
                             : 'text-gray-900 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-700'
                           }`}
-                        title={item.name} // Tooltip for small screens
+                        title={item.name}
                       >
                         <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
                           <Image
@@ -129,12 +123,9 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                             height={24}
                           />
                         </div>
-                        {/* Text only visible on medium screens and up */}
                         <span className="hidden md:block ml-3 text-lg uppercase">
                           {item.name}
                         </span>
-                        
-                        {/* Tooltip for small screens */}
                         <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
                           {item.name}
                         </div>
@@ -143,10 +134,8 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   );
                 })}
                 
-                {/* Divider */}
                 <hr className="border-t-2 border-gray-200 dark:border-gray-700 my-4" />
                 
-                {/* Remember Alert - Positioned above Sign Out like in the image */}
                 {isDropdownVisible && (
                   <li className="hidden md:block mb-4">
                     <div
@@ -193,7 +182,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   </li>
                 )}
                 
-                {/* Sign Out */}
                 <li>
                   <button
                     onClick={handleSignOut}
@@ -202,7 +190,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   >
                     <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
                       <Image
-                        src="/DashboardImage/logout.png"
+                        src="/DashboardImage/sign-out.png"
                         className="w-6 h-6"
                         alt="Logout"
                         width={24}
@@ -212,8 +200,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                     <span className="hidden md:block ml-3 text-lg uppercase">
                       Sign Out
                     </span>
-                    
-                    {/* Tooltip for small screens */}
                     <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
                       Sign Out
                     </div>
@@ -224,31 +210,11 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
           </div>
         </aside>
 
-        {/* Main content - Responsive margin */}
+        {/* Main content */}
         <div className="flex-1 ml-16 md:ml-72 transition-all duration-300 ease-in-out">
           <div className="p-4">
-            {/* Two-column layout */}
-            <div className="flex flex-col lg:flex-row w-full gap-4">
-              {/* Left column - 70% with aligned top spacing */}
-              <div className="w-full lg:w-[70%]">
-                <div className="h-full overflow-hidden">
-                  {children}
-                </div>
-              </div>
-              
-              {/* Right column - 30% */}
-              <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit max-h-screen bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 rounded-lg shadow flex flex-col gap-4 overflow-y-auto">
-                {/* Placeholder content for right column */}
-                <div className="p-4 bg-gray-50/80 dark:bg-gray-700/80 rounded-lg backdrop-blur-sm">
-                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                    Right Column Content
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    This is the right column placeholder. You can add any content here.
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Just render children - no more two-column layout here */}
+            {children}
           </div>
         </div>
       </div>
