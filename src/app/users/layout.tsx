@@ -242,15 +242,15 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
             <div className="p-4">
               {/* Two-column layout */}
               <div className="flex flex-col lg:flex-row w-full gap-4">
-                {/* Left column - 70% with aligned top spacing */}
+                {/* Left column - 70% with no background */}
                 <div className="w-full lg:w-[70%]">
                   <div className="h-full overflow-hidden">
                     {children}
                   </div>
                 </div>
                 
-                {/* Right column - 30% */}
-                <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit max-h-screen bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 rounded-lg shadow flex flex-col gap-4 overflow-y-auto">
+                {/* Right column - 30% with no background */}
+                <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit max-h-screen flex flex-col gap-4 overflow-y-auto">
                   {/* Dynamic content from pages or default placeholder */}
                   {rightColumnContent || (
                     <div className="p-4 bg-gray-50/80 dark:bg-gray-700/80 rounded-lg backdrop-blur-sm">
@@ -267,7 +267,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
             </div>
           </div>
         </div>
-      </div> {/* This was the missing closing div! */}
+      </div>
     </RightColumnContext.Provider>
   );
 }

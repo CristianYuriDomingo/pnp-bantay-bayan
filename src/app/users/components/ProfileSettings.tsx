@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Calendar, Mail, Camera, Edit3, Check, X } from 'lucide-react';
 
 const ProfileSettings = () => {
@@ -14,6 +14,13 @@ const ProfileSettings = () => {
     name: user.name,
     email: user.email
   });
+
+  const [isClient, setIsClient] = useState(false);
+
+  // Fix hydration issue by only rendering dynamic content on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,14 +62,22 @@ const ProfileSettings = () => {
 
   const generateUsername = (name: string, email: string) => {
     const firstName = name.split(' ')[0].toLowerCase();
-    const emailNumbers = email.match(/\d+/g)?.join('') || Math.floor(Math.random() * 100000);
+    // Use a deterministic fallback instead of Math.random()
+    const emailNumbers = email.match(/\d+/g)?.join('') || '123';
     return `${firstName}${emailNumbers}`;
   };
 
   return (
-    <div className="w-full bg-white rounded-3xl overflow-hidden shadow-lg">
+    <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
       {/* Header section */}
-      <div className="bg-gradient-to-b from-blue-400 to-white px-8 py-12 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 px-8 py-16 relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute top-0 left-0 w-full h-full">
+          <div className="absolute top-8 right-16 w-20 h-20 bg-white bg-opacity-10 rounded-full"></div>
+          <div className="absolute bottom-12 left-12 w-16 h-16 bg-white bg-opacity-10 rounded-full"></div>
+          <div className="absolute top-20 left-1/4 w-8 h-8 bg-white bg-opacity-20 rounded-full"></div>
+        </div>
+
         {/* Edit Controls */}
         {!isEditing ? (
           <button
@@ -91,7 +106,7 @@ const ProfileSettings = () => {
         {/* Profile Avatar */}
         <div className="flex justify-center relative z-10">
           <div className="relative group">
-            <div className="w-28 h-28 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-yellow-500 p-1 shadow-2xl">
+            <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-orange-500 p-1 shadow-2xl">
               <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
                 <img
                   src={user.profileImage}
@@ -100,7 +115,7 @@ const ProfileSettings = () => {
                 />
               </div>
             </div>
-            <label className="absolute -bottom-2 -right-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full p-3 cursor-pointer shadow-xl transform transition-all duration-300 hover:scale-110 border-2 border-white">
+            <label className="absolute -bottom-2 -right-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full p-3 cursor-pointer shadow-xl transform transition-all duration-300 hover:scale-110 border-3 border-white">
               <Camera size={16} className="text-white" />
               <input
                 type="file"
@@ -116,7 +131,7 @@ const ProfileSettings = () => {
       {/* Profile Details */}
       <div className="px-8 py-8 bg-white">
         {/* Main Name */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-8">
           {isEditing ? (
             <input
               type="text"
@@ -129,23 +144,23 @@ const ProfileSettings = () => {
             <h1 className="text-3xl font-bold text-gray-800 mb-2">{user.name}</h1>
           )}
           
-          {!isEditing && (
-            <p className="text-lg text-blue-600 font-medium">@{generateUsername(user.name, user.email)}</p>
+          {!isEditing && isClient && (
+            <p className="text-lg text-blue-500 font-medium">@{generateUsername(user.name, user.email)}</p>
           )}
         </div>
 
         {/* Contact Information */}
-        <div className="flex justify-between items-start gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Email Section */}
-          <div className="flex-1 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Email Address</p>
-            <p className="text-sm font-medium text-gray-800 border-b-2 border-blue-300 pb-2 inline-block">{user.email}</p>
+          <div className="text-center p-4 bg-gray-50 rounded-2xl">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Email Address</p>
+            <p className="text-sm font-medium text-gray-800">{user.email}</p>
           </div>
 
           {/* Join Date Section */}
-          <div className="flex-1 text-center">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Member Since</p>
-            <p className="text-sm font-medium text-gray-800 border-b-2 border-blue-300 pb-2 inline-block">{formatDate(user.joinDate)}</p>
+          <div className="text-center p-4 bg-gray-50 rounded-2xl">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Member Since</p>
+            <p className="text-sm font-medium text-gray-800">{formatDate(user.joinDate)}</p>
           </div>
         </div>
       </div>
