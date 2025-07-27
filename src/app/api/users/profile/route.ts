@@ -1,104 +1,103 @@
-// app/api/users/profile/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth'; // Adjust path to your auth config
+// app/api/users/profile/route.ts - Using your middleware
+import { NextRequest } from 'next/server';
+import { withApiAuth } from '@/middleware/auth-middleware';
+import { createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { Session } from 'next-auth';
 
-// GET - Fetch user profile
-export async function GET(request: NextRequest) {
+// GET handler function
+async function getProfileHandler(request: NextRequest, user: Session['user']) {
+  console.log('📋 GET Profile handler called for user:', user.email);
+  
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    // Find user by email since that's what we have from session
+    const profile = await prisma.user.findUnique({
+      where: { email: user.email! },
       select: {
         id: true,
         name: true,
         email: true,
         image: true,
-        createdAt: true,
         role: true,
-        status: true
+        status: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+    console.log('📊 Profile data fetched:', profile ? 'Found' : 'Not found');
+
+    if (!profile) {
+      console.log('❌ Profile not found for email:', user.email);
+      return createAuthErrorResponse('Profile not found', 404);
     }
 
-    return NextResponse.json({ user }, { status: 200 });
+    console.log('✅ Returning profile data');
+    return createSuccessResponse(profile, 'Profile fetched successfully');
 
-  } catch (error) {
-    console.error('Profile fetch error:', error);
-    return NextResponse.json(
-      { message: 'Something went wrong' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error('💥 Profile fetch error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return createAuthErrorResponse(`Failed to fetch profile: ${errorMessage}`, 500);
   }
 }
 
-// PUT - Update user profile
-export async function PUT(request: NextRequest) {
+// PUT handler function
+async function putProfileHandler(request: NextRequest, user: Session['user']) {
+  console.log('🔄 PUT Profile handler called for user:', user.email);
+  
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
+    const body = await request.json();
+    const { name, image } = body;
+
+    console.log('📝 Update data received:', { name, hasImage: !!image });
+
+    // Validate required fields
+    if (!name || !name.trim()) {
+      return createAuthErrorResponse('Name is required', 400);
     }
 
-    const { name, image } = await request.json();
+    const updateData: any = {
+      name: name.trim(),
+      updatedAt: new Date()
+    };
 
-    // Validate input
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json(
-        { message: 'Name is required' },
-        { status: 400 }
-      );
+    // Only update image if provided
+    if (image) {
+      updateData.image = image;
     }
 
+    // Update user by email
     const updatedUser = await prisma.user.update({
-      where: { email: session.user.email },
-      data: {
-        name: name.trim(),
-        ...(image && { image })
-      },
+      where: { email: user.email! },
+      data: updateData,
       select: {
         id: true,
         name: true,
         email: true,
         image: true,
-        createdAt: true,
         role: true,
-        status: true
+        status: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
 
-    return NextResponse.json(
-      { 
-        message: 'Profile updated successfully',
-        user: updatedUser 
-      },
-      { status: 200 }
-    );
+    console.log('✅ Profile updated successfully');
+    return createSuccessResponse(updatedUser, 'Profile updated successfully');
 
-  } catch (error) {
-    console.error('Profile update error:', error);
-    return NextResponse.json(
-      { message: 'Something went wrong' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    console.error('💥 Profile update error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return createAuthErrorResponse(`Failed to update profile: ${errorMessage}`, 500);
   }
+}
+
+// Export the route handlers with middleware
+export async function GET(request: NextRequest) {
+  return withApiAuth(getProfileHandler, request);
+}
+
+export async function PUT(request: NextRequest) {
+  return withApiAuth(putProfileHandler, request);
 }

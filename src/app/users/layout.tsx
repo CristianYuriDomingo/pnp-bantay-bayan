@@ -2,10 +2,12 @@
 'use client';
 
 import { ReactNode, useState, createContext, useContext } from 'react';
-import { useSession, signOut } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useCurrentUser } from '@/hooks/use-current-user'; // ✅ NEW: Using user context
+import { Loader2 } from 'lucide-react';
 
 interface UsersLayoutProps {
   children: ReactNode;
@@ -23,7 +25,8 @@ const RightColumnContext = createContext<{
 export const useRightColumn = () => useContext(RightColumnContext);
 
 export default function UsersLayout({ children }: UsersLayoutProps) {
-  const { data: session } = useSession();
+  // ✅ NEW: Using the user context system
+  const { user, isLoading } = useCurrentUser();
   const pathname = usePathname();
   const [isDropdownVisible, setDropdownVisible] = useState(true);
   const [rightColumnContent, setRightColumnContent] = useState<ReactNode | null>(null);
@@ -67,6 +70,36 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       alt: 'Settings'
     },
   ];
+
+  // ✅ NEW: Show loading state while user context loads
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ NEW: Redirect to sign in if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h1>
+          <p className="text-gray-600 mb-6">Please sign in to access this area.</p>
+          <Link 
+            href="/auth/signin"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // If it's a lesson page or quiz start page, render without sidebar
   if (isFullPageLayout) {

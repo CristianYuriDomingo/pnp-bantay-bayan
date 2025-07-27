@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { User, Calendar, Mail, Camera, Edit3, Check, X, Loader2 } from 'lucide-react';
 
 interface UserProfile {
@@ -15,7 +15,8 @@ interface UserProfile {
 }
 
 const ProfileSettings = () => {
-  const { data: session, status } = useSession();
+  const { user: contextUser, isLoading: contextLoading, isAuthenticated } = useCurrentUser();
+  
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -29,39 +30,73 @@ const ProfileSettings = () => {
   // Fetch user profile data
   useEffect(() => {
     const fetchProfile = async () => {
-      if (status === 'loading') return;
+      // Wait for context to load
+      if (contextLoading) {
+        return;
+      }
       
-      if (!session) {
+      // If not authenticated, set loading to false and return
+      if (!isAuthenticated || !contextUser) {
         setIsLoading(false);
         return;
       }
 
       try {
-        // ✅ FIXED: Changed from '/api/profile' to '/api/users/profile'
-        const response = await fetch('/api/users/profile');
+        const response = await fetch('/api/users/profile', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+        
         if (response.ok) {
           const data = await response.json();
-          setUser(data.user);
+          const profileData = data.data;
+          
+          setUser(profileData);
           setEditForm({
-            name: data.user.name,
-            image: data.user.image || ''
+            name: profileData.name || '',
+            image: profileData.image || ''
           });
+          setError('');
         } else {
-          setError('Failed to load profile');
+          const errorData = await response.json();
+          
+          if (response.status === 401) {
+            setError('Session expired. Please sign in again.');
+          } else if (response.status === 404) {
+            setError('Profile not found. Please contact support.');
+          } else if (response.status >= 500) {
+            setError('Server error. Please try again later.');
+          } else {
+            setError(errorData.error || errorData.message || `Request failed with status ${response.status}`);
+          }
         }
       } catch (err) {
-        setError('Something went wrong');
+        console.error('Profile fetch error:', err);
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+          setError('Network error. Please check your connection and try again.');
+        } else {
+          setError(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchProfile();
-  }, [session, status]);
+  }, [contextUser, contextLoading, isAuthenticated]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image size should be less than 5MB');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const result = e.target?.result;
@@ -83,28 +118,35 @@ const ProfileSettings = () => {
     setError('');
 
     try {
-      // ✅ FIXED: Changed from '/api/profile' to '/api/users/profile'
       const response = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           name: editForm.name.trim(),
           image: editForm.image
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
+        const updatedUser = data.data;
+        setUser(updatedUser);
         setIsEditing(false);
+        setError('');
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Failed to update profile');
+        if (response.status === 401) {
+          setError('Session expired. Please sign in again.');
+        } else {
+          setError(data.error || data.message || 'Failed to update profile');
+        }
       }
     } catch (err) {
-      setError('Something went wrong');
+      console.error('Profile update error:', err);
+      setError('Network error. Please check your connection.');
     } finally {
       setIsSaving(false);
     }
@@ -146,23 +188,46 @@ const ProfileSettings = () => {
     return 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face';
   };
 
-  // Loading state
-  if (isLoading) {
+  // Show loading state while context or profile loads
+  if (contextLoading || isLoading) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-600">Loading your profile...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   // Not authenticated
-  if (!session || !user) {
+  if (!isAuthenticated || !contextUser) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
         <div className="text-center">
-          <p className="text-gray-600">Please sign in to view your profile.</p>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-4">Please sign in to view your profile.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile not loaded (API error)
+  if (!user) {
+    return (
+      <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Profile Unavailable</h2>
+          <p className="text-gray-600 mb-4">{error || 'Unable to load profile data.'}</p>
+          
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mt-4"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -219,6 +284,10 @@ const ProfileSettings = () => {
                   src={getProfileImage()}
                   alt="Profile Avatar"
                   className="w-full h-full object-cover rounded-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face';
+                  }}
                 />
               </div>
             </div>
