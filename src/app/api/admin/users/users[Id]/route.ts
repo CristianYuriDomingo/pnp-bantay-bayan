@@ -1,4 +1,4 @@
-// FILE 2: app/api/admin/users/[userId]/route.ts
+//app/api/admin/users/[userId]/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -33,8 +33,7 @@ export async function PATCH(
     }
     
     if (status) {
-      // Map status to emailVerified (assuming active = verified)
-      updateData.emailVerified = status === 'active' ? new Date() : null
+      updateData.status = status
     }
 
     const updatedUser = await prisma.user.update({
@@ -45,7 +44,7 @@ export async function PATCH(
     return NextResponse.json({
       id: updatedUser.id,
       role: updatedUser.role,
-      status: updatedUser.emailVerified ? 'active' : 'inactive'
+      status: updatedUser.status
     })
   } catch (error) {
     console.error('Error updating user:', error)

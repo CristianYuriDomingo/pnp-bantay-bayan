@@ -1,4 +1,4 @@
-// FILE 1: app/api/admin/users/route.ts
+ //app/api/admin/users/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -20,13 +20,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // Fetch all users with additional data for admin dashboard
+    // Fetch all users with progress data
     const users = await prisma.user.findMany({
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
+        status: true,
         createdAt: true,
         updatedAt: true,
         emailVerified: true,
@@ -40,10 +41,10 @@ export async function GET() {
             expires: true
           }
         },
-        accounts: {
+        progress: {
           select: {
-            provider: true,
-            createdAt: true
+            completed: true,
+            progress: true
           }
         }
       },
@@ -52,18 +53,24 @@ export async function GET() {
       }
     })
 
-    // Transform data to match your frontend interface
-    const transformedUsers = users.map(user => ({
-      id: user.id,
-      name: user.name || 'No Name',
-      email: user.email,
-      role: user.role as 'admin' | 'user',
-      status: user.emailVerified ? 'active' : 'inactive' as 'active' | 'inactive',
-      createdAt: user.createdAt.toISOString(),
-      lastLogin: user.sessions[0]?.expires ? new Date(user.sessions[0].expires).toISOString() : undefined,
-      completedLessons: 0, // You'll need to implement this based on your lesson completion tracking
-      totalScore: 0 // You'll need to implement this based on your scoring system
-    }))
+    // Transform data to match frontend interface
+    const transformedUsers = users.map(user => {
+      const completedLessons = user.progress.filter(p => p.completed).length
+      const totalProgress = user.progress.reduce((sum, p) => sum + p.progress, 0)
+      const avgProgress = user.progress.length > 0 ? totalProgress / user.progress.length : 0
+
+      return {
+        id: user.id,
+        name: user.name || 'No Name',
+        email: user.email,
+        role: user.role as 'admin' | 'user',
+        status: user.status as 'active' | 'inactive',
+        createdAt: user.createdAt.toISOString(),
+        lastLogin: user.sessions[0]?.expires ? new Date(user.sessions[0].expires).toISOString() : undefined,
+        completedLessons,
+        totalScore: Math.round(avgProgress)
+      }
+    })
 
     return NextResponse.json(transformedUsers)
   } catch (error) {
