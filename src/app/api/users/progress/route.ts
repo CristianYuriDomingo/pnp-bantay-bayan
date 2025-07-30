@@ -1,119 +1,122 @@
-// app/api/users/progress/route.ts - FIXED
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+// app/api/users/progress/route.ts - Get ONLY current user's overall progress
+import { NextRequest } from 'next/server'
+import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
+import { prisma } from '@/lib/prisma'
 
-// GET /api/users/progress - Get user's overall progress
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getApiUser(request)
     
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createAuthErrorResponse('Authentication required', 401)
     }
 
-    // Get all user progress with module and lesson details
-    // FIXED: Changed from user_progress to userProgress (Prisma client uses model name)
+    console.log(`📊 Fetching progress for user: ${user.email} (ID: ${user.id})`)
+
+    // Get ONLY this user's progress - no one else's
     const userProgress = await prisma.userProgress.findMany({
-      where: { userId: user.id },
+      where: {
+        userId: user.id, // 🔒 CRITICAL: Only this user's data
+      },
       include: {
         module: {
           select: {
             id: true,
             title: true,
             image: true,
-            lessons: {
-              select: {
-                id: true,
-                title: true
-              }
-            }
           }
         },
         lesson: {
           select: {
             id: true,
-            title: true
+            title: true,
+            description: true,
           }
         }
       }
-    });
+    })
 
-    // Group progress by modules
-    const moduleProgress: { [key: string]: any } = {};
-    const lessonProgress: { [key: string]: any } = {};
-
-    // Process user progress data
-    userProgress.forEach((progress: any) => {
-      // Module progress
-      if (!moduleProgress[progress.moduleId]) {
-        moduleProgress[progress.moduleId] = {
-          id: progress.moduleId,
-          title: progress.module.title,
-          image: progress.module.image,
-          completedLessons: [],
-          totalLessons: progress.module.lessons.length,
-          percentage: 0,
-          completedAt: null
-        };
+    // Get all available modules to calculate progress against
+    const modules = await prisma.module.findMany({
+      include: {
+        lessons: {
+          select: {
+            id: true,
+            title: true,
+          }
+        }
       }
+    })
 
-      // Lesson progress
-      if (progress.lessonId) {
+    // Structure the progress data - ONLY for this user
+    const moduleProgress: { [key: string]: any } = {}
+    const lessonProgress: { [key: string]: any } = {}
+
+    // Initialize module progress for this user
+    modules.forEach(module => {
+      // Filter to only this user's progress for this module
+      const moduleUserProgress = userProgress.filter(p => 
+        p.moduleId === module.id && p.userId === user.id // 🔒 Double-check user isolation
+      )
+      
+      const completedLessons = moduleUserProgress.filter(p => p.lessonId && p.completed)
+      
+      moduleProgress[module.id] = {
+        moduleId: module.id,
+        title: module.title,
+        image: module.image,
+        completedLessons: completedLessons.map(p => p.lessonId),
+        totalLessons: module.lessons.length,
+        percentage: module.lessons.length > 0 
+          ? Math.round((completedLessons.length / module.lessons.length) * 100)
+          : 0,
+        completedAt: completedLessons.length === module.lessons.length 
+          ? completedLessons.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]?.updatedAt
+          : null,
+        userId: user.id // 🔒 Include user ID for verification
+      }
+    })
+
+    // Structure lesson progress - ONLY for this user
+    userProgress.forEach(progress => {
+      if (progress.lessonId && progress.userId === user.id) { // 🔒 Verify user ownership
         lessonProgress[progress.lessonId] = {
-          id: progress.lessonId,
+          lessonId: progress.lessonId,
+          moduleId: progress.moduleId,
           completed: progress.completed,
           completedAt: progress.updatedAt,
-          timeSpent: progress.timeSpent,
-          moduleId: progress.moduleId
-        };
-
-        if (progress.completed) {
-          moduleProgress[progress.moduleId].completedLessons.push(progress.lessonId);
+          timeSpent: progress.timeSpent || 0,
+          progress: progress.progress,
+          userId: user.id // 🔒 Include user ID for verification
         }
       }
-    });
+    })
 
-    // Calculate module completion percentages
-    Object.keys(moduleProgress).forEach(moduleId => {
-      const module = moduleProgress[moduleId];
-      module.percentage = module.totalLessons > 0 
-        ? Math.round((module.completedLessons.length / module.totalLessons) * 100)
-        : 0;
-        
-      // Set completion date if module is 100% complete
-      if (module.percentage === 100) {
-        const completedLessonProgresses = userProgress
-          .filter((p: any) => p.moduleId === moduleId && p.lessonId && p.completed)
-          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime());
-          
-        if (completedLessonProgresses.length > 0) {
-          module.completedAt = completedLessonProgresses[0].updatedAt;
-        }
-      }
-    });
+    // Calculate overall statistics - ONLY for this user
+    const totalModules = modules.length
+    const completedModules = Object.values(moduleProgress).filter((mp: any) => mp.percentage === 100).length
+    const overallProgress = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0
 
-    return NextResponse.json({
+    const progressData = {
+      userId: user.id, // 🔒 Include user ID in response
+      userEmail: user.email, // 🔒 Include email for verification
       moduleProgress,
       lessonProgress,
-      overallStats: {
-        totalModules: Object.keys(moduleProgress).length,
-        completedModules: Object.values(moduleProgress).filter((m: any) => m.percentage === 100).length,
-        totalLessons: Object.keys(lessonProgress).length,
-        completedLessons: Object.values(lessonProgress).filter((l: any) => l.completed).length
+      statistics: {
+        totalModules,
+        completedModules,
+        overallProgress,
+        totalLessons: modules.reduce((sum, module) => sum + module.lessons.length, 0),
+        completedLessons: Object.values(lessonProgress).filter((lp: any) => lp.completed).length
       }
-    });
+    }
+
+    console.log(`✅ Progress retrieved for user ${user.email}: ${completedModules}/${totalModules} modules completed`)
+
+    return createSuccessResponse(progressData, `Progress retrieved successfully for ${user.email}`)
+
   } catch (error) {
-    console.error('Error fetching user progress:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching user progress:', error)
+    return createAuthErrorResponse('Failed to fetch progress', 500)
   }
 }

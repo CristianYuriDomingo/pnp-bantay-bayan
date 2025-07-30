@@ -146,6 +146,7 @@ export default function LessonPage() {
       continueButtonText="Continue"
       backButtonText="Previous"
       moduleId={lesson.moduleId}
+      lessonId={lessonId} // FIXED: Added the missing lessonId prop
       speechBubbleMessages={[lesson.bubbleSpeech || lesson.title]}
       moduleTitle={lesson.title}
       moduleDescription={lesson.description}

@@ -1,33 +1,24 @@
+// app/api/users/progress/module/[moduleId]/route.ts - User-specific module progress
+import { NextRequest } from 'next/server'
+import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
+import { prisma } from '@/lib/prisma'
 
-// app/api/users/progress/module/[moduleId]/route.ts - FIXED
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
-
-// GET /api/users/progress/module/[moduleId] - Get specific module progress
 export async function GET(
   request: NextRequest,
   { params }: { params: { moduleId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const user = await getApiUser(request)
     
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
-    });
-
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createAuthErrorResponse('Authentication required', 401)
     }
 
-    const { moduleId } = params;
+    const { moduleId } = params
 
-    // Get module with lessons
+    console.log(`📚 User ${user.email} requesting progress for module ${moduleId}`)
+
+    // Get module with its lessons
     const module = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
@@ -35,79 +26,67 @@ export async function GET(
           select: {
             id: true,
             title: true,
-            description: true,
-            timer: true
-          },
-          orderBy: {
-            createdAt: 'asc'
+            description: true
           }
         }
       }
-    });
+    })
 
     if (!module) {
-      return NextResponse.json({ error: 'Module not found' }, { status: 404 });
+      return createAuthErrorResponse('Module not found', 404)
     }
 
-    // FIXED: Changed from user_progress to userProgress (matching Prisma client)
-    // Get user progress for this module
-    const userProgress = await prisma.userProgress.findMany({
+    // Get user progress for this module - ONLY for this user
+    const moduleProgress = await prisma.userProgress.findMany({
       where: {
-        userId: user.id,
+        userId: user.id, // 🔒 CRITICAL: Only this user's progress
         moduleId: moduleId
       }
-    });
+    })
 
-    // Separate module and lesson progress
-    const moduleProgress = userProgress.find((p: any) => p.lessonId === null);
-    const lessonProgresses = userProgress.filter((p: any) => p.lessonId !== null);
+    // Separate lesson progress and module progress
+    const lessonProgress = moduleProgress.filter(p => p.lessonId !== null)
+    const overallModuleProgress = moduleProgress.find(p => p.lessonId === null)
 
-    // Create lesson progress map
-    const lessonProgressMap: { [key: string]: any } = {};
-    lessonProgresses.forEach((progress: any) => {
-      if (progress.lessonId) {
-        lessonProgressMap[progress.lessonId] = {
-          completed: progress.completed,
-          completedAt: progress.updatedAt,
-          timeSpent: progress.timeSpent,
-          progress: progress.progress
-        };
-      }
-    });
+    // Calculate progress statistics
+    const completedLessons = lessonProgress.filter(p => p.completed)
+    const progressPercentage = module.lessons.length > 0 
+      ? Math.round((completedLessons.length / module.lessons.length) * 100)
+      : 0
 
-    const completedLessons = lessonProgresses.filter((p: any) => p.completed).length;
-    const totalLessons = module.lessons.length;
-    const completionPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    console.log(`📈 User ${user.email} module ${moduleId} progress: ${completedLessons.length}/${module.lessons.length} lessons (${progressPercentage}%)`)
 
-    return NextResponse.json({
-      module: {
-        id: module.id,
-        title: module.title,
-        image: module.image,
-        totalLessons,
-        completedLessons,
-        completionPercentage,
-        isCompleted: completionPercentage === 100,
-        completedAt: moduleProgress?.completed ? moduleProgress.updatedAt : null
-      },
-      lessons: module.lessons.map(lesson => ({
-        ...lesson,
-        progress: lessonProgressMap[lesson.id] || {
-          completed: false,
-          completedAt: null,
-          timeSpent: 0,
-          progress: 0
+    const result = {
+      moduleId: moduleId,
+      title: module.title,
+      image: module.image,
+      totalLessons: module.lessons.length,
+      completedLessons: completedLessons.length,
+      percentage: progressPercentage,
+      completed: progressPercentage === 100,
+      completedAt: progressPercentage === 100 
+        ? completedLessons.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]?.updatedAt
+        : null,
+      userId: user.id, // 🔒 Include user ID for verification
+      userEmail: user.email, // 🔒 For verification
+      lessons: module.lessons.map(lesson => {
+        const lessonProg = lessonProgress.find(p => p.lessonId === lesson.id)
+        return {
+          id: lesson.id,
+          title: lesson.title,
+          description: lesson.description,
+          completed: lessonProg?.completed || false,
+          progress: lessonProg?.progress || 0,
+          timeSpent: lessonProg?.timeSpent || 0,
+          completedAt: lessonProg?.updatedAt || null
         }
-      })),
-      overallProgress: moduleProgress || {
-        completed: false,
-        progress: completionPercentage,
-        updatedAt: null
-      }
-    });
+      })
+    }
+
+    return createSuccessResponse(result, `Module progress retrieved successfully for ${user.email}`)
 
   } catch (error) {
-    console.error('Error fetching module progress:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error fetching module progress:', error)
+    return createAuthErrorResponse('Failed to fetch module progress', 500)
   }
 }
