@@ -26,14 +26,32 @@ export async function PATCH(
     const body = await request.json()
     const { role, status } = body
 
+    // Validate the data
+    if (role && !['admin', 'user'].includes(role)) {
+      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+    }
+
+    if (status && !['active', 'inactive'].includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+
     const updateData: any = {}
     
-    if (role) {
+    if (role !== undefined) {
       updateData.role = role
     }
     
-    if (status) {
+    if (status !== undefined) {
       updateData.status = status
+    }
+
+    // Check if user exists
+    const userExists = await prisma.user.findUnique({
+      where: { id: params.userId }
+    })
+
+    if (!userExists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const updatedUser = await prisma.user.update({
@@ -42,9 +60,14 @@ export async function PATCH(
     })
 
     return NextResponse.json({
-      id: updatedUser.id,
-      role: updatedUser.role,
-      status: updatedUser.status
+      success: true,
+      data: {
+        id: updatedUser.id,
+        role: updatedUser.role,
+        status: updatedUser.status,
+        name: updatedUser.name,
+        email: updatedUser.email
+      }
     })
   } catch (error) {
     console.error('Error updating user:', error)
@@ -82,11 +105,24 @@ export async function DELETE(
       )
     }
 
+    // Check if user exists
+    const userExists = await prisma.user.findUnique({
+      where: { id: params.userId }
+    })
+
+    if (!userExists) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Delete the user directly (no sessions to worry about)
     await prisma.user.delete({
       where: { id: params.userId }
     })
 
-    return NextResponse.json({ message: 'User deleted successfully' })
+    return NextResponse.json({ 
+      success: true,
+      message: 'User deleted successfully' 
+    })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json(

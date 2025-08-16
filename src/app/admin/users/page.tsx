@@ -11,7 +11,6 @@ interface User {
   role: 'admin' | 'user';
   status: 'active' | 'inactive';
   createdAt: string;
-  lastLogin?: string;
   completedLessons: number;
   totalScore: number;
 }
@@ -25,6 +24,7 @@ export default function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -43,15 +43,19 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
+      setError(null);
       const response = await fetch('/api/admin/users');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        console.error('Failed to fetch users');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch users');
       }
+      
+      const data = await response.json();
+      setUsers(data);
     } catch (error) {
       console.error('Error fetching users:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch users');
     } finally {
       setLoading(false);
     }
@@ -60,10 +64,13 @@ export default function UserManagement() {
   const handleEditUser = (user: User) => {
     setEditingUser(user);
     setShowEditModal(true);
+    setError(null);
   };
 
   const handleUpdateUser = async (userId: string, updates: Partial<User>) => {
     setUpdating(true);
+    setError(null);
+    
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
@@ -73,7 +80,13 @@ export default function UserManagement() {
         body: JSON.stringify(updates),
       });
 
-      if (response.ok) {
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to update user');
+      }
+
+      if (responseData.success) {
         // Update local state
         setUsers(users.map(user => 
           user.id === userId ? { ...user, ...updates } : user
@@ -81,30 +94,40 @@ export default function UserManagement() {
         setShowEditModal(false);
         setEditingUser(null);
       } else {
-        console.error('Failed to update user');
+        throw new Error(responseData.error || 'Update failed');
       }
     } catch (error) {
       console.error('Error updating user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update user');
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
 
+    setError(null);
+    
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
       });
 
-      if (response.ok) {
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to delete user');
+      }
+
+      if (responseData.success) {
         setUsers(users.filter(user => user.id !== userId));
       } else {
-        console.error('Failed to delete user');
+        throw new Error(responseData.error || 'Delete failed');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
+      setError(error instanceof Error ? error.message : 'Failed to delete user');
     }
   };
 
@@ -136,6 +159,21 @@ export default function UserManagement() {
           Total Users: {users.length}
         </div>
       </div>
+      
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span>{error}</span>
+            <button 
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Search & Filters */}
       <div className="flex gap-4 flex-wrap bg-white p-4 rounded-lg shadow">
@@ -202,9 +240,7 @@ export default function UserManagement() {
                 <th className="text-left p-4 font-medium text-gray-900">Email</th>
                 <th className="text-left p-4 font-medium text-gray-900">Role</th>
                 <th className="text-left p-4 font-medium text-gray-900">Status</th>
-                <th className="text-left p-4 font-medium text-gray-900">Progress</th>
                 <th className="text-left p-4 font-medium text-gray-900">Join Date</th>
-                <th className="text-left p-4 font-medium text-gray-900">Last Active</th>
                 <th className="text-left p-4 font-medium text-gray-900">Actions</th>
               </tr>
             </thead>
@@ -241,23 +277,15 @@ export default function UserManagement() {
                       {user.status}
                     </span>
                   </td>
-                  <td className="p-4">
-                    <div className="text-sm">
-                      <div className="text-gray-900">{user.completedLessons} lessons</div>
-                      <div className="text-gray-500">{user.totalScore}% avg</div>
-                    </div>
-                  </td>
                   <td className="p-4 text-gray-600">
                     {new Date(user.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="p-4 text-gray-600">
-                    {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
                       <button 
                         onClick={() => handleEditUser(user)}
                         className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        disabled={updating}
                       >
                         Edit
                       </button>
@@ -265,6 +293,7 @@ export default function UserManagement() {
                         <button 
                           onClick={() => handleDeleteUser(user.id)}
                           className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          disabled={updating}
                         >
                           Delete
                         </button>
@@ -289,6 +318,13 @@ export default function UserManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-xl font-bold mb-4">Edit User</h2>
+            
+            {error && (
+              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -301,6 +337,7 @@ export default function UserManagement() {
                     role: e.target.value as 'admin' | 'user'
                   })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={updating}
                 >
                   <option value="user">User</option>
                   <option value="admin">Admin</option>
@@ -317,6 +354,7 @@ export default function UserManagement() {
                     status: e.target.value as 'active' | 'inactive'
                   })}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={updating}
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -328,6 +366,7 @@ export default function UserManagement() {
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingUser(null);
+                  setError(null);
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 disabled={updating}

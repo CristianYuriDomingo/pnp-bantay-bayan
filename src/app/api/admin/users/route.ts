@@ -1,4 +1,4 @@
- //app/api/admin/users/route.ts
+//app/api/admin/users/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -20,7 +20,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 
-    // Fetch all users with progress data
+    // Fetch all users (simple approach without sessions)
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -32,21 +32,6 @@ export async function GET() {
         updatedAt: true,
         emailVerified: true,
         image: true,
-        sessions: {
-          orderBy: {
-            expires: 'desc'
-          },
-          take: 1,
-          select: {
-            expires: true
-          }
-        },
-        progress: {
-          select: {
-            completed: true,
-            progress: true
-          }
-        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -55,20 +40,15 @@ export async function GET() {
 
     // Transform data to match frontend interface
     const transformedUsers = users.map(user => {
-      const completedLessons = user.progress.filter(p => p.completed).length
-      const totalProgress = user.progress.reduce((sum, p) => sum + p.progress, 0)
-      const avgProgress = user.progress.length > 0 ? totalProgress / user.progress.length : 0
-
       return {
         id: user.id,
         name: user.name || 'No Name',
         email: user.email,
         role: user.role as 'admin' | 'user',
-        status: user.status as 'active' | 'inactive',
+        status: (user.status || 'active') as 'active' | 'inactive',
         createdAt: user.createdAt.toISOString(),
-        lastLogin: user.sessions[0]?.expires ? new Date(user.sessions[0].expires).toISOString() : undefined,
-        completedLessons,
-        totalScore: Math.round(avgProgress)
+        completedLessons: 0, // Removed progress tracking
+        totalScore: 0 // Removed progress tracking
       }
     })
 
