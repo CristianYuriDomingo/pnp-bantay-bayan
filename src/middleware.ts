@@ -1,9 +1,15 @@
-// middleware.ts
+// middleware.ts (ROOT OF PROJECT)
+
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
 
 export default withAuth(
   function middleware(req) {
+    // Skip API routes - let them handle their own auth
+    if (req.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.next()
+    }
+
     // Redirect admin users trying to access user dashboard
     if (
       req.nextUrl.pathname.startsWith("/users/dashboard") &&
@@ -28,5 +34,9 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ["/users/dashboard/:path*", "/admin/:path*"],
+  matcher: [
+    // Only protect these specific routes - DO NOT use catch-all patterns
+    "/users/dashboard/:path*", 
+    "/admin/:path*",
+  ],
 }

@@ -1,4 +1,4 @@
-// lib/auth.ts - Fixed Configuration
+// lib/auth.ts - Complete Fixed Configuration
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
@@ -119,10 +119,25 @@ export const authOptions: NextAuthOptions = {
     },
     
     async redirect({ url, baseUrl }) {
-      // Always redirect to dashboard after successful sign in
-      if (url.startsWith('/')) return `${baseUrl}${url}`
-      if (new URL(url).origin === baseUrl) return url
-      return `${baseUrl}/dashboard`
+      // FIXED: Handle redirect loops properly
+      
+      // If user is on signin page, redirect to dashboard after successful auth
+      if (url.startsWith('/auth/signin')) {
+        return `${baseUrl}/users/dashboard`
+      }
+      
+      // Allow relative callback URLs
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+      
+      // Allow callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) {
+        return url
+      }
+      
+      // Default redirect after sign in
+      return `${baseUrl}/users/dashboard`
     }
   },
   

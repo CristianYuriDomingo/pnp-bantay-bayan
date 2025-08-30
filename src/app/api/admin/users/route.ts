@@ -1,26 +1,55 @@
-//app/api/admin/users/route.ts
+// src/app/api/admin/users/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+interface User {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  status: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  emailVerified: Date | null;
+  image: string | null;
+}
+
 export async function GET() {
+  console.log('📋 GET /api/admin/users called');
+  
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const session = await getServerSession(authOptions);
+    console.log('GET Users - Session found:', !!session);
+    
+    if (!session || !session.user) {
+      console.log('GET Users - No valid session');
+      return NextResponse.json({ 
+        success: false,
+        error: 'Not authenticated',
+        data: null
+      }, { status: 401 });
     }
+
+    console.log('GET Users - User ID from session:', session.user.id);
 
     // Check if user is admin
     const currentUser = await prisma.user.findUnique({
-      where: { email: session.user?.email! }
-    })
+      where: { id: session.user.id }
+    });
+
+    console.log('GET Users - Current user role:', currentUser?.role);
 
     if (currentUser?.role !== 'admin') {
-      return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
+      return NextResponse.json({ 
+        success: false,
+        error: 'Not authorized - admin role required',
+        data: null
+      }, { status: 403 });
     }
 
-    // Fetch all users (simple approach without sessions)
+    // Fetch all users
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -36,28 +65,37 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc'
       }
-    })
+    });
+
+    console.log(`GET Users - Found ${users.length} users`);
 
     // Transform data to match frontend interface
-    const transformedUsers = users.map(user => {
-      return {
-        id: user.id,
-        name: user.name || 'No Name',
-        email: user.email,
-        role: user.role as 'admin' | 'user',
-        status: (user.status || 'active') as 'active' | 'inactive',
-        createdAt: user.createdAt.toISOString(),
-        completedLessons: 0, // Removed progress tracking
-        totalScore: 0 // Removed progress tracking
-      }
-    })
+    const transformedUsers = users.map((user: User) => ({
+      id: user.id,
+      name: user.name || 'No Name',
+      email: user.email,
+      role: user.role as 'admin' | 'user',
+      status: (user.status || 'active') as 'active' | 'inactive',
+      createdAt: user.createdAt.toISOString(),
+      completedLessons: 0,
+      totalScore: 0
+    }));
 
-    return NextResponse.json(transformedUsers)
+    console.log('GET Users - Returning transformed users');
+
+    return NextResponse.json({
+      success: true,
+      data: transformedUsers,
+      message: 'Users fetched successfully'
+    });
+
   } catch (error) {
-    console.error('Error fetching users:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch users' }, 
-      { status: 500 }
-    )
+    console.error('GET Users - Error fetching users:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to fetch users',
+      data: null,
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
