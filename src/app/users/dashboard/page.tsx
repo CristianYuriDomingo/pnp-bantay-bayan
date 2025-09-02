@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx
+// app/users/dashboard/page.tsx - UPDATED
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import LearnCard from '../components/LearnCard';
 import SearchBar from '../components/SearchBar';
+import DashboardStats from '../components/DashboardStats';
+import RecommendedNext from '../components/RecommendedNext';
+import RecentActivity from '../components/RecentActivity';
 import { fetchUserModules, handleModuleClick, UserModule } from '../lib/api';
 import { useRightColumn } from '../layout'; // Import the hook
 import Image from 'next/image';
@@ -65,7 +68,16 @@ export default function DashboardPage() {
 
   // Set right column content when component mounts
   useEffect(() => {
-    setRightColumnContent(<LearnCard2 />);
+    const rightColumnContent = (
+      <div className="space-y-6">
+        <LearnCard2 />
+        <DashboardStats />
+        <RecommendedNext />
+        <RecentActivity />
+      </div>
+    );
+    
+    setRightColumnContent(rightColumnContent);
     
     // Clean up when component unmounts
     return () => {

@@ -41,9 +41,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
         {/* Image - Stays at the top with NO RADIUS and NO BORDER */}
         <div className="absolute -top-14 left-1/2 transform -translate-x-1/2">
           <img
-            src={imageSrc || "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=128&h=128&fit=crop&crop=face"}
+            src={imageSrc || "/DashboardImage/profile.png"}
             alt="Modal Image"
-            className="w-32 h-32 object-cover shadow-lg"
+            className="w-32 h-32 object-cover bg-transparent"
+            style={{ backgroundColor: 'transparent' }}
           />
         </div>
 
@@ -180,8 +181,8 @@ const LearnCard: React.FC<LearnCardProps> = ({
         </div>
       </div>
 
-      {/* Modal */}
-      <Modal isOpen={isModalOpen} onClose={closeModal} imageSrc="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=128&h=128&fit=crop&crop=face">
+      {/* Modal with Local Image */}
+      <Modal isOpen={isModalOpen} onClose={closeModal} imageSrc="/MainImage/Pibi.png">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{title}</h2>
           <p className="text-gray-600 mb-6">Choose a Lesson</p>
