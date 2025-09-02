@@ -1,4 +1,4 @@
-// app/api/users/progress/lesson/[lessonId]/route.ts - User-specific lesson progress
+// app/api/users/progress/lesson/[lessonId]/route.ts - FIXED
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
@@ -38,11 +38,11 @@ export async function POST(
       return createAuthErrorResponse('Lesson not found', 404)
     }
 
-    // Upsert lesson progress - ONLY for this user
+    // FIXED: Update lesson progress - ONLY for this user
     const lessonProgress = await prisma.userProgress.upsert({
       where: {
         userId_moduleId_lessonId: {
-          userId: user.id, // 🔒 CRITICAL: Only this user
+          userId: user.id,
           moduleId: lesson.moduleId,
           lessonId: lessonId
         }
@@ -54,9 +54,9 @@ export async function POST(
         updatedAt: new Date()
       },
       create: {
-        userId: user.id, // 🔒 CRITICAL: Only this user
+        userId: user.id,
         moduleId: lesson.moduleId,
-        lessonId: lessonId,
+        lessonId: lessonId, // FIXED: Always provide lessonId, never null
         completed: true,
         timeSpent: timeSpent,
         progress: progress
@@ -67,7 +67,7 @@ export async function POST(
     const allLessonsInModule = lesson.module.lessons.map(l => l.id)
     const completedLessonsInModule = await prisma.userProgress.count({
       where: {
-        userId: user.id, // 🔒 CRITICAL: Only this user's progress
+        userId: user.id,
         moduleId: lesson.moduleId,
         lessonId: {
           in: allLessonsInModule
@@ -82,29 +82,9 @@ export async function POST(
     const moduleProgressPercentage = Math.round((completedLessonsInModule / allLessonsInModule.length) * 100)
     const isModuleCompleted = completedLessonsInModule === allLessonsInModule.length
 
-    // Update module-level progress - ONLY for this user
-    const moduleProgress = await prisma.userProgress.upsert({
-      where: {
-        userId_moduleId_lessonId: {
-          userId: user.id, // 🔒 CRITICAL: Only this user
-          moduleId: lesson.moduleId,
-          lessonId: null as any // FIXED: Cast to any for module-level progress
-        }
-      },
-      update: {
-        progress: moduleProgressPercentage,
-        completed: isModuleCompleted,
-        updatedAt: new Date()
-      },
-      create: {
-        userId: user.id, // 🔒 CRITICAL: Only this user
-        moduleId: lesson.moduleId,
-        lessonId: null as any, // FIXED: Cast to any for module-level progress
-        progress: moduleProgressPercentage,
-        completed: isModuleCompleted
-      }
-    })
-
+    // REMOVED: Module-level progress entry creation
+    // We'll calculate module progress on-demand instead of storing separate records
+    
     if (isModuleCompleted) {
       console.log(`🎉 User ${user.email} completed entire module ${lesson.moduleId}!`)
     }
@@ -113,8 +93,8 @@ export async function POST(
       lessonProgress,
       moduleProgress: {
         moduleId: lesson.moduleId,
-        progress: moduleProgress.progress,
-        completed: moduleProgress.completed,
+        progress: moduleProgressPercentage,
+        completed: isModuleCompleted,
         completedLessons: completedLessonsInModule,
         totalLessons: allLessonsInModule.length,
         userId: user.id // 🔒 Include user ID for verification
@@ -160,7 +140,7 @@ export async function GET(
     const progress = await prisma.userProgress.findUnique({
       where: {
         userId_moduleId_lessonId: {
-          userId: user.id, // 🔒 CRITICAL: Only this user's progress
+          userId: user.id,
           moduleId: lesson.moduleId,
           lessonId: lessonId
         }
@@ -182,7 +162,7 @@ export async function GET(
         completed: false,
         progress: 0,
         timeSpent: 0,
-        userId: user.id // 🔒 Include user ID
+        userId: user.id
       }, `No progress found for ${user.email} on this lesson`)
     }
 
@@ -193,7 +173,7 @@ export async function GET(
       progress: progress.progress,
       timeSpent: progress.timeSpent,
       completedAt: progress.updatedAt,
-      userId: user.id // 🔒 Include user ID for verification
+      userId: user.id
     }, `Lesson progress retrieved successfully for ${user.email}`)
 
   } catch (error) {
