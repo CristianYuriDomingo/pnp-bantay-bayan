@@ -71,9 +71,20 @@ export default function DashboardPage() {
     const rightColumnContent = (
       <div className="space-y-6">
         <LearnCard2 />
-        <DashboardStats />
-        <RecommendedNext />
-        <RecentActivity />
+        {/* Combined container for the three components */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          <DashboardStats />
+          
+          {/* Line separator */}
+          <div className="border-t border-gray-200"></div>
+          
+          <RecommendedNext />
+          
+          {/* Line separator */}
+          <div className="border-t border-gray-200"></div>
+          
+          <RecentActivity />
+        </div>
       </div>
     );
     
@@ -132,7 +143,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
         </div>     
       </div>
