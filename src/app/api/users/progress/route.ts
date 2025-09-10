@@ -1,14 +1,22 @@
-// app/api/users/progress/route.ts - Get ONLY current user's overall progress
+// app/api/users/progress/route.ts - FIXED with cache headers
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+
+function addCacheHeaders(response: Response): Response {
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Expires', '0')
+  response.headers.set('Surrogate-Control', 'no-store')
+  return response
+}
 
 export async function GET(request: NextRequest) {
   try {
     const user = await getApiUser(request)
     
     if (!user) {
-      return createAuthErrorResponse('Authentication required', 401)
+      return addCacheHeaders(createAuthErrorResponse('Authentication required', 401))
     }
 
     console.log(`📊 Fetching progress for user: ${user.email} (ID: ${user.id})`)
@@ -113,10 +121,11 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Progress retrieved for user ${user.email}: ${completedModules}/${totalModules} modules completed`)
 
-    return createSuccessResponse(progressData, `Progress retrieved successfully for ${user.email}`)
+    const response = createSuccessResponse(progressData, `Progress retrieved successfully for ${user.email}`)
+    return addCacheHeaders(response)
 
   } catch (error) {
     console.error('Error fetching user progress:', error)
-    return createAuthErrorResponse('Failed to fetch progress', 500)
+    return addCacheHeaders(createAuthErrorResponse('Failed to fetch progress', 500))
   }
 }

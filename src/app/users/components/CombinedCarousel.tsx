@@ -1,4 +1,4 @@
-// app/users/components/CombinedCarousel.tsx
+// app/users/components/CombinedCarousel.tsx - FIXED
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -22,13 +22,13 @@ type CombinedCarouselProps = {
   slides: SlideProps[];
   themeColor?: string;
   onModuleComplete?: (moduleId: string) => void;
-  completedModules?: string[];
+  completedModules?: string[]; // This will be ignored now
   finishButtonText?: string;
   completedButtonText?: string;
   continueButtonText?: string;
   backButtonText?: string;
   moduleId?: string;
-  lessonId: string; // Made required since we need it for progress tracking
+  lessonId: string;
   speechBubbleMessages?: string[];
   moduleTitle?: string;
   moduleDescription?: string;
@@ -49,7 +49,6 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
   const [imageError, setImageError] = useState(false);
   const imageRef = useRef<HTMLDivElement>(null);
 
-  // Try the MainImage first, fallback to hardcoded if fails
   const characterImagePath = "/MainImage/PibiTeach.png";
   const fallbackImage = "https://images.unsplash.com/photo-1507003211169-0a1dd7238f2d?w=120&h=120&fit=crop&crop=face&auto=format";
 
@@ -75,7 +74,6 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
 
   return (
     <div className="flex items-center space-x-4 p-4">
-      {/* Character Image - Enhanced to show 100% of image without cropping */}
       <div ref={imageRef} className="flex-shrink-0">
         <img 
           src={imageError ? fallbackImage : characterImagePath}
@@ -86,10 +84,8 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
         />
       </div>
 
-      {/* Speech Bubble */}
       <div className="relative bg-white text-gray-800 px-6 py-4 rounded-lg shadow-md border border-gray-200 max-w-xl">
         <p className="text-lg font-medium">{currentMessage}</p>
-        {/* Speech Bubble Tail */}
         <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-white border-l border-b border-gray-200 rotate-45"></div>
       </div>
     </div>
@@ -101,7 +97,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   slides,
   themeColor = "blue",
   onModuleComplete,
-  completedModules = [],
+  // completedModules is now ignored - we use lessonProgress instead
   finishButtonText = "Finish Reading",
   completedButtonText = "✓ Completed",
   continueButtonText = "Continue Reading",
@@ -124,8 +120,9 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   const [iconImageError, setIconImageError] = useState(false);
   const [iconImageLoaded, setIconImageLoaded] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Use the enhanced progress hook
+  // Use the enhanced progress hook - THIS IS THE KEY FIX
   const { 
     lessonProgress, 
     loading: progressLoading, 
@@ -135,7 +132,14 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     refetch: refetchProgress
   } = useLessonProgress(lessonId);
 
-  // Use the provided slides or fall back to sample slides
+  // FIXED: Use lessonProgress from hook instead of completedModules prop
+  const isLessonCompleted = () => {
+    // Only check user-specific lesson progress from the hook
+    const completed = lessonProgress?.completed || false;
+    console.log(`Checking completion for lesson ${lessonId}: ${completed}`);
+    return completed;
+  };
+
   const currentSlides = slides && slides.length > 0 ? slides : [
     {
       id: "1",
@@ -157,7 +161,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   ];
 
-  // Enhanced icon image handling
   const handleIconError = () => {
     console.log('Icon image failed to load:', iconImage);
     setIconImageError(true);
@@ -168,7 +171,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     setIconImageLoaded(true);
   };
 
-  // Function to get timer notice classes based on color
   const getTimerClasses = (color: string) => {
     switch (color.toLowerCase()) {
       case 'red':
@@ -188,7 +190,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   };
 
-  // Check screen size on mount and when window resizes
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -199,21 +200,18 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Timer effect when slide changes or lesson progress loads
+  // Timer effect - FIXED: Check lessonProgress instead of completedModules
   useEffect(() => {
-    // If lesson is already completed, skip timer
-    if (lessonProgress?.completed) {
+    if (isLessonCompleted()) {
       setCanProceed(true);
       setTimeRemaining(0);
       return;
     }
 
-    // Reset timer for each new slide
     setTimeRemaining(timerDuration);
     setCanProceed(false);
     setStartTime(new Date());
     
-    // Start countdown
     const timer = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
@@ -225,27 +223,32 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       });
     }, 1000);
 
-    // Cleanup timer
     return () => clearInterval(timer);
-  }, [currentSlide, timerDuration, lessonProgress?.completed]);
+  }, [currentSlide, timerDuration, isLessonCompleted()]);
 
-  // Function to track lesson completion using the hook
+  // FIXED: Enhanced completion tracking with better error handling
   const markLessonComplete = async () => {
-    if (progressUpdating) return;
+    if (progressUpdating || isLessonCompleted()) return;
 
     const timeSpent = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
+    
+    console.log(`Attempting to complete lesson ${lessonId} with ${timeSpent}s spent`);
+    
     const success = await updateProgress(timeSpent, 100);
     
     if (success) {
       console.log('Lesson progress updated successfully');
       
-      // Call the original onModuleComplete if provided
+      // Force refetch to ensure we have latest data
+      await refetchProgress();
+      
       if (onModuleComplete) {
         onModuleComplete(moduleId);
       }
     } else {
-      console.error('Failed to update lesson progress');
-      // You might want to show an error message to the user here
+      console.error('Failed to update lesson progress:', progressError);
+      // Show error to user
+      alert('Failed to save your progress. Please try again.');
     }
   };
 
@@ -262,16 +265,24 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   };
 
   const handleFinish = async () => {
-    if (!isLessonCompleted()) {
+    if (isSubmitting || progressUpdating || isLessonCompleted()) {
+      console.log('Submission blocked: already submitting or completed');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      console.log(`Starting lesson completion for lesson ${lessonId}`);
       await markLessonComplete();
+      console.log(`Lesson completion finished for lesson ${lessonId}`);
+    } catch (error) {
+      console.error('Error in handleFinish:', error);
+      alert('Failed to complete lesson. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const isLessonCompleted = () => {
-    return lessonProgress?.completed || completedModules.includes(moduleId);
-  };
-
-  // Get button text based on timer and completion status
   const getButtonText = () => {
     if (isLessonCompleted()) {
       return continueButtonText;
@@ -282,7 +293,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   };
 
-  // Enhanced loading state that handles both progress loading and errors
+  // Show loading state
   if (progressLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -316,7 +327,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      {/* Exit button - only show if onExit is provided */}
       {onExit && (
         <div className="fixed top-4 right-4 z-50">
           <button
@@ -332,7 +342,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         </div>
       )}
 
-      {/* Progress indicator at the top */}
       {lessonProgress && (
         <div className="w-full bg-gray-200 h-1">
           <div 
@@ -344,7 +353,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         </div>
       )}
 
-      {/* Show non-critical error message if there's an error but we still have progress data */}
       {progressError && lessonProgress && (
         <div className="w-full bg-yellow-100 border-b border-yellow-300 px-4 py-2">
           <p className="text-yellow-800 text-sm text-center">
@@ -353,7 +361,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         </div>
       )}
 
-      {/* Background decorative elements */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full opacity-30 transform translate-x-1/3 -translate-y-1/4"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4"></div>
@@ -361,22 +368,16 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-green-100 rounded-full opacity-20"></div>
       </div>
 
-      {/* Main content container */}
       <div className="relative z-10 w-full max-w-4xl mx-auto px-4 pt-6 flex flex-col items-center">
-        {/* Speech bubble section */}
         <div className="w-full p-4 mb-2">
           <div className="relative">
-            <SpeechBubble
-              messages={speechBubbleMessages}
-            />
+            <SpeechBubble messages={speechBubbleMessages} />
           </div>
         </div>
 
-        {/* Enhanced separator with improved icon handling */}
         <div className="relative w-full mb-2 flex items-center justify-center">
           <div className="absolute h-px bg-gradient-to-r from-transparent via-gray-400 to-transparent w-full"></div>
           <div className="relative bg-white p-3 rounded-full shadow-sm z-10 border border-gray-200">
-            {/* Enhanced icon with better fallback */}
             {iconImageError ? (
               <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-bold">📚</span>
@@ -396,7 +397,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           </div>
         </div>
 
-        {/* Learning module title with completion status */}
         <div className="w-full text-center mb-4">
           <div className="flex items-center justify-center space-x-2">
             <h2 className="text-2xl font-bold text-gray-800">{moduleTitle}</h2>
@@ -410,21 +410,18 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         </div>
       </div>
 
-      {/* Carousel Content */}
+      {/* Rest of the carousel content remains the same... */}
       <div className="flex-grow flex justify-center items-center w-full relative z-10 px-4 mb-6">
         <div className="w-full max-w-6xl"> 
-          {/* Desktop view - Side-by-side layout */}
           {!isMobile && (
             <div className="relative flex items-center h-[500px]">
               <div className="w-full overflow-hidden rounded-2xl shadow-lg relative">
-                {/* Timer Notice at Top - Only shown when timer is active and lesson not completed */}
                 {!canProceed && !isLessonCompleted() && (
                   <div className={`absolute top-0 left-0 right-0 z-30 ${getTimerClasses(timerColor)} py-2 px-4 text-center font-medium`}>
                     Please continue reading. You can proceed in {timeRemaining} seconds.
                   </div>
                 )}
 
-                {/* Previous button */}
                 {currentSlide > 0 && (
                   <button
                     onClick={prevSlide}
@@ -441,7 +438,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
                   {currentSlides.map((slide, index) => (
                     <div key={index} className="min-w-full flex bg-white h-full">
-                      {/* Image container - left side */}
                       <div className="w-3/5 relative bg-white">
                         <div className="w-full h-full relative">
                           <img
@@ -452,26 +448,24 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                         </div>
                       </div>
 
-                      {/* Content container - right side */}
                       <div className="w-2/5 p-12 flex flex-col justify-center">
                         <h2 className="text-3xl font-bold mb-5 text-gray-800">{slide.title}</h2>
                         <p className="text-lg text-gray-600 leading-relaxed mb-8">{slide.content}</p>
                         
-                        {/* Show Finish Reading button on last slide */}
                         {index === currentSlides.length - 1 && (
                           <button
                             onClick={handleFinish}
-                            disabled={progressUpdating}
+                            disabled={progressUpdating || isSubmitting}
                             className={`${isLessonCompleted() 
                               ? 'bg-green-500 hover:bg-green-600 border-green-700' 
-                              : progressUpdating
+                              : (progressUpdating || isSubmitting)
                                 ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
                                 : 'bg-blue-500 hover:bg-blue-600 border-blue-700'
                             } text-white font-medium py-3 px-6 rounded-lg 
                             transition-all w-full border-b-4
-                            ${!progressUpdating ? 'hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 active:border-b-0 active:mb-1 active:translate-y-1' : ''}`}
+                            ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 active:border-b-0 active:mb-1 active:translate-y-1' : ''}`}
                           >
-                            {progressUpdating 
+                            {(progressUpdating || isSubmitting) 
                               ? 'Saving Progress...' 
                               : isLessonCompleted() 
                                 ? completedButtonText 
@@ -483,7 +477,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   ))}
                 </div>
 
-                {/* Next button - conditionally styled based on timer and completion */}
                 {currentSlide < currentSlides.length - 1 && (
                   <button
                     onClick={canProceed || isLessonCompleted() ? nextSlide : undefined}
@@ -508,7 +501,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                 )}
               </div>
 
-              {/* Progress indicator */}
               <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
                 {currentSlides.map((slide, index) => (
                   <button
@@ -535,18 +527,15 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
             </div>
           )}
 
-          {/* Mobile view - Reading module layout */}
           {isMobile && (
             <div className="w-full px-4">
               <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                {/* Timer Notice at Top for mobile - Only shown when timer is active and lesson not completed */}
                 {!canProceed && !isLessonCompleted() && (
                   <div className={`${getTimerClasses(timerColor)} py-2 px-4 text-center text-sm font-medium`}>
                     Please continue reading. You can proceed in {timeRemaining} seconds.
                   </div>
                 )}
 
-                {/* Current slide content */}
                 <div className="w-full aspect-square relative bg-white">
                   <img
                     src={currentSlides[currentSlide].image}
@@ -555,26 +544,24 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   />
                 </div>
 
-                {/* Content section */}
                 <div className="p-6">
                   <h2 className="text-xl font-bold mb-3 text-gray-800">{currentSlides[currentSlide].title}</h2>
                   <p className="text-gray-600 text-base mb-6">{currentSlides[currentSlide].content}</p>
                   
-                  {/* Show "Finish Reading" button on last slide */}
                   {currentSlide === currentSlides.length - 1 ? (
                     <button
                       onClick={handleFinish}
-                      disabled={progressUpdating}
+                      disabled={progressUpdating || isSubmitting}
                       className={`w-full ${isLessonCompleted() 
                         ? 'bg-green-500 hover:bg-green-600 border-green-700' 
-                        : progressUpdating
+                        : (progressUpdating || isSubmitting)
                           ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
                           : 'bg-blue-500 hover:bg-blue-600 border-blue-700'
                       } text-white font-bold py-3 px-4 rounded-lg 
                       mb-4 transition-all border-b-4
-                      ${!progressUpdating ? 'hover:border-b-2 hover:mb-[18px] hover:translate-y-0.5 active:border-b-0 active:mb-5 active:translate-y-1' : ''}`}
+                      ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-[18px] hover:translate-y-0.5 active:border-b-0 active:mb-5 active:translate-y-1' : ''}`}
                     >
-                      {progressUpdating 
+                      {(progressUpdating || isSubmitting) 
                         ? 'Saving Progress...' 
                         : isLessonCompleted() 
                           ? completedButtonText 
@@ -604,7 +591,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                     </button>
                   )}
 
-                  {/* Back button */}
                   {currentSlide > 0 && (
                     <button
                       onClick={prevSlide}
@@ -615,7 +601,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   )}
                 </div>
 
-                {/* Progress indicator */}
                 <div className="px-6 pb-4">
                   <div className="flex justify-between items-center">
                     <div className="flex space-x-1 flex-grow">

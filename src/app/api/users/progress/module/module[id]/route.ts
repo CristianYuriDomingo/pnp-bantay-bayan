@@ -1,7 +1,15 @@
-// app/api/users/progress/module/[moduleId]/route.ts - User-specific module progress
+// app/api/users/progress/module/[moduleId]/route.ts - FIXED with cache headers
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
+
+function addCacheHeaders(response: Response): Response {
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  response.headers.set('Pragma', 'no-cache')
+  response.headers.set('Expires', '0')
+  response.headers.set('Surrogate-Control', 'no-store')
+  return response
+}
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +19,7 @@ export async function GET(
     const user = await getApiUser(request)
     
     if (!user) {
-      return createAuthErrorResponse('Authentication required', 401)
+      return addCacheHeaders(createAuthErrorResponse('Authentication required', 401))
     }
 
     const { moduleId } = params
@@ -33,7 +41,7 @@ export async function GET(
     })
 
     if (!module) {
-      return createAuthErrorResponse('Module not found', 404)
+      return addCacheHeaders(createAuthErrorResponse('Module not found', 404))
     }
 
     // Get user progress for this module - ONLY for this user
@@ -44,9 +52,8 @@ export async function GET(
       }
     })
 
-    // Separate lesson progress and module progress
+    // Separate lesson progress
     const lessonProgress = moduleProgress.filter(p => p.lessonId !== null)
-    const overallModuleProgress = moduleProgress.find(p => p.lessonId === null)
 
     // Calculate progress statistics
     const completedLessons = lessonProgress.filter(p => p.completed)
@@ -83,10 +90,11 @@ export async function GET(
       })
     }
 
-    return createSuccessResponse(result, `Module progress retrieved successfully for ${user.email}`)
+    const response = createSuccessResponse(result, `Module progress retrieved successfully for ${user.email}`)
+    return addCacheHeaders(response)
 
   } catch (error) {
     console.error('Error fetching module progress:', error)
-    return createAuthErrorResponse('Failed to fetch module progress', 500)
+    return addCacheHeaders(createAuthErrorResponse('Failed to fetch module progress', 500))
   }
 }

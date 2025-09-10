@@ -1,4 +1,4 @@
-// hooks/use-progress.ts - Enhanced user-specific progress tracking hooks
+// hooks/use-progress.ts - FIXED with proper user verification and cache busting
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'
@@ -8,7 +8,7 @@ export interface LessonProgress {
   progress: number;
   timeSpent: number;
   completedAt?: Date;
-  userId?: string; // 🔒 User verification
+  userId?: string;
 }
 
 export interface ModuleProgress {
@@ -20,8 +20,8 @@ export interface ModuleProgress {
   percentage: number;
   completed: boolean;
   completedAt?: Date;
-  userId?: string; // 🔒 User verification
-  userEmail?: string; // 🔒 User verification
+  userId?: string;
+  userEmail?: string;
   lessons: LessonDetail[];
 }
 
@@ -36,8 +36,8 @@ export interface LessonDetail {
 }
 
 export interface OverallProgress {
-  userId: string; // 🔒 User verification
-  userEmail: string; // 🔒 User verification
+  userId: string;
+  userEmail: string;
   moduleProgress: { [key: string]: any };
   lessonProgress: { [key: string]: any };
   statistics: {
@@ -47,6 +47,22 @@ export interface OverallProgress {
     totalLessons: number;
     completedLessons: number;
   };
+}
+
+// Helper function to create cache-busting fetch requests
+function createCacheBustingFetch(url: string, options: RequestInit = {}) {
+  const separator = url.includes('?') ? '&' : '?';
+  const cacheBustingUrl = `${url}${separator}t=${Date.now()}&u=${Math.random()}`;
+  
+  return fetch(cacheBustingUrl, {
+    ...options,
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      ...options.headers,
+    },
+  });
 }
 
 /**
@@ -72,7 +88,8 @@ export function useLessonProgress(lessonId: string) {
       
       console.log(`🔍 Fetching lesson progress for user ${user?.email}: lesson ${lessonId}`)
       
-      const response = await fetch(`/api/users/progress/lesson/${lessonId}`);
+      // Use cache-busting fetch
+      const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`);
       const result = await response.json();
 
       if (result.success) {
@@ -81,7 +98,8 @@ export function useLessonProgress(lessonId: string) {
         // 🔒 SECURITY CHECK: Verify the data belongs to current user
         if (data.userId && data.userId !== userId) {
           console.error('⚠️ Security violation: Received progress data for different user');
-          setError('Data integrity error');
+          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
+          setError('Data integrity error - user mismatch');
           return;
         }
         
@@ -127,14 +145,16 @@ export function useLessonProgress(lessonId: string) {
       
       console.log(`📚 ${user?.email} completing lesson ${lessonId} with ${timeSpent}s spent`)
       
-      const response = await fetch(`/api/users/progress/lesson/${lessonId}`, {
+      // Use cache-busting fetch for updates
+      const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           timeSpent,
-          progress
+          progress,
+          userId: userId // Include userId in request body for extra verification
         }),
       });
 
@@ -144,7 +164,8 @@ export function useLessonProgress(lessonId: string) {
         // 🔒 SECURITY CHECK: Verify the returned data belongs to current user
         if (result.data.moduleProgress?.userId && result.data.moduleProgress.userId !== userId) {
           console.error('⚠️ Security violation: Received progress data for different user');
-          setError('Data integrity error');
+          console.error(`Expected userId: ${userId}, Received: ${result.data.moduleProgress.userId}`);
+          setError('Data integrity error - user mismatch in response');
           return false;
         }
         
@@ -207,7 +228,8 @@ export function useModuleProgress(moduleId: string) {
       
       console.log(`🔍 Fetching module progress for user ${user?.email}: module ${moduleId}`)
       
-      const response = await fetch(`/api/users/progress/module/${moduleId}`);
+      // Use cache-busting fetch
+      const response = await createCacheBustingFetch(`/api/users/progress/module/${moduleId}`);
       const result = await response.json();
 
       if (result.success) {
@@ -216,13 +238,15 @@ export function useModuleProgress(moduleId: string) {
         // 🔒 SECURITY CHECK: Verify the data belongs to current user
         if (data.userId && data.userId !== userId) {
           console.error('⚠️ Security violation: Received progress data for different user');
-          setError('Data integrity error');
+          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
+          setError('Data integrity error - user mismatch');
           return;
         }
         
         if (data.userEmail && data.userEmail !== user?.email) {
           console.error('⚠️ Security violation: Email mismatch in progress data');
-          setError('Data integrity error');
+          console.error(`Expected email: ${user?.email}, Received: ${data.userEmail}`);
+          setError('Data integrity error - email mismatch');
           return;
         }
         
@@ -294,7 +318,8 @@ export function useOverallProgress() {
       
       console.log(`🔍 Fetching overall progress for user ${user?.email}`)
       
-      const response = await fetch('/api/users/progress');
+      // Use cache-busting fetch
+      const response = await createCacheBustingFetch('/api/users/progress');
       const result = await response.json();
 
       if (result.success) {
@@ -358,13 +383,10 @@ export function useOverallProgress() {
   };
 }
 
-/**
- * Utility function to check if a lesson is completed - USER SPECIFIC
- */
+// Rest of the utility functions remain the same
 export function isLessonCompleted(lessonId: string, overallProgress: OverallProgress | null, currentUserId?: string): boolean {
   if (!overallProgress) return false;
   
-  // 🔒 Additional security check
   if (currentUserId && overallProgress.userId !== currentUserId) {
     console.warn('⚠️ User ID mismatch in progress check');
     return false;
@@ -373,13 +395,9 @@ export function isLessonCompleted(lessonId: string, overallProgress: OverallProg
   return overallProgress.lessonProgress[lessonId]?.completed || false;
 }
 
-/**
- * Utility function to check if a module is completed - USER SPECIFIC
- */
 export function isModuleCompleted(moduleId: string, overallProgress: OverallProgress | null, currentUserId?: string): boolean {
   if (!overallProgress) return false;
   
-  // 🔒 Additional security check
   if (currentUserId && overallProgress.userId !== currentUserId) {
     console.warn('⚠️ User ID mismatch in progress check');
     return false;
@@ -388,13 +406,9 @@ export function isModuleCompleted(moduleId: string, overallProgress: OverallProg
   return overallProgress.moduleProgress[moduleId]?.percentage === 100 || false;
 }
 
-/**
- * Utility function to get module completion percentage - USER SPECIFIC
- */
 export function getModuleCompletionPercentage(moduleId: string, overallProgress: OverallProgress | null, currentUserId?: string): number {
   if (!overallProgress) return 0;
   
-  // 🔒 Additional security check
   if (currentUserId && overallProgress.userId !== currentUserId) {
     console.warn('⚠️ User ID mismatch in progress check');
     return 0;
@@ -416,7 +430,6 @@ export function useUserStats() {
     totalModulesCompleted: overallProgress.statistics.completedModules,
     totalLessonsCompleted: overallProgress.statistics.completedLessons,
     overallProgressPercentage: overallProgress.statistics.overallProgress,
-    // You can add more computed stats here
     averageProgressPerModule: overallProgress.statistics.totalModules > 0 
       ? Math.round(overallProgress.statistics.overallProgress / overallProgress.statistics.totalModules) 
       : 0
