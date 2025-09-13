@@ -168,7 +168,6 @@ export default function RecommendedNext() {
           Recommended Next
         </h3>
         <div className="text-center py-8">
-          <div className="text-4xl mb-2">❌</div>
           <p className="text-gray-600">Unable to load recommendations</p>
           <p className="text-sm text-red-500 mt-2">{error}</p>
         </div>
@@ -183,7 +182,6 @@ export default function RecommendedNext() {
           Recommended Next
         </h3>
         <div className="text-center py-8">
-          <div className="text-4xl mb-2">🎯</div>
           <p className="text-gray-600">
             {!overallProgress ? 'Loading progress data...' : 
              'Great job! You\'ve completed all available modules.'}

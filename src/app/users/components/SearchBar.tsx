@@ -27,7 +27,7 @@ interface ApiResponse {
   error?: string;
 }
 
-// Updated Modal Component from second file
+// Updated Modal Component
 const Modal = ({ isOpen, onClose, children, imageSrc }: {
   isOpen: boolean;
   onClose: () => void;
@@ -113,18 +113,17 @@ const SearchBar = () => {
 
       if (data.success) {
         setSearchResults(data.data);
-        // Only show dropdown if there are results OR if there's an error/no results message to show
-        setShowDropdown(data.data.length > 0 || true); // Show dropdown to display "no results" message
+        setShowDropdown(data.data.length > 0 || true);
       } else {
         setError(data.error || 'Search failed');
         setSearchResults([]);
-        setShowDropdown(true); // Show dropdown to display error
+        setShowDropdown(true);
       }
     } catch (err) {
       console.error('Search error:', err);
       setError('Failed to search. Please try again.');
       setSearchResults([]);
-      setShowDropdown(true); // Show dropdown to display error
+      setShowDropdown(true);
     } finally {
       setIsLoading(false);
     }
@@ -134,7 +133,6 @@ const SearchBar = () => {
     const value = e.target.value;
     setSearchTerm(value);
     
-    // Don't show dropdown immediately on input change, let the search effect handle it
     if (!value.trim()) {
       setShowDropdown(false);
       setSearchResults([]);
@@ -143,7 +141,6 @@ const SearchBar = () => {
   };
 
   const handleInputFocus = () => {
-    // Only show dropdown on focus if we have search term and results/error
     if (searchTerm.trim() && (searchResults.length > 0 || error)) {
       setShowDropdown(true);
     }
@@ -172,31 +169,32 @@ const SearchBar = () => {
     );
   };
 
-  // Determine if dropdown should show content
   const shouldShowDropdownContent = showDropdown && searchTerm.trim() && (searchResults.length > 0 || error);
 
   return (
-    <div ref={containerRef} className="relative w-full max-w-2xl mx-auto mb-6">
-      {/* Search Input */}
+    <div ref={containerRef} className="relative w-full mb-8">
+      {/* Search Input - Updated Design */}
       <div className="relative">
-        <input
-          type="text"
-          className="w-full px-4 py-3 pr-12 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:border-blue-500"
-          placeholder="Search for modules or lessons..."
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-        />
-        
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-          ) : (
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"></circle>
-              <path d="m21 21-4.35-4.35"></path>
-            </svg>
-          )}
+        <div className="flex">
+          <input
+            type="text"
+            className="flex-1 px-6 py-4 text-gray-600 bg-gray-50 border-0 rounded-l-full focus:outline-none focus:bg-white focus:shadow-lg transition-all duration-200 placeholder-gray-400"
+            placeholder="Search for lessons..."
+            value={searchTerm}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+          />
+          
+          <button className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-r-full transition-colors duration-200 flex items-center justify-center">
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 
@@ -257,7 +255,7 @@ const SearchBar = () => {
         </div>
       )}
 
-      {/* Modal with updated UI */}
+      {/* Modal */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}

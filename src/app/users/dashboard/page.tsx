@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - UPDATED with styled right column
+// app/users/dashboard/page.tsx - UPDATED with symmetrical margins
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -182,9 +182,9 @@ export default function DashboardPage() {
   // Main dashboard content
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-6">
+      <div className="px-20 py-6">
         {/* Welcome Header */}
-        <div className="mb-6">
+        <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
             Welcome back, {session?.user?.email?.split('@')[0]}!
           </h1>
@@ -193,13 +193,11 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Search Bar Section */}
-        <div className="mb-8">
-          <SearchBar />
-        </div>
+        {/* Search Bar Section - Updated margin for symmetry */}
+        <SearchBar />
 
         {/* Learning Modules Section */}
-        <div className="mb-4">
+        <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
             Available Modules
           </h2>
