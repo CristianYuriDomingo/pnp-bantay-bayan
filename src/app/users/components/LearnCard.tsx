@@ -182,7 +182,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
       </div>
 
       {/* Modal with Local Image */}
-      <Modal isOpen={isModalOpen} onClose={closeModal} imageSrc="/MainImage/Pibi.png">
+      <Modal isOpen={isModalOpen} onClose={closeModal} imageSrc="/MainImage/1.png">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{title}</h2>
           <p className="text-gray-600 mb-6">Choose a Lesson</p>

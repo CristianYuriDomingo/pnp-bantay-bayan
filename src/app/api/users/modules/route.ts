@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
         lessons: {
           include: {
             tips: true
+          },
+          orderBy: {
+            createdAt: 'asc' // Get lessons in order
           }
         }
       },
@@ -42,6 +45,9 @@ export async function GET(request: NextRequest) {
       buttonText: module.lessons.length > 0 ? 'Start Learning' : 'Coming Soon',
       isAvailable: module.lessons.length > 0, // Add availability status
       totalLessons: module.lessons.length,
+      // Add first lesson info for RecommendedNext component
+      firstLessonId: module.lessons.length > 0 ? module.lessons[0].id : null,
+      firstLessonTitle: module.lessons.length > 0 ? module.lessons[0].title : null,
       createdAt: module.createdAt,
       updatedAt: module.updatedAt
     }));

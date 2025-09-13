@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - UPDATED
+// app/users/dashboard/page.tsx - UPDATED with styled right column
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -16,37 +16,38 @@ import Image from 'next/image';
 // LearnCard2 component (inline since you don't want new files)
 const LearnCard2 = () => {
   return (
-    <div className="max-w-full lg:max-w-[90%] mx-auto w-full lg:w-[400px] rounded-2xl border-2 border-gray-400 dark:border-gray-600">
-      <div className="p-5 sm:p-4">
+    <div className="p-6">
+      {/* Inner card with rounded corners and border */}
+      <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
         {/* Header */}
-        <h2 className="text-sm font-medium text-gray-400 dark:text-gray-300 uppercase mb-3 text-center">
+        <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-4 text-center tracking-wide">
           WHAT ARE LEARNING MODULES?
         </h2>
 
         {/* Main content */}
-        <div className="flex flex-col items-center lg:items-start lg:flex-row">
+        <div className="flex items-center">
           {/* Character image */}
-          <div className="w-22 h-22 lg:w-24 lg:h-24 relative mb-4 lg:mb-0 lg:mr-4">
+          <div className="w-20 h-20 relative mr-4 flex-shrink-0">
             <Image
               src="/MainImage/PibiTeach.png"
-              alt="Leaderboard mascot"
+              alt="Learning mascot"
               fill
-              sizes="110px"
+              sizes="80px"
               className="object-contain"
               priority
             />
           </div>
 
           {/* Text Content */}
-          <div className="text-center lg:text-left flex-1">
+          <div className="flex-1">
             {/* Bold statement */}
-            <h3 className="text-lg sm:text-base lg:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 leading-tight">
               Read lesson. Finish. <br />
               Earn Badge.
             </h3>
 
             {/* Description */}
-            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-xs">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               Earn Badge through lessons, different lessons will give you different badges.
             </p>
           </div>
@@ -69,20 +70,24 @@ export default function DashboardPage() {
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
-      <div className="space-y-6">
-        <LearnCard2 />
-        {/* Combined container for the three components */}
-        <div className="bg-white rounded-lg border border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+        {/* Learning Modules Explanation Card */}
+        <div className="border-b border-gray-100 dark:border-gray-700">
+          <LearnCard2 />
+        </div>
+        
+        {/* Dashboard Stats Section */}
+        <div className="border-b border-gray-100 dark:border-gray-700">
           <DashboardStats />
-          
-          {/* Line separator */}
-          <div className="border-t border-gray-200"></div>
-          
+        </div>
+        
+        {/* Recommended Next Section */}
+        <div className="border-b border-gray-100 dark:border-gray-700">
           <RecommendedNext />
-          
-          {/* Line separator */}
-          <div className="border-t border-gray-200"></div>
-          
+        </div>
+        
+        {/* Recent Activity Section */}
+        <div>
           <RecentActivity />
         </div>
       </div>

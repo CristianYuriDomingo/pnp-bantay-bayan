@@ -52,6 +52,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   progress      UserProgress[]  // Add this relation
+  badgeEarned   UserBadge[]     // New relation for earned badges
 }
 
 model VerificationToken {
@@ -71,6 +72,7 @@ model Module {
   
   lessons     Lesson[]
   progress    UserProgress[]
+  badges      Badge[]     // New relation for module-specific badges
   
   @@map("modules")
 }
@@ -126,6 +128,45 @@ model UserProgress {
   @@index([userId])    // ADD THIS LINE for performance
   @@index([moduleId])  // ADD THIS LINE for performance
   @@map("user_progress")
+}
+
+// NEW: Badge System Models
+model Badge {
+  id            String   @id @default(cuid())
+  name          String
+  description   String
+  image         String   // Badge icon/image URL
+  category      String   // Crime Prevention, Cyber Security, Emergency Preparedness, etc.
+  rarity        String   @default("Common") // Common, Rare, Epic, Legendary
+  criteriaType  String   // module_complete, lessons_complete, quiz_score, manual
+  criteriaValue Json?    // Flexible criteria storage (e.g., {"moduleId": "xyz", "requiredScore": 90})
+  prerequisite  String?  // Optional prerequisite badge ID
+  active        Boolean  @default(true)
+  moduleId      String?  // Optional: if badge is specific to a module
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  module        Module?    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  userBadges    UserBadge[]
+  prerequisites Badge?     @relation("BadgePrerequisites", fields: [prerequisite], references: [id])
+  dependents    Badge[]    @relation("BadgePrerequisites")
+  
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+  progress  Float    @default(0) // For tracking progress toward badge (0-100)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
 }
 
 model Quiz {

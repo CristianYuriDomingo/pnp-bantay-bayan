@@ -1,4 +1,4 @@
-// app/users/components/RecentActivity.tsx
+// app/users/components/RecentActivity.tsx - Updated with scrollable container
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,6 +16,11 @@ export default function RecentActivity() {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Show only first 3 items initially
+  const displayedActivities = isExpanded ? activities : activities.slice(0, 3);
+  const hasMoreActivities = activities.length > 3;
 
   useEffect(() => {
     const fetchActivity = async () => {
@@ -112,25 +117,91 @@ export default function RecentActivity() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex items-start space-x-3">
-              {getActivityIcon(activity.type)}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900">
-                  {activity.title}
-                </p>
-                <p className="text-xs text-gray-600">
-                  {activity.description}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {activity.relativeTime}
-                </p>
+        <div>
+          {/* Activity List - Scrollable when expanded */}
+          <div 
+            className={`space-y-4 transition-all duration-300 ${
+              isExpanded 
+                ? 'max-h-64 overflow-y-auto pr-2' 
+                : 'max-h-none'
+            }`}
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#CBD5E1 #F1F5F9'
+            }}
+          >
+            {displayedActivities.map((activity) => (
+              <div key={activity.id} className="flex items-start space-x-3">
+                {getActivityIcon(activity.type)}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {activity.title}
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {activity.description}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {activity.relativeTime}
+                  </p>
+                </div>
               </div>
+            ))}
+          </div>
+
+          {/* View More/Less Button */}
+          {hasMoreActivities && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                {isExpanded ? (
+                  <span className="flex items-center justify-center">
+                    Show Less
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center">
+                    View More ({activities.length - 3} more)
+                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                )}
+              </button>
             </div>
-          ))}
+          )}
+
+          {/* Scroll indicator when expanded */}
+          {isExpanded && activities.length > 6 && (
+            <div className="text-center mt-2">
+              <p className="text-xs text-gray-400">
+                Scroll to see more activities
+              </p>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Custom scrollbar styles for WebKit browsers */}
+      <style jsx>{`
+        .space-y-4::-webkit-scrollbar {
+          width: 6px;
+        }
+        .space-y-4::-webkit-scrollbar-track {
+          background: #F1F5F9;
+          border-radius: 3px;
+        }
+        .space-y-4::-webkit-scrollbar-thumb {
+          background: #CBD5E1;
+          border-radius: 3px;
+        }
+        .space-y-4::-webkit-scrollbar-thumb:hover {
+          background: #94A3B8;
+        }
+      `}</style>
     </div>
   );
 }
