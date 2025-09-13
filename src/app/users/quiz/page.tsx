@@ -1,3 +1,5 @@
+// app/users/quiz/page.tsx
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,40 +16,41 @@ interface Quiz {
   createdAt: string;
 }
 
-// QuizCard component (inline since you don't want new files)
+// QuizCard component styled like LearnCard2 from Dashboard
 const QuizCard = () => {
   return (
-    <div className="max-w-full lg:max-w-[90%] mx-auto w-full lg:w-[400px] rounded-2xl border-2 border-gray-400 dark:border-gray-600">
-      <div className="p-5 sm:p-4">
+    <div className="p-6">
+      {/* Inner card with rounded corners and border */}
+      <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
         {/* Header */}
-        <h2 className="text-sm font-medium text-gray-400 dark:text-gray-300 uppercase mb-3 text-center">
+        <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-4 text-center tracking-wide">
           YOUR QUIZ HISTORY
         </h2>
 
         {/* Main content */}
-        <div className="flex flex-col items-center lg:items-start lg:flex-row">
+        <div className="flex items-center">
           {/* Character image */}
-          <div className="w-22 h-22 lg:w-24 lg:h-24 relative mb-4 lg:mb-0 lg:mr-4">
+          <div className="w-20 h-20 relative mr-4 flex-shrink-0">
             <Image
               src="/QuizImage/PibiQuiz.png"
               alt="Quiz mascot"
               fill
-              sizes="110px"
+              sizes="80px"
               className="object-contain"
               priority
             />
           </div>
 
           {/* Text Content */}
-          <div className="text-center lg:text-left flex-1">
+          <div className="flex-1">
             {/* Bold statement */}
-            <h3 className="text-lg sm:text-base lg:text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 leading-tight">
               Track Your Progress. <br />
               Earn Achievements.
             </h3>
 
             {/* Description */}
-            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-xs">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               View your quiz results and see how many modules you've completed. Keep practicing to earn badges and improve your knowledge!
             </p>
           </div>
@@ -64,12 +67,17 @@ export default function Quiz() {
   const [showAll, setShowAll] = useState(false);
   const { setRightColumnContent } = useRightColumn(); // Use the hook
 
-  // Set right column content when component mounts
+  // Set right column content when component mounts - styled like Dashboard
   useEffect(() => {
     const rightColumnContent = (
-      <div className="space-y-6">
-        <QuizCard />
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+        {/* Quiz History Card */}
+        <div className="border-b border-gray-100 dark:border-gray-700">
+          <QuizCard />
+        </div>
+        
         {/* You can add more components here if needed */}
+        {/* Example: Quiz Stats, Recent Quizzes, etc. */}
       </div>
     );
     
@@ -114,7 +122,7 @@ export default function Quiz() {
   if (loading) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="p-6">
+        <div className="px-20 py-6"> {/* Updated margins to match Dashboard */}
           <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
@@ -137,7 +145,7 @@ export default function Quiz() {
   if (error) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="p-6">
+        <div className="px-20 py-6"> {/* Updated margins to match Dashboard */}
           <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
@@ -159,7 +167,10 @@ export default function Quiz() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="p-6">
+      <div className="px-20 py-6"> {/* Updated margins to match Dashboard */}
+        
+
+
         <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
           <div className="w-full flex justify-center mb-2">
             <Image
