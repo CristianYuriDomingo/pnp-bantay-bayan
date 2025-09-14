@@ -61,6 +61,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       description: 'Modules & Lessons'
     },
     { 
+      id: 'badges', 
+      label: 'Badge Management', 
+      icon: '🏆', 
+      href: '/admin/badges',
+      description: 'Achievement Badges'
+    },
+    { 
       id: 'quiz', 
       label: 'Quiz Management', 
       icon: '📝', 
