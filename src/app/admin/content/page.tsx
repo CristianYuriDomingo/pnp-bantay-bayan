@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-// Keep all your existing interfaces
+// Types
 interface Module {
   id: string;
   title: string;
@@ -17,6 +17,10 @@ interface Lesson {
   timer: number;
   moduleId: string;
   tips: Tip[];
+  module?: {
+    id: string;
+    title: string;
+  };
 }
 
 interface Tip {
@@ -33,14 +37,67 @@ interface Badge {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-// FIXED: Badge creation modal component with real API integration
+// Modal component
+const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => 
+  isOpen ? (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md max-h-[90vh] overflow-auto relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold z-10">×</button>
+        {children}
+      </div>
+    </div>
+  ) : null;
+
+// Badge indicator component
+const BadgeIndicator = ({ hasBadge, badgeType, onClick, disabled = false }: { 
+  hasBadge: boolean; 
+  badgeType: 'module' | 'lesson';
+  onClick: () => void;
+  disabled?: boolean;
+}) => {
+  if (hasBadge) {
+    return (
+      <div className="flex items-center space-x-2 text-green-600 text-sm">
+        <span className="text-lg">🏆</span>
+        <span>{badgeType === 'module' ? 'Completion' : 'Performance'} badge created</span>
+        <button 
+          onClick={onClick}
+          className="text-blue-600 hover:text-blue-800 underline"
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  if (disabled) {
+    return (
+      <div className="flex items-center space-x-2 text-gray-400 text-sm">
+        <span className="text-lg">⭐</span>
+        <span>Add {badgeType === 'module' ? 'completion' : 'performance'} badge (requires lessons)</span>
+      </div>
+    );
+  }
+
+  return (
+    <button 
+      onClick={onClick}
+      className="flex items-center space-x-2 text-orange-600 hover:text-orange-800 text-sm border border-orange-200 rounded-lg px-3 py-2 hover:bg-orange-50 transition-colors"
+    >
+      <span className="text-lg">⭐</span>
+      <span>Add {badgeType === 'module' ? 'completion' : 'performance'} badge</span>
+    </button>
+  );
+};
+
+// Badge creation modal component
 const QuickBadgeModal = ({ 
   isOpen, 
   onClose, 
@@ -86,7 +143,6 @@ const QuickBadgeModal = ({
     }
   };
 
-  // FIXED: Real API integration for saving badges
   const handleSave = async () => {
     if (!name.trim() || !description.trim() || !imagePreview || !targetItem) {
       return alert('Please fill in all required fields and select an image');
@@ -102,7 +158,7 @@ const QuickBadgeModal = ({
         category: badgeType === 'module' ? targetItem.title : 'Lesson Completion',
         rarity,
         triggerType: badgeType === 'module' ? 'module_complete' : 'lesson_complete',
-        triggerValue: badgeType === 'module' ? targetItem.id : targetItem.id, // Use lesson ID for lesson badges
+        triggerValue: targetItem.id,
       };
       
       // Make actual API call to save badge
@@ -219,247 +275,7 @@ const QuickBadgeModal = ({
   );
 };
 
-// FIXED: Badge indicator component with proper checking
-const BadgeIndicator = ({ hasBadge, badgeType, onClick, disabled = false }: { 
-  hasBadge: boolean; 
-  badgeType: 'module' | 'lesson';
-  onClick: () => void;
-  disabled?: boolean;
-}) => {
-  if (hasBadge) {
-    return (
-      <div className="flex items-center space-x-2 text-green-600 text-sm">
-        <span className="text-lg">🏆</span>
-        <span>{badgeType === 'module' ? 'Completion' : 'Performance'} badge created</span>
-        <button 
-          onClick={onClick}
-          className="text-blue-600 hover:text-blue-800 underline"
-        >
-          Edit
-        </button>
-      </div>
-    );
-  }
-
-  if (disabled) {
-    return (
-      <div className="flex items-center space-x-2 text-gray-400 text-sm">
-        <span className="text-lg">⭐</span>
-        <span>Add {badgeType === 'module' ? 'completion' : 'performance'} badge (requires lessons)</span>
-      </div>
-    );
-  }
-
-  return (
-    <button 
-      onClick={onClick}
-      className="flex items-center space-x-2 text-orange-600 hover:text-orange-800 text-sm border border-orange-200 rounded-lg px-3 py-2 hover:bg-orange-50 transition-colors"
-    >
-      <span className="text-lg">⭐</span>
-      <span>Add {badgeType === 'module' ? 'completion' : 'performance'} badge</span>
-    </button>
-  );
-};
-
-// Your existing components with badge integration
-const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => 
-  isOpen ? (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md max-h-[90vh] overflow-auto relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl font-bold z-10">×</button>
-        {children}
-      </div>
-    </div>
-  ) : null;
-
-// FIXED: Module Card with proper badge checking
-const ModuleCard = ({ 
-  module, 
-  onViewLessons, 
-  onDelete,
-  badges,
-  onManageBadge 
-}: { 
-  module: Module; 
-  onViewLessons: (module: Module) => void; 
-  onDelete: (moduleId: string) => void;
-  badges: Badge[];
-  onManageBadge: (module: Module) => void;
-}) => {
-  const [imageError, setImageError] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // FIXED: Check if module has a badge using correct logic
-  const moduleBadge = badges.find(badge => 
-    badge.triggerType === 'module_complete' && badge.triggerValue === module.id
-  );
-
-  // Disable module badge creation if no lessons exist
-  const canCreateModuleBadge = (module.lessonCount || 0) > 0;
-
-  return (
-    <>
-      <div className="bg-white rounded-2xl shadow-sm border hover:shadow-md transition-shadow w-72">
-        <div className="relative">
-          {!imageError ? (
-            <img src={module.image} alt={module.title} className="w-full h-48 object-cover rounded-t-2xl" onError={() => setImageError(true)} />
-          ) : (
-            <div className="w-full h-48 flex items-center justify-center bg-gray-200 rounded-t-2xl">
-              <span className="text-4xl">📚</span>
-            </div>
-          )}
-        </div>
-        
-        <div className="p-6">
-          <h3 className="font-bold text-xl mb-3 text-gray-800">{module.title}</h3>
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-blue-500 font-medium text-sm">
-              {(module.lessonCount || 0)} Lessons
-            </span>
-          </div>
-          
-          {/* FIXED: Badge indicator with proper checking */}
-          <div className="mb-4">
-            <BadgeIndicator 
-              hasBadge={!!moduleBadge}
-              badgeType="module"
-              onClick={() => onManageBadge(module)}
-              disabled={!canCreateModuleBadge}
-            />
-          </div>
-          
-          <button onClick={() => setIsModalOpen(true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-full font-medium transition-colors">
-            Manage
-          </button>
-        </div>
-      </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">{module.title}</h2>
-          <div className="mb-6">
-            <img src={module.image} alt={module.title} className="w-full h-32 object-cover rounded-lg mb-4" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <p className="text-gray-600 mb-4"><strong>Lessons:</strong> {module.lessonCount || 0}</p>
-            
-            {/* Badge status in modal */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-2">Module Badge Status:</p>
-              <BadgeIndicator 
-                hasBadge={!!moduleBadge}
-                badgeType="module"
-                onClick={() => {
-                  if (canCreateModuleBadge) {
-                    onManageBadge(module);
-                    setIsModalOpen(false);
-                  }
-                }}
-                disabled={!canCreateModuleBadge}
-              />
-              {!canCreateModuleBadge && (
-                <p className="text-xs text-gray-500 mt-1">Create lessons first to enable module completion badges</p>
-              )}
-            </div>
-          </div>
-          <div className="space-y-3">
-            <button onClick={() => { onViewLessons(module); setIsModalOpen(false); }} className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg transition-colors">
-              Manage Lessons
-            </button>
-            <button onClick={() => { 
-              if (confirm(`Are you sure you want to delete "${module.title}"?`)) { 
-                onDelete(module.id); 
-                setIsModalOpen(false); 
-              } 
-            }} className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg transition-colors">
-              Delete Module
-            </button>
-            <button onClick={() => setIsModalOpen(false)} className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      </Modal>
-    </>
-  );
-};
-
-// Your existing form components
-const FormField = ({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
-  <div>
-    <label className="block text-sm font-medium mb-1">{label} {required && '*'}</label>
-    {children}
-  </div>
-);
-
-const AddModuleForm = ({ onClose, onSave }: { onClose: () => void; onSave: (module: Module) => void }) => {
-  const [title, setTitle] = useState('');
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!title.trim() || !imageFile) return alert('Please fill in all required fields and select an image');
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/admin/modules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), image: imagePreview }),
-      });
-      
-      if (response.ok) {
-        onSave(await response.json());
-      } else {
-        alert('Error creating module');
-      }
-    } catch (error) {
-      console.error('Error creating module:', error);
-      alert('Error creating module');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-      <h3 className="text-lg font-semibold mb-4">Add New Module</h3>
-      <div className="space-y-4">
-        <FormField label="Module Title" required>
-          <input type="text" placeholder="e.g., Crime Prevention" className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </FormField>
-        <FormField label="Module Image" required>
-          <input type="file" accept="image/*" onChange={handleImageChange} className="w-full border border-gray-300 p-3 rounded-lg" />
-          {imagePreview && (
-            <div className="mt-2">
-              <p className="text-sm text-gray-600 mb-1">Preview:</p>
-              <img src={imagePreview} alt="Preview" className="w-32 h-20 object-cover rounded border" />
-            </div>
-          )}
-        </FormField>
-      </div>
-      <div className="mt-6 flex space-x-3">
-        <button onClick={handleSave} disabled={loading} className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
-          {loading ? 'Saving...' : 'Save Module'}
-        </button>
-        <button onClick={onClose} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors">
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// FIXED: Enhanced Lesson Management with real badge integration
+// Lesson Management Component
 const LessonManagement = ({ 
   module, 
   onBack,
@@ -546,7 +362,6 @@ const LessonManagement = ({
           <p className="text-gray-600 text-sm mb-4">
             Note: A lesson performance badge will be automatically available after creating the lesson.
           </p>
-          {/* Your existing lesson form would go here */}
           <div className="flex space-x-3">
             <button onClick={handleCloseForm} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors">
               Cancel
@@ -577,7 +392,7 @@ const LessonManagement = ({
           ) : (
             <div className="space-y-4">
               {lessons.map((lesson) => {
-                // FIXED: Check for lesson badge using lesson ID
+                // Check for lesson badge using lesson ID
                 const lessonBadge = badges.find(badge => 
                   badge.triggerType === 'lesson_complete' && badge.triggerValue === lesson.id
                 );
@@ -594,7 +409,7 @@ const LessonManagement = ({
                           <span className="flex items-center">💡 <span className="ml-1">{lesson.tips.length} tip{lesson.tips.length !== 1 ? 's' : ''}</span></span>
                         </div>
                         
-                        {/* FIXED: Lesson badge indicator with proper checking */}
+                        {/* Lesson badge indicator */}
                         <div className="mb-3">
                           <BadgeIndicator 
                             hasBadge={!!lessonBadge}
@@ -644,7 +459,7 @@ const LessonManagement = ({
   );
 };
 
-// FIXED: Main Content Management Component with real database integration
+// Main Content Management Component
 export default function ContentManagement() {
   const [modules, setModules] = useState<Module[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -659,7 +474,7 @@ export default function ContentManagement() {
   const [selectedTargetItem, setSelectedTargetItem] = useState<Module | Lesson | null>(null);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
 
-  // FIXED: Real data fetching from database
+  // Real data fetching from database
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -671,7 +486,7 @@ export default function ContentManagement() {
         setModules(modulesData);
       }
 
-      // FIXED: Fetch real badges from database
+      // Fetch real badges from database
       const badgesResponse = await fetch('/api/admin/badges');
       if (badgesResponse.ok) {
         const badgesData = await badgesResponse.json();
@@ -689,7 +504,7 @@ export default function ContentManagement() {
     fetchData();
   }, []);
 
-  // FIXED: Function to refresh badge data
+  // Function to refresh badge data
   const refreshBadges = async () => {
     try {
       const badgesResponse = await fetch('/api/admin/badges');
@@ -737,7 +552,7 @@ export default function ContentManagement() {
     setShowBadgeModal(true);
   };
 
-  // FIXED: Handle badge save with real database updates
+  // Handle badge save with real database updates
   const handleSaveBadge = (savedBadge: Badge) => {
     // Update local state immediately for UI responsiveness
     if (editingBadge) {
@@ -857,4 +672,192 @@ export default function ContentManagement() {
         </div>
       )}
     </div>
-  );}
+  );
+}
+
+// Module card component
+const ModuleCard = ({ 
+  module, 
+  onViewLessons, 
+  onDelete,
+  badges,
+  onManageBadge 
+}: { 
+  module: Module; 
+  onViewLessons: (module: Module) => void; 
+  onDelete: (moduleId: string) => void;
+  badges: Badge[];
+  onManageBadge: (module: Module) => void;
+}) => {
+  const [imageError, setImageError] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Check if module has a badge
+  const moduleBadge = badges.find(badge => 
+    badge.triggerType === 'module_complete' && badge.triggerValue === module.id
+  );
+
+  // Disable module badge creation if no lessons exist
+  const canCreateModuleBadge = (module.lessonCount || 0) > 0;
+
+  return (
+    <>
+      <div className="bg-white rounded-2xl shadow-sm border hover:shadow-md transition-shadow w-72">
+        <div className="relative">
+          {!imageError ? (
+            <img src={module.image} alt={module.title} className="w-full h-48 object-cover rounded-t-2xl" onError={() => setImageError(true)} />
+          ) : (
+            <div className="w-full h-48 flex items-center justify-center bg-gray-200 rounded-t-2xl">
+              <span className="text-4xl">📚</span>
+            </div>
+          )}
+        </div>
+        
+        <div className="p-6">
+          <h3 className="font-bold text-xl mb-3 text-gray-800">{module.title}</h3>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-blue-500 font-medium text-sm">
+              {(module.lessonCount || 0)} Lessons
+            </span>
+          </div>
+          
+          {/* Badge indicator */}
+          <div className="mb-4">
+            <BadgeIndicator 
+              hasBadge={!!moduleBadge}
+              badgeType="module"
+              onClick={() => onManageBadge(module)}
+              disabled={!canCreateModuleBadge}
+            />
+          </div>
+          
+          <button onClick={() => setIsModalOpen(true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-full font-medium transition-colors">
+            Manage
+          </button>
+        </div>
+      </div>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <div className="p-6">
+          <h2 className="text-xl font-bold mb-4">{module.title}</h2>
+          <div className="mb-6">
+            <img src={module.image} alt={module.title} className="w-full h-32 object-cover rounded-lg mb-4" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            <p className="text-gray-600 mb-4"><strong>Lessons:</strong> {module.lessonCount || 0}</p>
+            
+            {/* Badge status in modal */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-2">Module Badge Status:</p>
+              <BadgeIndicator 
+                hasBadge={!!moduleBadge}
+                badgeType="module"
+                onClick={() => {
+                  if (canCreateModuleBadge) {
+                    onManageBadge(module);
+                    setIsModalOpen(false);
+                  }
+                }}
+                disabled={!canCreateModuleBadge}
+              />
+              {!canCreateModuleBadge && (
+                <p className="text-xs text-gray-500 mt-1">Create lessons first to enable module completion badges</p>
+              )}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <button onClick={() => { onViewLessons(module); setIsModalOpen(false); }} className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg transition-colors">
+              Manage Lessons
+            </button>
+            <button onClick={() => { 
+              if (confirm(`Are you sure you want to delete "${module.title}"?`)) { 
+                onDelete(module.id); 
+                setIsModalOpen(false); 
+              } 
+            }} className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-lg transition-colors">
+              Delete Module
+            </button>
+            <button onClick={() => setIsModalOpen(false)} className="w-full bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+};
+
+// Form components
+const FormField = ({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
+  <div>
+    <label className="block text-sm font-medium mb-1">{label} {required && '*'}</label>
+    {children}
+  </div>
+);
+
+const AddModuleForm = ({ onClose, onSave }: { onClose: () => void; onSave: (module: Module) => void }) => {
+  const [title, setTitle] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!title.trim() || !imageFile) return alert('Please fill in all required fields and select an image');
+    
+    setLoading(true);
+    try {
+      const response = await fetch('/api/admin/modules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), image: imagePreview }),
+      });
+      
+      if (response.ok) {
+        onSave(await response.json());
+      } else {
+        alert('Error creating module');
+      }
+    } catch (error) {
+      console.error('Error creating module:', error);
+      alert('Error creating module');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+      <h3 className="text-lg font-semibold mb-4">Add New Module</h3>
+      <div className="space-y-4">
+        <FormField label="Module Title" required>
+          <input type="text" placeholder="e.g., Crime Prevention" className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </FormField>
+        <FormField label="Module Image" required>
+          <input type="file" accept="image/*" onChange={handleImageChange} className="w-full border border-gray-300 p-3 rounded-lg" />
+          {imagePreview && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-600 mb-1">Preview:</p>
+              <img src={imagePreview} alt="Preview" className="w-32 h-20 object-cover rounded border" />
+            </div>
+          )}
+        </FormField>
+      </div>
+      <div className="mt-6 flex space-x-3">
+        <button onClick={handleSave} disabled={loading} className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50">
+          {loading ? 'Saving...' : 'Save Module'}
+        </button>
+        <button onClick={onClose} className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors">
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+};

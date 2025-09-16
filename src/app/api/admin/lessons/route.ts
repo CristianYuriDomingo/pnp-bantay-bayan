@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 
-// GET - Fetch lessons for a specific module
+// GET - Fetch lessons (for specific module OR all lessons)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -16,19 +16,43 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const moduleId = searchParams.get('moduleId');
 
-    if (!moduleId) {
-      return NextResponse.json({ error: 'Module ID is required' }, { status: 400 });
-    }
+    let lessons;
 
-    const lessons = await prisma.lesson.findMany({
-      where: { moduleId },
-      include: {
-        tips: true
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
-    });
+    if (moduleId) {
+      // Fetch lessons for a specific module (existing functionality)
+      lessons = await prisma.lesson.findMany({
+        where: { moduleId },
+        include: {
+          tips: true,
+          module: {
+            select: {
+              id: true,
+              title: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      });
+    } else {
+      // Fetch ALL lessons across all modules (new functionality for badge management)
+      lessons = await prisma.lesson.findMany({
+        include: {
+          tips: true,
+          module: {
+            select: {
+              id: true,
+              title: true
+            }
+          }
+        },
+        orderBy: [
+          { module: { title: 'asc' } },
+          { createdAt: 'asc' }
+        ]
+      });
+    }
 
     return NextResponse.json(lessons);
   } catch (error) {
@@ -77,10 +101,18 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Return lesson with tips
+      // Return lesson with tips and module info
       return await prisma.lesson.findUnique({
         where: { id: lesson.id },
-        include: { tips: true }
+        include: { 
+          tips: true,
+          module: {
+            select: {
+              id: true,
+              title: true
+            }
+          }
+        }
       });
     });
 
@@ -144,10 +176,18 @@ export async function PUT(request: NextRequest) {
         });
       }
 
-      // Return updated lesson with tips
+      // Return updated lesson with tips and module info
       return await prisma.lesson.findUnique({
         where: { id: lesson.id },
-        include: { tips: true }
+        include: { 
+          tips: true,
+          module: {
+            select: {
+              id: true,
+              title: true
+            }
+          }
+        }
       });
     });
 

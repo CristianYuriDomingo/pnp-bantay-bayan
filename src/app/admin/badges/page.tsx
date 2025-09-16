@@ -23,6 +23,17 @@ interface Module {
   lessonCount?: number;
 }
 
+interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  moduleId: string;
+  module?: {
+    id: string;
+    title: string;
+  };
+}
+
 const FormField = ({ label, required = false, children }: { 
   label: string; 
   required?: boolean; 
@@ -39,12 +50,14 @@ const FormField = ({ label, required = false, children }: {
 const BadgeCard = ({ 
   badge, 
   modules, 
+  lessons,
   badges, 
   onEdit, 
   onDelete 
 }: { 
   badge: Badge; 
   modules: Module[]; 
+  lessons: Lesson[];
   badges: Badge[];
   onEdit: (badge: Badge) => void; 
   onDelete: (badgeId: string) => void; 
@@ -67,7 +80,16 @@ const BadgeCard = ({
         const module = modules.find(m => m.id === badge.triggerValue);
         return `Complete all lessons in "${module?.title || 'Unknown Module'}"`;
       case 'lesson_complete':
-        return `Complete ${badge.triggerValue} lessons`;
+        const lesson = lessons.find(l => l.id === badge.triggerValue);
+        if (lesson) {
+          return `Complete "${lesson.title}" lesson ${lesson.module ? `(${lesson.module.title} module)` : ''}`;
+        }
+        // Fallback for old numeric values
+        const numericValue = parseInt(badge.triggerValue);
+        if (!isNaN(numericValue)) {
+          return `Complete ${badge.triggerValue} lessons`;
+        }
+        return `Complete lesson: ${badge.triggerValue}`;
       case 'quiz_complete':
         return `Successfully complete quiz with ID: ${badge.triggerValue}`;
       case 'manual':
@@ -156,12 +178,14 @@ const AddBadgeForm = ({
   onClose, 
   onSave, 
   modules, 
+  lessons,
   badges, 
   initialBadge 
 }: { 
   onClose: () => void; 
   onSave: (badge: Badge) => Promise<void>; 
   modules: Module[]; 
+  lessons: Lesson[];
   badges: Badge[]; 
   initialBadge?: Badge;
 }) => {
@@ -176,7 +200,13 @@ const AddBadgeForm = ({
   const [imagePreview, setImagePreview] = useState<string>(initialBadge?.image || '');
   const [loading, setLoading] = useState(false);
 
-  const categories = Array.from(new Set([...modules.map(m => m.title), 'General', 'Quiz Achievement', 'Performance']));
+  const categories = Array.from(new Set([
+    ...modules.map(m => m.title), 
+    'General', 
+    'Quiz Achievement', 
+    'Performance',
+    'Lesson Completion'
+  ]));
   const availablePrerequisiteBadges = badges.filter(b => b.id !== initialBadge?.id);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,10 +329,13 @@ const AddBadgeForm = ({
             <select 
               className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               value={triggerType} 
-              onChange={(e) => setTriggerType(e.target.value as Badge['triggerType'])}
+              onChange={(e) => {
+                setTriggerType(e.target.value as Badge['triggerType']);
+                setTriggerValue(''); // Reset trigger value when type changes
+              }}
             >
               <option value="module_complete">Complete Module</option>
-              <option value="lesson_complete">Complete X Lessons</option>
+              <option value="lesson_complete">Complete Specific Lesson</option>
               <option value="quiz_complete">Complete Quiz</option>
               <option value="manual">Manual Award</option>
             </select>
@@ -321,14 +354,18 @@ const AddBadgeForm = ({
                 ))}
               </select>
             ) : triggerType === 'lesson_complete' ? (
-              <input 
-                type="number" 
-                placeholder="Number of lessons" 
-                min="1"
+              <select 
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                 value={triggerValue} 
-                onChange={(e) => setTriggerValue(e.target.value)} 
-              />
+                onChange={(e) => setTriggerValue(e.target.value)}
+              >
+                <option value="">Select Lesson</option>
+                {lessons.map(lesson => (
+                  <option key={lesson.id} value={lesson.id}>
+                    {lesson.title} {lesson.module ? `(${lesson.module.title})` : ''}
+                  </option>
+                ))}
+              </select>
             ) : triggerType === 'quiz_complete' ? (
               <input 
                 type="text" 
@@ -390,6 +427,7 @@ const AddBadgeForm = ({
 
 export default function BadgeManagement() {
   const [modules, setModules] = useState<Module[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [showAddBadge, setShowAddBadge] = useState(false);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
@@ -411,6 +449,13 @@ export default function BadgeManagement() {
       if (modulesResponse.ok) {
         const modulesData = await modulesResponse.json();
         setModules(modulesData);
+      }
+
+      // Fetch all lessons (not just for specific module)
+      const lessonsResponse = await fetch('/api/admin/lessons');
+      if (lessonsResponse.ok) {
+        const lessonsData = await lessonsResponse.json();
+        setLessons(lessonsData);
       }
 
       // Fetch badges from database
@@ -486,7 +531,13 @@ export default function BadgeManagement() {
     setEditingBadge(null);
   };
 
-  const categories = Array.from(new Set([...modules.map(m => m.title), 'General', 'Quiz Achievement', 'Performance']));
+  const categories = Array.from(new Set([
+    ...modules.map(m => m.title), 
+    'General', 
+    'Quiz Achievement', 
+    'Performance',
+    'Lesson Completion'
+  ]));
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
 
   const filteredBadges = badges.filter(badge => {
@@ -516,6 +567,7 @@ export default function BadgeManagement() {
           onClose={handleCloseForm} 
           onSave={handleSaveBadge}
           modules={modules}
+          lessons={lessons}
           badges={badges}
           initialBadge={editingBadge || undefined}
         />
@@ -594,6 +646,7 @@ export default function BadgeManagement() {
                   key={badge.id} 
                   badge={badge} 
                   modules={modules}
+                  lessons={lessons}
                   badges={badges}
                   onEdit={setEditingBadge} 
                   onDelete={handleDeleteBadge} 
@@ -609,10 +662,11 @@ export default function BadgeManagement() {
         <h3 className="font-semibold text-blue-900 mb-2">Badge System Information</h3>
         <div className="text-sm text-blue-800 space-y-1">
           <p>• <strong>Module Complete:</strong> Triggered when user completes all lessons in a specific module</p>
-          <p>• <strong>Lesson Complete:</strong> Triggered when user completes a specified number of lessons</p>
+          <p>• <strong>Lesson Complete:</strong> Triggered when user completes a specific lesson</p>
           <p>• <strong>Quiz Complete:</strong> Triggered when user successfully passes a specific quiz</p>
           <p>• <strong>Manual:</strong> Manually awarded by administrators</p>
-          <p>• All badges are now properly stored in your database and will persist across sessions</p>
+          <p>• All badges are stored in your database and properly linked to actual modules/lessons</p>
+          <p>• Lesson badges now show which module the lesson belongs to for better organization</p>
         </div>
       </div>
     </div>
