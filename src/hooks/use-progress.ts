@@ -1,4 +1,4 @@
-// hooks/use-progress.ts - FIXED with proper user verification and cache busting
+// src/hooks/use-progress.ts - FIXED with proper user verification and cache busting
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'

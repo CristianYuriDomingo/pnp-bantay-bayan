@@ -19,6 +19,213 @@ interface Question {
   explanation?: string;
 }
 
+interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  category: string;
+  rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
+  triggerValue: string;
+  prerequisites?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Badge creation modal for quizzes
+const QuickQuizBadgeModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  targetQuiz,
+  existingBadge 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (badge: any) => void;
+  targetQuiz: Quiz | null;
+  existingBadge?: Badge;
+}) => {
+  const [name, setName] = useState(existingBadge?.name || '');
+  const [description, setDescription] = useState(existingBadge?.description || '');
+  const [rarity, setRarity] = useState<Badge['rarity']>(existingBadge?.rarity || 'Common');
+  const [imagePreview, setImagePreview] = useState(existingBadge?.image || '');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && targetQuiz && !existingBadge) {
+      // Auto-populate based on target quiz
+      setName(`${targetQuiz.title} Champion`);
+      setDescription(`Successfully complete the ${targetQuiz.title} with a passing score`);
+      setRarity('Rare');
+    }
+  }, [isOpen, targetQuiz, existingBadge]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !description.trim() || !imagePreview || !targetQuiz) {
+      return alert('Please fill in all required fields and select an image');
+    }
+    
+    setLoading(true);
+    try {
+      const badgeData = {
+        id: existingBadge?.id || Date.now().toString(),
+        name: name.trim(),
+        description: description.trim(),
+        image: imagePreview,
+        category: 'Quiz Achievement',
+        rarity,
+        triggerType: 'quiz_complete' as const,
+        triggerValue: targetQuiz.id,
+        createdAt: existingBadge?.createdAt || new Date(),
+        updatedAt: new Date()
+      };
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      onSave(badgeData);
+      onClose();
+    } catch (error) {
+      console.error('Error saving badge:', error);
+      alert('Error saving badge');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              {existingBadge ? 'Edit' : 'Create'} Quiz Performance Badge
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Name *</label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Quiz Performance Badge"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Description *</label>
+              <textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg h-20 focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe what this badge represents..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Rarity *</label>
+              <select 
+                value={rarity} 
+                onChange={(e) => setRarity(e.target.value as Badge['rarity'])}
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Common">Common</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legendary">Legendary</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Image *</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange}
+                className="w-full border border-gray-300 p-3 rounded-lg"
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                </div>
+              )}
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> This badge will be awarded to users who successfully complete the quiz with a passing score.
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-3">
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loading ? (existingBadge ? 'Updating...' : 'Creating...') : (existingBadge ? 'Update Badge' : 'Create Badge')}
+            </button>
+            <button 
+              onClick={onClose}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Quiz badge indicator component
+const QuizBadgeIndicator = ({ hasBadge, onClick }: { 
+  hasBadge: boolean; 
+  onClick: () => void;
+}) => {
+  if (hasBadge) {
+    return (
+      <div className="flex items-center space-x-2 text-green-600 text-sm">
+        <span className="text-lg">🏆</span>
+        <span>Performance badge created</span>
+        <button 
+          onClick={onClick}
+          className="text-blue-600 hover:text-blue-800 underline"
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button 
+      onClick={onClick}
+      className="flex items-center space-x-2 text-orange-600 hover:text-orange-800 text-sm border border-orange-200 rounded-lg px-3 py-2 hover:bg-orange-50 transition-colors"
+    >
+      <span className="text-lg">⭐</span>
+      <span>Add performance badge</span>
+    </button>
+  );
+};
+
 const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => 
   isOpen ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -32,11 +239,28 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
     </div>
   ) : null;
 
-const QuizCard = ({ quiz, onView, onDelete }: { quiz: Quiz; onView: (quiz: Quiz) => void; onDelete: (quizId: string) => void }) => {
+const QuizCard = ({ 
+  quiz, 
+  onView, 
+  onDelete,
+  badges,
+  onManageBadge 
+}: { 
+  quiz: Quiz; 
+  onView: (quiz: Quiz) => void; 
+  onDelete: (quizId: string) => void;
+  badges: Badge[];
+  onManageBadge: (quiz: Quiz) => void;
+}) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get unique lessons from questions
   const uniqueLessons = [...new Set(quiz.questions.map(q => q.lesson))];
+  
+  // Check if quiz has a badge
+  const quizBadge = badges.find(badge => 
+    badge.triggerType === 'quiz_complete' && badge.triggerValue === quiz.id
+  );
 
   return (
     <>
@@ -53,6 +277,14 @@ const QuizCard = ({ quiz, onView, onDelete }: { quiz: Quiz; onView: (quiz: Quiz)
             <div>❓ {quiz.questions.length} questions</div>
           </div>
           
+          {/* Badge indicator */}
+          <div className="mb-4">
+            <QuizBadgeIndicator 
+              hasBadge={!!quizBadge}
+              onClick={() => onManageBadge(quiz)}
+            />
+          </div>
+          
           <button onClick={() => setIsModalOpen(true)} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded font-medium transition-colors">
             View Quiz
           </button>
@@ -67,6 +299,18 @@ const QuizCard = ({ quiz, onView, onDelete }: { quiz: Quiz; onView: (quiz: Quiz)
             <p><strong>Lessons:</strong> {uniqueLessons.join(', ')}</p>
             <p><strong>Timer:</strong> {quiz.timer} seconds per question</p>
             <p><strong>Questions:</strong> {quiz.questions.length}</p>
+          </div>
+
+          {/* Badge status in modal */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 mb-2">Quiz Badge Status:</p>
+            <QuizBadgeIndicator 
+              hasBadge={!!quizBadge}
+              onClick={() => {
+                onManageBadge(quiz);
+                setIsModalOpen(false);
+              }}
+            />
           </div>
           
           <div className="mb-6">
@@ -347,6 +591,12 @@ const AddQuizForm = ({ onClose, onSave, initialQuiz }: { onClose: () => void; on
         </FormField>
       </div>
       
+      <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">
+          <strong>Badge System:</strong> After creating your quiz, you can add a performance badge that will be awarded to users who successfully complete it with a passing score.
+        </p>
+      </div>
+      
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h4 className="text-md font-semibold">Questions ({questions.length})</h4>
@@ -434,24 +684,48 @@ const AddQuizForm = ({ onClose, onSave, initialQuiz }: { onClose: () => void; on
 
 export default function QuizManagement() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [showAddQuiz, setShowAddQuiz] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch quizzes from API
+  // Badge modal states
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
+
+  // Fetch quizzes and badges from API
   useEffect(() => {
-    fetchQuizzes();
+    fetchData();
   }, []);
 
-  const fetchQuizzes = async () => {
+  const fetchData = async () => {
     try {
-      const response = await fetch('/api/admin/quizzes');
-      if (response.ok) {
-        const data = await response.json();
+      // Fetch quizzes
+      const quizzesResponse = await fetch('/api/admin/quizzes');
+      if (quizzesResponse.ok) {
+        const data = await quizzesResponse.json();
         setQuizzes(data);
       }
+
+      // Fetch badges (mock data for now - replace with actual API call)
+      const mockBadges: Badge[] = [
+        {
+          id: '1',
+          name: 'Safety Quiz Champion',
+          description: 'Successfully complete the Safety Assessment Quiz',
+          image: '/badge-quiz-champion.png',
+          category: 'Quiz Achievement',
+          rarity: 'Rare',
+          triggerType: 'quiz_complete',
+          triggerValue: 'some-quiz-id',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+      setBadges(mockBadges);
     } catch (error) {
-      console.error('Error fetching quizzes:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -494,6 +768,36 @@ export default function QuizManagement() {
     setEditingQuiz(null);
   };
 
+  const handleManageQuizBadge = (quiz: Quiz) => {
+    const existingBadge = badges.find(badge => 
+      badge.triggerType === 'quiz_complete' && badge.triggerValue === quiz.id
+    );
+    
+    setSelectedQuiz(quiz);
+    setEditingBadge(existingBadge || null);
+    setShowBadgeModal(true);
+  };
+
+  const handleSaveBadge = (savedBadge: Badge) => {
+    if (editingBadge) {
+      setBadges(badges.map(badge => badge.id === savedBadge.id ? savedBadge : badge));
+    } else {
+      setBadges([...badges, savedBadge]);
+    }
+    setShowBadgeModal(false);
+    setEditingBadge(null);
+    setSelectedQuiz(null);
+    
+    // Show success message and note about badge management
+    alert('Quiz performance badge created successfully! You can manage all badges in the Badge Management section.');
+  };
+
+  const handleCloseBadgeModal = () => {
+    setShowBadgeModal(false);
+    setEditingBadge(null);
+    setSelectedQuiz(null);
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -505,12 +809,17 @@ export default function QuizManagement() {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Quiz Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Quiz Management</h1>
+          <p className="text-gray-600 text-sm mt-1">
+            Create and manage quizzes with performance badges to enhance user engagement.
+          </p>
+        </div>
         <button 
           onClick={() => setShowAddQuiz(true)}
           className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded flex items-center space-x-2"
         >
-          <span>➕</span>
+          <span>+</span>
           <span>Add Quiz</span>
         </button>
       </div>
@@ -522,6 +831,15 @@ export default function QuizManagement() {
           initialQuiz={editingQuiz || undefined}
         />
       )}
+
+      {/* Quiz Badge Creation Modal */}
+      <QuickQuizBadgeModal 
+        isOpen={showBadgeModal}
+        onClose={handleCloseBadgeModal}
+        onSave={handleSaveBadge}
+        targetQuiz={selectedQuiz}
+        existingBadge={editingBadge || undefined}
+      />
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-6 border-b">
@@ -541,16 +859,31 @@ export default function QuizManagement() {
               </button>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-6">
-              {quizzes.map((quiz) => (
-                <QuizCard 
-                  key={quiz.id} 
-                  quiz={quiz} 
-                  onView={handleEditQuiz}
-                  onDelete={handleDeleteQuiz} 
-                />
-              ))}
-            </div>
+            <>
+              <div className="flex flex-wrap gap-6 mb-6">
+                {quizzes.map((quiz) => (
+                  <QuizCard 
+                    key={quiz.id} 
+                    quiz={quiz} 
+                    onView={handleEditQuiz}
+                    onDelete={handleDeleteQuiz}
+                    badges={badges}
+                    onManageBadge={handleManageQuizBadge}
+                  />
+                ))}
+              </div>
+
+              {/* Help text */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h3 className="font-semibold text-green-900 mb-2">Quiz Badge System Guide</h3>
+                <div className="text-sm text-green-800 space-y-1">
+                  <p>• <strong>Performance Badges:</strong> Awarded when users successfully complete quizzes with passing scores</p>
+                  <p>• Orange indicators show quizzes without performance badges - click to create them</p>
+                  <p>• All quiz badges are managed centrally in the Badge Management section</p>
+                  <p>• Badges motivate users and recognize their achievements in your learning system</p>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

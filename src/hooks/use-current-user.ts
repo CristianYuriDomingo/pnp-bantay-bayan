@@ -1,4 +1,4 @@
-// hooks/use-current-user.ts - Custom hooks for user data
+// src/hooks/use-current-user.ts - Custom hooks for user data
 'use client'
 import { useUser } from '@/contexts/user-context'
 import type { Session } from 'next-auth'

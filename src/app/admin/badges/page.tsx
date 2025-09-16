@@ -1,8 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Module } from '../types';
 
-// Badge interface
+// Types
 interface Badge {
   id: string;
   name: string;
@@ -10,21 +9,40 @@ interface Badge {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 
-const FormField = ({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
+interface Module {
+  id: string;
+  title: string;
+  image: string;
+  lessonCount?: number;
+}
+
+const FormField = ({ label, required = false, children }: { 
+  label: string; 
+  required?: boolean; 
+  children: React.ReactNode 
+}) => (
   <div>
-    <label className="block text-sm font-medium mb-1">{label} {required && '*'}</label>
+    <label className="block text-sm font-medium mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
     {children}
   </div>
 );
 
-const BadgeCard = ({ badge, modules, badges, onEdit, onDelete }: { 
+const BadgeCard = ({ 
+  badge, 
+  modules, 
+  badges, 
+  onEdit, 
+  onDelete 
+}: { 
   badge: Badge; 
   modules: Module[]; 
   badges: Badge[];
@@ -50,6 +68,8 @@ const BadgeCard = ({ badge, modules, badges, onEdit, onDelete }: {
         return `Complete all lessons in "${module?.title || 'Unknown Module'}"`;
       case 'lesson_complete':
         return `Complete ${badge.triggerValue} lessons`;
+      case 'quiz_complete':
+        return `Successfully complete quiz with ID: ${badge.triggerValue}`;
       case 'manual':
         return 'Manually awarded by admin';
       default:
@@ -140,7 +160,7 @@ const AddBadgeForm = ({
   initialBadge 
 }: { 
   onClose: () => void; 
-  onSave: (badge: Badge) => void; 
+  onSave: (badge: Badge) => Promise<void>; 
   modules: Module[]; 
   badges: Badge[]; 
   initialBadge?: Badge;
@@ -156,7 +176,7 @@ const AddBadgeForm = ({
   const [imagePreview, setImagePreview] = useState<string>(initialBadge?.image || '');
   const [loading, setLoading] = useState(false);
 
-  const categories = Array.from(new Set(modules.map(m => m.title)));
+  const categories = Array.from(new Set([...modules.map(m => m.title), 'General', 'Quiz Achievement', 'Performance']));
   const availablePrerequisiteBadges = badges.filter(b => b.id !== initialBadge?.id);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,14 +190,14 @@ const AddBadgeForm = ({
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !description.trim() || !category.trim() || (!imagePreview && !initialBadge)) {
+    if (!name.trim() || !description.trim() || !category.trim() || !triggerValue.trim() || (!imagePreview && !initialBadge)) {
       return alert('Please fill in all required fields and select an image');
     }
     
     setLoading(true);
     try {
-      const newBadge: Badge = {
-        id: initialBadge?.id || Date.now().toString(),
+      const badgeData = {
+        id: initialBadge?.id,
         name: name.trim(),
         description: description.trim(),
         image: imagePreview,
@@ -186,15 +206,12 @@ const AddBadgeForm = ({
         triggerType,
         triggerValue: triggerValue.trim(),
         prerequisites: prerequisites.length > 0 ? prerequisites : undefined,
-        createdAt: initialBadge?.createdAt || new Date(),
-        updatedAt: new Date()
       };
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      onSave(newBadge);
+      await onSave(badgeData as Badge);
     } catch (error) {
       console.error('Error saving badge:', error);
-      alert('Error saving badge');
+      alert('Error saving badge. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -245,7 +262,6 @@ const AddBadgeForm = ({
               {categories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
-              <option value="General">General</option>
             </select>
           </FormField>
           
@@ -287,6 +303,7 @@ const AddBadgeForm = ({
             >
               <option value="module_complete">Complete Module</option>
               <option value="lesson_complete">Complete X Lessons</option>
+              <option value="quiz_complete">Complete Quiz</option>
               <option value="manual">Manual Award</option>
             </select>
           </FormField>
@@ -312,13 +329,21 @@ const AddBadgeForm = ({
                 value={triggerValue} 
                 onChange={(e) => setTriggerValue(e.target.value)} 
               />
+            ) : triggerType === 'quiz_complete' ? (
+              <input 
+                type="text" 
+                placeholder="Quiz ID" 
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                value={triggerValue} 
+                onChange={(e) => setTriggerValue(e.target.value)} 
+              />
             ) : (
               <input 
                 type="text" 
-                placeholder="Manual award (no trigger needed)" 
+                placeholder="Manual award (enter description)" 
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                value="manual"
-                disabled
+                value={triggerValue}
+                onChange={(e) => setTriggerValue(e.target.value)}
               />
             )}
           </FormField>
@@ -372,66 +397,88 @@ export default function BadgeManagement() {
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterRarity, setFilterRarity] = useState<string>('');
 
+  // Fetch data on component mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch modules
-        const modulesResponse = await fetch('/api/admin/modules');
-        if (modulesResponse.ok) {
-          setModules(await modulesResponse.json());
-        }
-
-        // Mock badges data - replace with actual API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const mockBadges: Badge[] = [
-          {
-            id: '1',
-            name: 'Crime Prevention Expert',
-            description: 'Complete all Crime Prevention lessons',
-            image: '/badge-crime-expert.png',
-            category: 'Crime Prevention',
-            rarity: 'Epic',
-            triggerType: 'module_complete',
-            triggerValue: 'crime-prevention-id',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          {
-            id: '2',
-            name: 'Quick Learner',
-            description: 'Complete your first lesson',
-            image: '/badge-first-lesson.png',
-            category: 'General',
-            rarity: 'Common',
-            triggerType: 'lesson_complete',
-            triggerValue: '1',
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ];
-        setBadges(mockBadges);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchData();
   }, []);
 
-  const handleSaveBadge = (savedBadge: Badge) => {
-    if (editingBadge) {
-      setBadges(badges.map(badge => badge.id === savedBadge.id ? savedBadge : badge));
-      setEditingBadge(null);
-    } else {
-      setBadges([...badges, savedBadge]);
-      setShowAddBadge(false);
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch modules
+      const modulesResponse = await fetch('/api/admin/modules');
+      if (modulesResponse.ok) {
+        const modulesData = await modulesResponse.json();
+        setModules(modulesData);
+      }
+
+      // Fetch badges from database
+      const badgesResponse = await fetch('/api/admin/badges');
+      if (badgesResponse.ok) {
+        const badgesData = await badgesResponse.json();
+        setBadges(badgesData);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      alert('Error loading data. Please refresh the page.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteBadge = (badgeId: string) => {
-    setBadges(badges.filter(badge => badge.id !== badgeId));
+  const handleSaveBadge = async (badgeData: Badge) => {
+    try {
+      const isEditing = !!badgeData.id;
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      const response = await fetch('/api/admin/badges', {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(badgeData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save badge');
+      }
+
+      const savedBadge = await response.json();
+
+      if (isEditing) {
+        setBadges(badges.map(badge => badge.id === savedBadge.id ? savedBadge : badge));
+        setEditingBadge(null);
+      } else {
+        setBadges([savedBadge, ...badges]);
+        setShowAddBadge(false);
+      }
+
+      alert(`Badge ${isEditing ? 'updated' : 'created'} successfully!`);
+    } catch (error) {
+      console.error('Error saving badge:', error);
+      throw error; // Re-throw to be handled by the form
+    }
+  };
+
+  const handleDeleteBadge = async (badgeId: string) => {
+    try {
+      const response = await fetch(`/api/admin/badges?id=${badgeId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete badge');
+      }
+
+      setBadges(badges.filter(badge => badge.id !== badgeId));
+      alert('Badge deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting badge:', error);
+      alert('Error deleting badge. Please try again.');
+    }
   };
 
   const handleCloseForm = () => {
@@ -439,7 +486,7 @@ export default function BadgeManagement() {
     setEditingBadge(null);
   };
 
-  const categories = Array.from(new Set([...modules.map(m => m.title), 'General']));
+  const categories = Array.from(new Set([...modules.map(m => m.title), 'General', 'Quiz Achievement', 'Performance']));
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
 
   const filteredBadges = badges.filter(badge => {
@@ -453,7 +500,7 @@ export default function BadgeManagement() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Badge Management</h1>
-          <p className="text-gray-600">Create and manage achievement badges</p>
+          <p className="text-gray-600">Create and manage achievement badges stored in your database</p>
         </div>
         <button 
           onClick={() => setShowAddBadge(true)} 
@@ -503,6 +550,12 @@ export default function BadgeManagement() {
               ))}
             </select>
           </div>
+          <button
+            onClick={fetchData}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -548,6 +601,18 @@ export default function BadgeManagement() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Info section */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-900 mb-2">Badge System Information</h3>
+        <div className="text-sm text-blue-800 space-y-1">
+          <p>• <strong>Module Complete:</strong> Triggered when user completes all lessons in a specific module</p>
+          <p>• <strong>Lesson Complete:</strong> Triggered when user completes a specified number of lessons</p>
+          <p>• <strong>Quiz Complete:</strong> Triggered when user successfully passes a specific quiz</p>
+          <p>• <strong>Manual:</strong> Manually awarded by administrators</p>
+          <p>• All badges are now properly stored in your database and will persist across sessions</p>
         </div>
       </div>
     </div>
