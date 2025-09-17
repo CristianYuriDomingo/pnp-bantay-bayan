@@ -1,5 +1,7 @@
+// app/admin/badges/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // Types
 interface Badge {
@@ -53,7 +55,8 @@ const BadgeCard = ({
   lessons,
   badges, 
   onEdit, 
-  onDelete 
+  onDelete,
+  isHighlighted = false
 }: { 
   badge: Badge; 
   modules: Module[]; 
@@ -61,6 +64,7 @@ const BadgeCard = ({
   badges: Badge[];
   onEdit: (badge: Badge) => void; 
   onDelete: (badgeId: string) => void; 
+  isHighlighted?: boolean;
 }) => {
   const [imageError, setImageError] = useState(false);
   
@@ -84,7 +88,6 @@ const BadgeCard = ({
         if (lesson) {
           return `Complete "${lesson.title}" lesson ${lesson.module ? `(${lesson.module.title} module)` : ''}`;
         }
-        // Fallback for old numeric values
         const numericValue = parseInt(badge.triggerValue);
         if (!isNaN(numericValue)) {
           return `Complete ${badge.triggerValue} lessons`;
@@ -104,7 +107,7 @@ const BadgeCard = ({
   };
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+    <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${isHighlighted ? 'ring-2 ring-blue-500' : ''}`}>
       <div className="p-4">
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
@@ -170,6 +173,13 @@ const BadgeCard = ({
           </div>
         </div>
       </div>
+      {isHighlighted && (
+        <div className="px-4 pb-3">
+          <div className="bg-blue-50 border border-blue-200 rounded p-2 text-sm text-blue-800">
+            <strong>📍 Selected Badge:</strong> This badge is linked to your selected lesson from Content Management.
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -180,7 +190,8 @@ const AddBadgeForm = ({
   modules, 
   lessons,
   badges, 
-  initialBadge 
+  initialBadge,
+  preselectedLessonId 
 }: { 
   onClose: () => void; 
   onSave: (badge: Badge) => Promise<void>; 
@@ -188,17 +199,33 @@ const AddBadgeForm = ({
   lessons: Lesson[];
   badges: Badge[]; 
   initialBadge?: Badge;
+  preselectedLessonId?: string;
 }) => {
   const [name, setName] = useState(initialBadge?.name || '');
   const [description, setDescription] = useState(initialBadge?.description || '');
   const [category, setCategory] = useState(initialBadge?.category || '');
   const [rarity, setRarity] = useState<Badge['rarity']>(initialBadge?.rarity || 'Common');
-  const [triggerType, setTriggerType] = useState<Badge['triggerType']>(initialBadge?.triggerType || 'module_complete');
-  const [triggerValue, setTriggerValue] = useState(initialBadge?.triggerValue || '');
+  const [triggerType, setTriggerType] = useState<Badge['triggerType']>(initialBadge?.triggerType || (preselectedLessonId ? 'lesson_complete' : 'module_complete'));
+  const [triggerValue, setTriggerValue] = useState(initialBadge?.triggerValue || preselectedLessonId || '');
   const [prerequisites, setPrerequisites] = useState<string[]>(initialBadge?.prerequisites || []);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(initialBadge?.image || '');
   const [loading, setLoading] = useState(false);
+
+  // Auto-populate form when lesson is preselected
+  useEffect(() => {
+    if (preselectedLessonId && !initialBadge) {
+      const selectedLesson = lessons.find(l => l.id === preselectedLessonId);
+      if (selectedLesson) {
+        setName(`${selectedLesson.title} Champion`);
+        setDescription(`Complete the "${selectedLesson.title}" lesson to earn this badge`);
+        setCategory('Lesson Completion');
+        setRarity('Common');
+        setTriggerType('lesson_complete');
+        setTriggerValue(preselectedLessonId);
+      }
+    }
+  }, [preselectedLessonId, lessons, initialBadge]);
 
   const categories = Array.from(new Set([
     ...modules.map(m => m.title), 
@@ -259,6 +286,11 @@ const AddBadgeForm = ({
     <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
       <h3 className="text-lg font-semibold mb-4">
         {initialBadge ? 'Edit Badge' : 'Add New Badge'}
+        {preselectedLessonId && !initialBadge && (
+          <span className="text-sm font-normal text-blue-600 ml-2">
+            (Pre-selected lesson: {lessons.find(l => l.id === preselectedLessonId)?.title})
+          </span>
+        )}
       </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -331,7 +363,7 @@ const AddBadgeForm = ({
               value={triggerType} 
               onChange={(e) => {
                 setTriggerType(e.target.value as Badge['triggerType']);
-                setTriggerValue(''); // Reset trigger value when type changes
+                if (!preselectedLessonId) setTriggerValue('');
               }}
             >
               <option value="module_complete">Complete Module</option>
@@ -425,7 +457,7 @@ const AddBadgeForm = ({
   );
 };
 
-export default function BadgeManagement() {
+export default function BadgeManagementPage() {
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -435,7 +467,17 @@ export default function BadgeManagement() {
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterRarity, setFilterRarity] = useState<string>('');
 
-  // Fetch data on component mount
+  // Get URL parameters
+  const searchParams = useSearchParams();
+  const preselectedLessonId = searchParams.get('lessonId');
+
+  // Auto-open form if lesson is preselected
+  useEffect(() => {
+    if (preselectedLessonId && !showAddBadge && !editingBadge) {
+      setShowAddBadge(true);
+    }
+  }, [preselectedLessonId, showAddBadge, editingBadge]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -444,21 +486,18 @@ export default function BadgeManagement() {
     try {
       setLoading(true);
       
-      // Fetch modules
       const modulesResponse = await fetch('/api/admin/modules');
       if (modulesResponse.ok) {
         const modulesData = await modulesResponse.json();
         setModules(modulesData);
       }
 
-      // Fetch all lessons (not just for specific module)
       const lessonsResponse = await fetch('/api/admin/lessons');
       if (lessonsResponse.ok) {
         const lessonsData = await lessonsResponse.json();
         setLessons(lessonsData);
       }
 
-      // Fetch badges from database
       const badgesResponse = await fetch('/api/admin/badges');
       if (badgesResponse.ok) {
         const badgesData = await badgesResponse.json();
@@ -503,7 +542,7 @@ export default function BadgeManagement() {
       alert(`Badge ${isEditing ? 'updated' : 'created'} successfully!`);
     } catch (error) {
       console.error('Error saving badge:', error);
-      throw error; // Re-throw to be handled by the form
+      throw error;
     }
   };
 
@@ -546,12 +585,31 @@ export default function BadgeManagement() {
     return categoryMatch && rarityMatch;
   });
 
+  // Find preselected lesson badge if it exists
+  const preselectedLessonBadge = preselectedLessonId ? badges.find(b => 
+    b.triggerType === 'lesson_complete' && b.triggerValue === preselectedLessonId
+  ) : null;
+
+  const preselectedLesson = preselectedLessonId ? lessons.find(l => l.id === preselectedLessonId) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Badge Management</h1>
           <p className="text-gray-600">Create and manage achievement badges stored in your database</p>
+          {preselectedLessonId && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Selected from Content Management:</strong> {preselectedLesson?.title || 'Loading lesson...'}
+                {preselectedLessonBadge ? (
+                  <span className="ml-2 text-green-600">(Badge already exists - highlighted below)</span>
+                ) : (
+                  <span className="ml-2 text-orange-600">(No badge created yet - form opened below)</span>
+                )}
+              </p>
+            </div>
+          )}
         </div>
         <button 
           onClick={() => setShowAddBadge(true)} 
@@ -570,6 +628,7 @@ export default function BadgeManagement() {
           lessons={lessons}
           badges={badges}
           initialBadge={editingBadge || undefined}
+          preselectedLessonId={preselectedLessonId || undefined}
         />
       )}
 
@@ -649,7 +708,8 @@ export default function BadgeManagement() {
                   lessons={lessons}
                   badges={badges}
                   onEdit={setEditingBadge} 
-                  onDelete={handleDeleteBadge} 
+                  onDelete={handleDeleteBadge}
+                  isHighlighted={preselectedLessonBadge?.id === badge.id}
                 />
               ))}
             </div>
@@ -667,6 +727,9 @@ export default function BadgeManagement() {
           <p>• <strong>Manual:</strong> Manually awarded by administrators</p>
           <p>• All badges are stored in your database and properly linked to actual modules/lessons</p>
           <p>• Lesson badges now show which module the lesson belongs to for better organization</p>
+          {preselectedLessonId && (
+            <p>• <strong>Navigation from Content Management:</strong> This page opened with a specific lesson pre-selected for badge creation</p>
+          )}
         </div>
       </div>
     </div>
