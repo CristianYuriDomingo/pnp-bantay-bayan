@@ -12,20 +12,84 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all counts in parallel
-    const [totalUsers, totalModules, totalLessons, totalTips] = await Promise.all([
-      prisma.user.count(),
-      prisma.module.count(),
-      prisma.lesson.count(),
-      prisma.tip.count()
-    ]);
+    // Get current week start (Sunday)
+    const now = new Date();
+    const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+    weekStart.setHours(0, 0, 0, 0);
 
-    return NextResponse.json({
+    // Fetch all stats in parallel
+    const [
       totalUsers,
       totalModules,
       totalLessons,
-      totalTips
-    });
+      totalTips,
+      totalBadges,
+      newUsersThisWeek,
+      completedLessons,
+      badgesEarnedThisWeek
+    ] = await Promise.all([
+      // Total users count
+      prisma.user.count(),
+      
+      // Total modules count
+      prisma.module.count(),
+      
+      // Total lessons count
+      prisma.lesson.count(),
+      
+      // Total tips count
+      prisma.tip.count(),
+      
+      // Total badges count
+      prisma.badge.count(),
+      
+      // New users this week
+      prisma.user.count({
+        where: {
+          createdAt: {
+            gte: weekStart
+          }
+        }
+      }),
+      
+      // Completed lessons count
+      prisma.userProgress.count({
+        where: {
+          completed: true
+        }
+      }),
+      
+      // Badges earned this week
+      prisma.userBadge.count({
+        where: {
+          earnedAt: {
+            gte: weekStart
+          }
+        }
+      })
+    ]);
+
+    // Active users - placeholder since User model doesn't have lastLogin field yet
+    const activeUsers = 0; // Will need lastLogin field in User model
+
+    // Calculate average score (placeholder - adjust based on your scoring system)
+    // You'll need to implement this based on your quiz/scoring system
+    const averageScore = 0;
+
+    const stats = {
+      totalUsers,
+      totalModules,
+      totalLessons,
+      totalTips,
+      totalBadges,
+      activeUsers,
+      completedLessons,
+      averageScore,
+      newUsersThisWeek,
+      badgesEarnedThisWeek
+    };
+
+    return NextResponse.json(stats);
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

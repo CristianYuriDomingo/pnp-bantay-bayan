@@ -53,6 +53,13 @@ export default function AdminDashboard() {
             type: 'module_created',
             description: 'New module "Safety Protocols" created',
             timestamp: new Date(Date.now() - 7200000).toISOString(),
+          },
+          {
+            id: '4',
+            type: 'badge_earned',
+            description: 'Badge "Crime Prevention Expert" earned',
+            timestamp: new Date(Date.now() - 10800000).toISOString(),
+            user: 'alice.brown@email.com'
           }
         ]);
       }
@@ -90,6 +97,13 @@ export default function AdminDashboard() {
       color: 'purple',
       icon: '📖',
       href: '/admin/content'
+    },
+    { 
+      title: 'Total Badges', 
+      value: getStatValue(stats?.totalBadges), 
+      color: 'yellow',
+      icon: '🏆',
+      href: '/admin/badges'
     }
   ];
 
@@ -99,6 +113,8 @@ export default function AdminDashboard() {
       case 'lesson_completed': return '✅';
       case 'module_created': return '📚';
       case 'quiz_submitted': return '📝';
+      case 'badge_earned': return '🏆';
+      case 'badge_created': return '⭐';
       default: return '📋';
     }
   };
@@ -110,6 +126,13 @@ export default function AdminDashboard() {
       icon: '➕',
       href: '/admin/content',
       color: 'blue'
+    },
+    {
+      title: 'Manage Badges',
+      description: 'Create and manage achievement badges',
+      icon: '🏆',
+      href: '/admin/badges',
+      color: 'yellow'
     },
     {
       title: 'Manage Users',
@@ -137,9 +160,9 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Now includes badges */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {statItems.map((stat) => (
             <div key={stat.title} className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
               <Link href={stat.href} className="block">
@@ -164,7 +187,7 @@ export default function AdminDashboard() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
+        {/* Quick Actions - Now includes badge management */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -193,7 +216,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Now includes badge activities */}
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center">
@@ -227,6 +250,40 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Badge System Overview - New section */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <span className="mr-2">🏆</span>
+          Badge System Overview
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-yellow-50 rounded-lg">
+            <div className="text-2xl mb-2">⭐</div>
+            <h4 className="font-medium text-gray-900">Module Badges</h4>
+            <p className="text-sm text-gray-600 mt-1">Completion rewards for entire modules</p>
+            <Link href="/admin/badges" className="text-yellow-600 hover:text-yellow-800 text-sm font-medium">
+              Manage Module Badges →
+            </Link>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl mb-2">🎯</div>
+            <h4 className="font-medium text-gray-900">Lesson Badges</h4>
+            <p className="text-sm text-gray-600 mt-1">Individual lesson achievements</p>
+            <Link href="/admin/content" className="text-green-600 hover:text-green-800 text-sm font-medium">
+              Manage from Content →
+            </Link>
+          </div>
+          <div className="text-center p-4 bg-purple-50 rounded-lg">
+            <div className="text-2xl mb-2">🏅</div>
+            <h4 className="font-medium text-gray-900">Special Badges</h4>
+            <p className="text-sm text-gray-600 mt-1">Custom and manual awards</p>
+            <Link href="/admin/badges" className="text-purple-600 hover:text-purple-800 text-sm font-medium">
+              Create Special Badges →
+            </Link>
           </div>
         </div>
       </div>
