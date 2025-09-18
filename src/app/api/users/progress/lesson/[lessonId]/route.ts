@@ -1,8 +1,9 @@
-// app/api/users/progress/lesson/[lessonId]/route.ts - FIXED with race condition handling
+// app/api/users/progress/lesson/[lessonId]/route.ts - FIXED with Badge Integration
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
+import { BadgeService } from '@/lib/badge-service' // 🆕 ADDED: Import BadgeService
 
 function addCacheHeaders(response: Response): Response {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -140,6 +141,19 @@ export async function POST(
       return addCacheHeaders(createAuthErrorResponse('Lesson not found', 404))
     }
 
+    // Check if lesson is already completed to avoid duplicate badge awards
+    const existingProgress = await prisma.userProgress.findUnique({
+      where: {
+        userId_moduleId_lessonId: {
+          userId: user.id,
+          moduleId: lesson.moduleId,
+          lessonId: lessonId
+        }
+      }
+    });
+
+    const isAlreadyCompleted = existingProgress?.completed || false;
+
     // Use the safe upsert function with retry logic
     const upsertResult = await safeUpsertProgress(
       user.id,
@@ -207,6 +221,47 @@ export async function POST(
       console.log(`🎉 User ${user.email} completed entire module ${lesson.moduleId}!`)
     }
 
+    // 🆕 NEW: Award badges for lesson completion (only if not already completed)
+    let badgeResult: {
+      success: boolean;
+      newBadges: any[];
+      errors: string[];
+    } = {
+      success: true,
+      newBadges: [],
+      errors: []
+    };
+
+    if (!isAlreadyCompleted) {
+      console.log(`🏆 Checking badges for user ${user.email} on lesson ${lessonId}`);
+      
+      try {
+        badgeResult = await BadgeService.awardBadgesForLessonCompletion(
+          user.id,
+          lessonId,
+          lesson.moduleId
+        );
+
+        if (badgeResult.success && badgeResult.newBadges.length > 0) {
+          console.log(`🎊 SUCCESS: User ${user.email} earned ${badgeResult.newBadges.length} new badges!`);
+        } else if (badgeResult.errors.length > 0) {
+          console.warn(`⚠️ Badge awarding had errors for user ${user.email}:`, badgeResult.errors);
+        } else {
+          console.log(`ℹ️ No new badges awarded for user ${user.email} on lesson ${lessonId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Badge awarding failed for user ${user.email}:`, error);
+        badgeResult = {
+          success: false,
+          newBadges: [],
+          errors: [error instanceof Error ? error.message : 'Unknown badge error']
+        };
+      }
+    } else {
+      console.log(`⏭️ Lesson ${lessonId} already completed for user ${user.email}, skipping badge check`);
+    }
+
+    // 🆕 NEW: Enhanced response with badge information
     const response = createSuccessResponse({
       lessonProgress: {
         ...lessonProgress,
@@ -219,8 +274,14 @@ export async function POST(
         completedLessons: completedLessonsInModule,
         totalLessons: allLessonsInModule.length,
         userId: user.id // 🔒 Include user ID for verification
+      },
+      badges: {
+        success: badgeResult.success,
+        newBadges: badgeResult.newBadges,
+        badgeCount: badgeResult.newBadges.length,
+        errors: badgeResult.errors
       }
-    }, `Lesson progress updated successfully for ${user.email}`)
+    }, `Lesson progress updated successfully for ${user.email}${badgeResult.newBadges.length > 0 ? ` - ${badgeResult.newBadges.length} new badges earned!` : ''}`)
 
     return addCacheHeaders(response)
 

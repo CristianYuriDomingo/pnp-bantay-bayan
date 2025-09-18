@@ -1,4 +1,4 @@
-// src/hooks/use-progress.ts - FIXED with proper user verification and cache busting
+// src/hooks/use-progress.ts - UPDATED with Badge Integration
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'
@@ -9,6 +9,20 @@ export interface LessonProgress {
   timeSpent: number;
   completedAt?: Date;
   userId?: string;
+}
+
+// NEW: Badge-related interfaces
+export interface BadgeInfo {
+  newBadges: any[];
+  badgeCount: number;
+  success: boolean;
+  errors?: string[];
+}
+
+export interface LessonCompletionResult {
+  lessonProgress: LessonProgress;
+  moduleProgress: any;
+  badges?: BadgeInfo; // NEW: Badge information in response
 }
 
 export interface ModuleProgress {
@@ -66,13 +80,16 @@ function createCacheBustingFetch(url: string, options: RequestInit = {}) {
 }
 
 /**
- * Hook to get and update progress for a specific lesson - USER SPECIFIC
+ * Hook to get and update progress for a specific lesson - USER SPECIFIC WITH BADGE SUPPORT
  */
 export function useLessonProgress(lessonId: string) {
   const [lessonProgress, setLessonProgress] = useState<LessonProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // NEW: Badge-related state
+  const [lastBadgeResult, setLastBadgeResult] = useState<BadgeInfo | null>(null);
+  
   const userId = useCurrentUserId();
   const { user } = useCurrentUser();
 
@@ -86,18 +103,16 @@ export function useLessonProgress(lessonId: string) {
       setLoading(true);
       setError(null);
       
-      console.log(`🔍 Fetching lesson progress for user ${user?.email}: lesson ${lessonId}`)
+      console.log(`Fetching lesson progress for user ${user?.email}: lesson ${lessonId}`)
       
-      // Use cache-busting fetch
       const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`);
       const result = await response.json();
 
       if (result.success) {
         const data = result.data;
         
-        // 🔒 SECURITY CHECK: Verify the data belongs to current user
         if (data.userId && data.userId !== userId) {
-          console.error('⚠️ Security violation: Received progress data for different user');
+          console.error('Security violation: Received progress data for different user');
           console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
           setError('Data integrity error - user mismatch');
           return;
@@ -111,10 +126,9 @@ export function useLessonProgress(lessonId: string) {
           userId: data.userId
         });
         
-        console.log(`✅ Lesson progress loaded for ${user?.email}: ${data.completed ? 'completed' : 'in progress'}`)
+        console.log(`Lesson progress loaded for ${user?.email}: ${data.completed ? 'completed' : 'in progress'}`)
       } else {
-        // If no progress found, set default values
-        console.log(`📋 No progress found for ${user?.email} on lesson ${lessonId}`)
+        console.log(`No progress found for ${user?.email} on lesson ${lessonId}`)
         setLessonProgress({
           completed: false,
           progress: 0,
@@ -143,9 +157,8 @@ export function useLessonProgress(lessonId: string) {
       setUpdating(true);
       setError(null);
       
-      console.log(`📚 ${user?.email} completing lesson ${lessonId} with ${timeSpent}s spent`)
+      console.log(`${user?.email} completing lesson ${lessonId} with ${timeSpent}s spent`)
       
-      // Use cache-busting fetch for updates
       const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`, {
         method: 'POST',
         headers: {
@@ -154,17 +167,18 @@ export function useLessonProgress(lessonId: string) {
         body: JSON.stringify({
           timeSpent,
           progress,
-          userId: userId // Include userId in request body for extra verification
+          userId: userId
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        // 🔒 SECURITY CHECK: Verify the returned data belongs to current user
-        if (result.data.moduleProgress?.userId && result.data.moduleProgress.userId !== userId) {
-          console.error('⚠️ Security violation: Received progress data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${result.data.moduleProgress.userId}`);
+        const data = result.data as LessonCompletionResult;
+        
+        if (data.moduleProgress?.userId && data.moduleProgress.userId !== userId) {
+          console.error('Security violation: Received progress data for different user');
+          console.error(`Expected userId: ${userId}, Received: ${data.moduleProgress.userId}`);
           setError('Data integrity error - user mismatch in response');
           return false;
         }
@@ -176,8 +190,59 @@ export function useLessonProgress(lessonId: string) {
           completedAt: new Date(),
           userId: userId
         });
+
+        // NEW: Handle badge information
+        if (data.badges) {
+          setLastBadgeResult(data.badges);
+          
+          if (data.badges.success && data.badges.badgeCount > 0) {
+            console.log(`Badge success! ${user?.email} earned ${data.badges.badgeCount} new badges`);
+            
+            // Dispatch badge notification event
+            window.dispatchEvent(new CustomEvent('badgesAwarded', {
+              detail: {
+                userId: userId,
+                newBadges: data.badges.newBadges,
+                badgeCount: data.badges.badgeCount,
+                lessonId: lessonId
+              }
+            }));
+            
+            // Also dispatch general lesson completion event with badge info
+            window.dispatchEvent(new CustomEvent('lessonCompleted', {
+              detail: { 
+                lessonId, 
+                moduleId: data.moduleProgress?.moduleId, 
+                timestamp: Date.now(),
+                badges: data.badges
+              }
+            }));
+          } else if (data.badges.errors && data.badges.errors.length > 0) {
+            console.warn('Badge awarding had errors:', data.badges.errors);
+          }
+        }
         
-        console.log(`🎉 ${user?.email} successfully completed lesson ${lessonId}`)
+        // Dispatch progress refresh event
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('progressRefresh', {
+            detail: { timestamp: Date.now() }
+          }));
+          
+          // Store completion info for cross-component communication
+          localStorage.setItem('lessonCompleted', JSON.stringify({
+            lessonId,
+            moduleId: data.moduleProgress?.moduleId,
+            timestamp: Date.now(),
+            badges: data.badges
+          }));
+          
+          // Clean up after 2 seconds
+          setTimeout(() => {
+            localStorage.removeItem('lessonCompleted');
+          }, 2000);
+        }, 1000);
+        
+        console.log(`Successfully completed lesson ${lessonId} for ${user?.email}`)
         return true;
       } else {
         setError(result.error || 'Failed to update lesson progress');
@@ -201,14 +266,13 @@ export function useLessonProgress(lessonId: string) {
     loading,
     updating,
     error,
+    lastBadgeResult, // NEW: Expose badge result
     updateProgress: updateLessonProgress,
     refetch: fetchLessonProgress
   };
 }
 
-/**
- * Hook to get progress for a specific module - USER SPECIFIC
- */
+// Rest of the existing hooks remain the same...
 export function useModuleProgress(moduleId: string) {
   const [moduleProgress, setModuleProgress] = useState<ModuleProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -226,25 +290,23 @@ export function useModuleProgress(moduleId: string) {
       setLoading(true);
       setError(null);
       
-      console.log(`🔍 Fetching module progress for user ${user?.email}: module ${moduleId}`)
+      console.log(`Fetching module progress for user ${user?.email}: module ${moduleId}`)
       
-      // Use cache-busting fetch
       const response = await createCacheBustingFetch(`/api/users/progress/module/${moduleId}`);
       const result = await response.json();
 
       if (result.success) {
         const data = result.data;
         
-        // 🔒 SECURITY CHECK: Verify the data belongs to current user
         if (data.userId && data.userId !== userId) {
-          console.error('⚠️ Security violation: Received progress data for different user');
+          console.error('Security violation: Received progress data for different user');
           console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
           setError('Data integrity error - user mismatch');
           return;
         }
         
         if (data.userEmail && data.userEmail !== user?.email) {
-          console.error('⚠️ Security violation: Email mismatch in progress data');
+          console.error('Security violation: Email mismatch in progress data');
           console.error(`Expected email: ${user?.email}, Received: ${data.userEmail}`);
           setError('Data integrity error - email mismatch');
           return;
@@ -272,7 +334,7 @@ export function useModuleProgress(moduleId: string) {
           }))
         });
         
-        console.log(`✅ Module progress loaded for ${user?.email}: ${data.completedLessons}/${data.totalLessons} lessons (${data.percentage}%)`)
+        console.log(`Module progress loaded for ${user?.email}: ${data.completedLessons}/${data.totalLessons} lessons (${data.percentage}%)`)
       } else {
         setError(result.error || 'Failed to fetch module progress');
       }
@@ -296,9 +358,6 @@ export function useModuleProgress(moduleId: string) {
   };
 }
 
-/**
- * Hook to get overall progress for the current user - USER SPECIFIC
- */
 export function useOverallProgress() {
   const [overallProgress, setOverallProgress] = useState<OverallProgress | null>(null);
   const [loading, setLoading] = useState(true);
@@ -316,31 +375,28 @@ export function useOverallProgress() {
       setLoading(true);
       setError(null);
       
-      console.log(`🔍 Fetching overall progress for user ${user?.email}`)
+      console.log(`Fetching overall progress for user ${user?.email}`)
       
-      // Use cache-busting fetch
       const response = await createCacheBustingFetch('/api/users/progress');
       const result = await response.json();
 
       if (result.success) {
         const data = result.data;
         
-        // 🔒 SECURITY CHECK: Verify the data belongs to current user
         if (data.userId !== userId) {
-          console.error('⚠️ Security violation: Received progress data for different user');
+          console.error('Security violation: Received progress data for different user');
           console.error(`Expected user ID: ${userId}, Received: ${data.userId}`);
           setError('Data integrity error - user mismatch');
           return;
         }
         
         if (data.userEmail !== user?.email) {
-          console.error('⚠️ Security violation: Email mismatch in progress data');
+          console.error('Security violation: Email mismatch in progress data');
           console.error(`Expected email: ${user?.email}, Received: ${data.userEmail}`);
           setError('Data integrity error - email mismatch');
           return;
         }
         
-        // Additional verification: Check that all progress entries belong to this user
         const moduleProgressEntries = Object.values(data.moduleProgress || {});
         const invalidModuleEntries = moduleProgressEntries.filter((entry: any) => 
           entry.userId && entry.userId !== userId
@@ -352,14 +408,14 @@ export function useOverallProgress() {
         );
         
         if (invalidModuleEntries.length > 0 || invalidLessonEntries.length > 0) {
-          console.error('⚠️ Security violation: Mixed user data in progress entries');
+          console.error('Security violation: Mixed user data in progress entries');
           setError('Data integrity error - mixed user data');
           return;
         }
         
         setOverallProgress(data);
         
-        console.log(`✅ Overall progress loaded for ${user?.email}: ${data.statistics.completedModules}/${data.statistics.totalModules} modules completed (${data.statistics.overallProgress}%)`)
+        console.log(`Overall progress loaded for ${user?.email}: ${data.statistics.completedModules}/${data.statistics.totalModules} modules completed (${data.statistics.overallProgress}%)`)
       } else {
         setError(result.error || 'Failed to fetch overall progress');
       }
@@ -383,12 +439,12 @@ export function useOverallProgress() {
   };
 }
 
-// Rest of the utility functions remain the same
+// Utility functions remain the same
 export function isLessonCompleted(lessonId: string, overallProgress: OverallProgress | null, currentUserId?: string): boolean {
   if (!overallProgress) return false;
   
   if (currentUserId && overallProgress.userId !== currentUserId) {
-    console.warn('⚠️ User ID mismatch in progress check');
+    console.warn('User ID mismatch in progress check');
     return false;
   }
   
@@ -399,7 +455,7 @@ export function isModuleCompleted(moduleId: string, overallProgress: OverallProg
   if (!overallProgress) return false;
   
   if (currentUserId && overallProgress.userId !== currentUserId) {
-    console.warn('⚠️ User ID mismatch in progress check');
+    console.warn('User ID mismatch in progress check');
     return false;
   }
   
@@ -410,16 +466,13 @@ export function getModuleCompletionPercentage(moduleId: string, overallProgress:
   if (!overallProgress) return 0;
   
   if (currentUserId && overallProgress.userId !== currentUserId) {
-    console.warn('⚠️ User ID mismatch in progress check');
+    console.warn('User ID mismatch in progress check');
     return 0;
   }
   
   return overallProgress.moduleProgress[moduleId]?.percentage || 0;
 }
 
-/**
- * NEW: Hook to get user-specific leaderboard/stats (without exposing other users' data)
- */
 export function useUserStats() {
   const { overallProgress, loading, error } = useOverallProgress();
   const { user } = useCurrentUser();
