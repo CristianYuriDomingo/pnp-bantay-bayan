@@ -1,6 +1,7 @@
-// components/LearnCard.tsx
+// components/LearnCard.tsx - ENHANCED with progress display
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useOverallProgress } from '@/hooks/use-progress';
 
 interface LearnCardProps {
   imageSrc: string;
@@ -73,6 +74,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
   isAvailable = true
 }) => {
   const router = useRouter();
+  const { overallProgress, loading: progressLoading } = useOverallProgress();
   const [imageError, setImageError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [moduleLessons, setModuleLessons] = useState<Lesson[]>([]);
@@ -81,6 +83,12 @@ const LearnCard: React.FC<LearnCardProps> = ({
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  // Get progress data for this module
+  const moduleProgress = overallProgress?.moduleProgress?.[moduleId];
+  const completedLessons = moduleProgress?.completedLessons?.length || 0;
+  const totalLessons = moduleProgress?.totalLessons || 0;
+  const completionPercentage = moduleProgress?.percentage || 0;
 
   // Fetch lessons when modal opens
   useEffect(() => {
@@ -146,6 +154,8 @@ const LearnCard: React.FC<LearnCardProps> = ({
               </div>
             </div>
           )}
+
+
                   
           {/* Button positioned in bottom-right corner of image */}
           <div className="absolute bottom-3 right-3">
@@ -176,7 +186,15 @@ const LearnCard: React.FC<LearnCardProps> = ({
           {/* Title and Lessons Info */}
           <div className="relative text-left z-10">
             <h3 className="text-blue-600 font-bold text-sm sm:text-base md:text-lg mb-1 line-clamp-2 leading-tight">{title}</h3>
-            <p className="text-blue-500 text-xs sm:text-sm font-medium">{lessons}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-blue-500 text-xs sm:text-sm font-medium">{lessons}</p>
+              {/* Progress indicator - simple fraction format */}
+              {totalLessons > 0 && !progressLoading && (
+                <span className="text-xs text-blue-600 font-medium">
+                  {completedLessons}/{totalLessons}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -214,15 +232,23 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 <p className="text-gray-600">No lessons available for this module.</p>
               </div>
             ) : (
-              moduleLessons.map((lesson, index) => (
-                <button 
-                  key={lesson.id}
-                  onClick={() => handleLessonClick(lesson.id, lesson.title)}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200"
-                >
-                  {lesson.title}
-                </button>
-              ))
+              moduleLessons.map((lesson, index) => {
+                const isCompleted = moduleProgress?.completedLessons?.includes(lesson.id) || false;
+                return (
+                  <button 
+                    key={lesson.id}
+                    onClick={() => handleLessonClick(lesson.id, lesson.title)}
+                    className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-blue-600 px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center relative"
+                  >
+                    <span className="text-center">{lesson.title}</span>
+                    {isCompleted && (
+                      <svg className="w-5 h-5 text-green-600 absolute right-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
