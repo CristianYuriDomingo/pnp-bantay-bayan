@@ -36,6 +36,14 @@ interface Lesson {
   };
 }
 
+interface OrphanedBadge {
+  id: string;
+  name: string;
+  triggerValue: string;
+  type: string;
+  reason: string;
+}
+
 const FormField = ({ label, required = false, children }: { 
   label: string; 
   required?: boolean; 
@@ -49,6 +57,83 @@ const FormField = ({ label, required = false, children }: {
   </div>
 );
 
+const CleanupWidget = ({ 
+  orphanedBadges, 
+  onCleanup, 
+  onCheck,
+  loading 
+}: { 
+  orphanedBadges: OrphanedBadge[];
+  onCleanup: () => void;
+  onCheck: () => void;
+  loading: boolean;
+}) => {
+  if (loading) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600 mr-2"></div>
+          <span className="text-sm text-yellow-800">Checking for orphaned badges...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (orphanedBadges.length === 0) {
+    return (
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-green-600 mr-2">✓</span>
+            <span className="text-sm text-green-800 font-medium">No orphaned badges found</span>
+          </div>
+          <button
+            onClick={onCheck}
+            className="bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded text-xs transition-colors"
+          >
+            Re-check
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center">
+          <span className="text-red-600 mr-2">⚠️</span>
+          <span className="text-sm text-red-800 font-medium">
+            {orphanedBadges.length} orphaned badge{orphanedBadges.length !== 1 ? 's' : ''} found
+          </span>
+        </div>
+        <div className="flex space-x-2">
+          <button
+            onClick={onCheck}
+            className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-xs transition-colors"
+          >
+            Re-check
+          </button>
+          <button
+            onClick={onCleanup}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs transition-colors"
+          >
+            Clean Up
+          </button>
+        </div>
+      </div>
+      
+      <div className="max-h-32 overflow-y-auto">
+        {orphanedBadges.map((badge) => (
+          <div key={badge.id} className="text-xs text-red-700 py-1 border-b border-red-100 last:border-b-0">
+            <strong>{badge.name}</strong> - {badge.reason}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const BadgeCard = ({ 
   badge, 
   modules, 
@@ -56,7 +141,8 @@ const BadgeCard = ({
   badges, 
   onEdit, 
   onDelete,
-  isHighlighted = false
+  isHighlighted = false,
+  isOrphaned = false
 }: { 
   badge: Badge; 
   modules: Module[]; 
@@ -65,6 +151,7 @@ const BadgeCard = ({
   onEdit: (badge: Badge) => void; 
   onDelete: (badgeId: string) => void; 
   isHighlighted?: boolean;
+  isOrphaned?: boolean;
 }) => {
   const [imageError, setImageError] = useState(false);
   
@@ -107,7 +194,9 @@ const BadgeCard = ({
   };
 
   return (
-    <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${isHighlighted ? 'ring-2 ring-blue-500' : ''}`}>
+    <div className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${
+      isHighlighted ? 'ring-2 ring-blue-500' : ''
+    } ${isOrphaned ? 'ring-2 ring-red-500 bg-red-50' : ''}`}>
       <div className="p-4">
         <div className="flex items-start space-x-4">
           <div className="flex-shrink-0">
@@ -138,6 +227,11 @@ const BadgeCard = ({
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     {badge.category}
                   </span>
+                  {isOrphaned && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
+                      ⚠️ Orphaned
+                    </span>
+                  )}
                 </div>
                 
                 <p className="text-xs text-gray-500 mt-2">
@@ -177,6 +271,13 @@ const BadgeCard = ({
         <div className="px-4 pb-3">
           <div className="bg-blue-50 border border-blue-200 rounded p-2 text-sm text-blue-800">
             <strong>📍 Selected Badge:</strong> This badge is linked to your selected lesson from Content Management.
+          </div>
+        </div>
+      )}
+      {isOrphaned && (
+        <div className="px-4 pb-3">
+          <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-800">
+            <strong>⚠️ Orphaned Badge:</strong> This badge references content that no longer exists and should be removed.
           </div>
         </div>
       )}
@@ -466,6 +567,8 @@ export default function BadgeManagementPage() {
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterRarity, setFilterRarity] = useState<string>('');
+  const [orphanedBadges, setOrphanedBadges] = useState<OrphanedBadge[]>([]);
+  const [cleanupLoading, setCleanupLoading] = useState(false);
 
   // Get URL parameters
   const searchParams = useSearchParams();
@@ -503,11 +606,64 @@ export default function BadgeManagementPage() {
         const badgesData = await badgesResponse.json();
         setBadges(badgesData);
       }
+
+      // Check for orphaned badges after loading data
+      await checkOrphanedBadges();
     } catch (error) {
       console.error('Error fetching data:', error);
       alert('Error loading data. Please refresh the page.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkOrphanedBadges = async () => {
+    try {
+      setCleanupLoading(true);
+      const response = await fetch('/api/admin/badges/cleanup');
+      if (response.ok) {
+        const data = await response.json();
+        setOrphanedBadges(data.orphanedBadges || []);
+      }
+    } catch (error) {
+      console.error('Error checking orphaned badges:', error);
+    } finally {
+      setCleanupLoading(false);
+    }
+  };
+
+  const handleCleanupOrphanedBadges = async () => {
+    if (!confirm(`Are you sure you want to delete ${orphanedBadges.length} orphaned badge${orphanedBadges.length !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setCleanupLoading(true);
+      const response = await fetch('/api/admin/badges/cleanup', {
+        method: 'POST'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(data.message);
+        
+        // Refresh badges and check again
+        const badgesResponse = await fetch('/api/admin/badges');
+        if (badgesResponse.ok) {
+          const badgesData = await badgesResponse.json();
+          setBadges(badgesData);
+        }
+        
+        await checkOrphanedBadges();
+      } else {
+        const errorData = await response.json();
+        alert(`Error cleaning up badges: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up badges:', error);
+      alert('Error cleaning up badges. Please try again.');
+    } finally {
+      setCleanupLoading(false);
     }
   };
 
@@ -539,6 +695,9 @@ export default function BadgeManagementPage() {
         setShowAddBadge(false);
       }
 
+      // Re-check for orphaned badges after changes
+      await checkOrphanedBadges();
+
       alert(`Badge ${isEditing ? 'updated' : 'created'} successfully!`);
     } catch (error) {
       console.error('Error saving badge:', error);
@@ -558,6 +717,10 @@ export default function BadgeManagementPage() {
       }
 
       setBadges(badges.filter(badge => badge.id !== badgeId));
+      
+      // Re-check for orphaned badges after deletion
+      await checkOrphanedBadges();
+      
       alert('Badge deleted successfully!');
     } catch (error) {
       console.error('Error deleting badge:', error);
@@ -592,6 +755,9 @@ export default function BadgeManagementPage() {
 
   const preselectedLesson = preselectedLessonId ? lessons.find(l => l.id === preselectedLessonId) : null;
 
+  // Create set of orphaned badge IDs for quick lookup
+  const orphanedBadgeIds = new Set(orphanedBadges.map(b => b.id));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -619,6 +785,14 @@ export default function BadgeManagementPage() {
           <span>Add Badge</span>
         </button>
       </div>
+
+      {/* Cleanup Widget */}
+      <CleanupWidget 
+        orphanedBadges={orphanedBadges}
+        onCleanup={handleCleanupOrphanedBadges}
+        onCheck={checkOrphanedBadges}
+        loading={cleanupLoading}
+      />
 
       {(showAddBadge || editingBadge) && (
         <AddBadgeForm 
@@ -710,6 +884,7 @@ export default function BadgeManagementPage() {
                   onEdit={setEditingBadge} 
                   onDelete={handleDeleteBadge}
                   isHighlighted={preselectedLessonBadge?.id === badge.id}
+                  isOrphaned={orphanedBadgeIds.has(badge.id)}
                 />
               ))}
             </div>
@@ -726,6 +901,7 @@ export default function BadgeManagementPage() {
           <p>• <strong>Quiz Complete:</strong> Triggered when user successfully passes a specific quiz</p>
           <p>• <strong>Manual:</strong> Manually awarded by administrators</p>
           <p>• All badges are stored in your database and properly linked to actual modules/lessons</p>
+          <p>• <strong>Orphaned Badge Cleanup:</strong> The system automatically detects and can remove badges that reference deleted content</p>
           <p>• Lesson badges now show which module the lesson belongs to for better organization</p>
           {preselectedLessonId && (
             <p>• <strong>Navigation from Content Management:</strong> This page opened with a specific lesson pre-selected for badge creation</p>

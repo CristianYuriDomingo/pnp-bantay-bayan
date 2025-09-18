@@ -198,7 +198,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Delete a lesson
+// DELETE - Delete a lesson and clean up associated badges
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -214,11 +214,35 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Lesson ID is required' }, { status: 400 });
     }
 
-    await prisma.lesson.delete({
-      where: { id: lessonId }
+    // Check if lesson exists
+    const existingLesson = await prisma.lesson.findUnique({
+      where: { id: lessonId },
+      select: { id: true, title: true }
     });
 
-    return NextResponse.json({ message: 'Lesson deleted successfully' });
+    if (!existingLesson) {
+      return NextResponse.json({ error: 'Lesson not found' }, { status: 404 });
+    }
+
+    // Perform cleanup in a transaction
+    await prisma.$transaction(async (prisma) => {
+      // 1. Delete badges associated with this lesson (lesson completion badges)
+      await prisma.badge.deleteMany({
+        where: {
+          triggerType: 'lesson_complete',
+          triggerValue: lessonId
+        }
+      });
+
+      // 2. Delete the lesson (tips will be deleted automatically due to cascade)
+      await prisma.lesson.delete({
+        where: { id: lessonId }
+      });
+    });
+
+    return NextResponse.json({ 
+      message: 'Lesson and associated badges deleted successfully' 
+    });
   } catch (error) {
     console.error('Error deleting lesson:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

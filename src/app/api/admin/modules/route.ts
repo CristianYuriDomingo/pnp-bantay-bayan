@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Delete a module
+// DELETE - Delete a module and clean up associated badges
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -139,10 +139,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Module ID is required' }, { status: 400 });
     }
 
-    // First check if the module exists and has lessons
+    // First check if the module exists and get its lessons
     const moduleWithLessons = await prisma.module.findUnique({
       where: { id: moduleId },
       include: {
+        lessons: {
+          select: { id: true }
+        },
         _count: {
           select: {
             lessons: true
@@ -155,13 +158,37 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Module not found' }, { status: 404 });
     }
 
-    // Delete the module (lessons will be deleted automatically due to cascade)
-    await prisma.module.delete({
-      where: { id: moduleId }
+    // Perform cleanup in a transaction
+    await prisma.$transaction(async (prisma) => {
+      // 1. Delete badges associated with this module (module completion badges)
+      await prisma.badge.deleteMany({
+        where: {
+          triggerType: 'module_complete',
+          triggerValue: moduleId
+        }
+      });
+
+      // 2. Delete badges associated with lessons in this module (lesson completion badges)
+      const lessonIds = moduleWithLessons.lessons.map(lesson => lesson.id);
+      if (lessonIds.length > 0) {
+        await prisma.badge.deleteMany({
+          where: {
+            triggerType: 'lesson_complete',
+            triggerValue: {
+              in: lessonIds
+            }
+          }
+        });
+      }
+
+      // 3. Delete the module (lessons and tips will be deleted automatically due to cascade)
+      await prisma.module.delete({
+        where: { id: moduleId }
+      });
     });
 
     return NextResponse.json({ 
-      message: 'Module deleted successfully',
+      message: 'Module and associated badges deleted successfully',
       deletedLessons: moduleWithLessons._count.lessons
     });
   } catch (error) {

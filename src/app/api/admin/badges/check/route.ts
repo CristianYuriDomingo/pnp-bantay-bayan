@@ -23,6 +23,26 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Validate that the trigger value still exists in the database
+    let isValidTrigger = false;
+    
+    if (triggerType === 'module_complete') {
+      const module = await prisma.module.findUnique({
+        where: { id: triggerValue },
+        select: { id: true }
+      });
+      isValidTrigger = !!module;
+    } else if (triggerType === 'lesson_complete') {
+      const lesson = await prisma.lesson.findUnique({
+        where: { id: triggerValue },
+        select: { id: true }
+      });
+      isValidTrigger = !!lesson;
+    } else {
+      // For other trigger types like quiz_complete or manual, assume they're valid
+      isValidTrigger = true;
+    }
+
     const badge = await prisma.badge.findFirst({
       where: {
         triggerType,
@@ -32,7 +52,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ 
       exists: !!badge,
-      badge: badge || null
+      badge: badge || null,
+      isValidTrigger,
+      warning: badge && !isValidTrigger ? 'Badge exists but references deleted content' : null
     });
   } catch (error) {
     console.error('Error checking badge:', error);
@@ -72,6 +94,16 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Get valid modules and lessons for validation
+    const moduleIds = new Set();
+    const lessonIds = new Set();
+    
+    const modules = await prisma.module.findMany({ select: { id: true } });
+    const lessons = await prisma.lesson.findMany({ select: { id: true } });
+    
+    modules.forEach(m => moduleIds.add(m.id));
+    lessons.forEach(l => lessonIds.add(l.id));
+
     // Create a map for easy lookup
     const badgeMap = new Map();
     badges.forEach(badge => {
@@ -82,11 +114,23 @@ export async function POST(request: NextRequest) {
     // Return results in the same order as requested
     const results = triggers.map(trigger => {
       const key = `${trigger.triggerType}-${trigger.triggerValue}`;
+      const badge = badgeMap.get(key) || null;
+      
+      // Check if trigger is still valid
+      let isValidTrigger = true;
+      if (trigger.triggerType === 'module_complete') {
+        isValidTrigger = moduleIds.has(trigger.triggerValue);
+      } else if (trigger.triggerType === 'lesson_complete') {
+        isValidTrigger = lessonIds.has(trigger.triggerValue);
+      }
+
       return {
         triggerType: trigger.triggerType,
         triggerValue: trigger.triggerValue,
-        exists: badgeMap.has(key),
-        badge: badgeMap.get(key) || null
+        exists: !!badge,
+        badge,
+        isValidTrigger,
+        warning: badge && !isValidTrigger ? 'Badge exists but references deleted content' : null
       };
     });
 
