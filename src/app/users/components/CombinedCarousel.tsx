@@ -242,12 +242,37 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       // Force refetch to ensure we have latest data
       await refetchProgress();
       
+      // Enhanced event dispatch for better cross-component communication
+      setTimeout(() => {
+        // Dispatch multiple events with delay to ensure API has processed
+        window.dispatchEvent(new CustomEvent('lessonCompleted', {
+          detail: { lessonId, moduleId, timestamp: Date.now() }
+        }));
+        
+        window.dispatchEvent(new CustomEvent('progressRefresh', {
+          detail: { timestamp: Date.now() }
+        }));
+        
+        // Storage event for cross-tab communication
+        localStorage.setItem('lessonCompleted', JSON.stringify({
+          lessonId,
+          moduleId,
+          timestamp: Date.now()
+        }));
+        
+        // Clean up storage after components have had time to read it
+        setTimeout(() => {
+          localStorage.removeItem('lessonCompleted');
+        }, 2000);
+        
+        console.log(`Enhanced completion events dispatched for lesson ${lessonId}`);
+      }, 1000); // 1 second delay to ensure API completion
+      
       if (onModuleComplete) {
         onModuleComplete(moduleId);
       }
     } else {
       console.error('Failed to update lesson progress:', progressError);
-      // Show error to user
       alert('Failed to save your progress. Please try again.');
     }
   };
@@ -275,6 +300,22 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       console.log(`Starting lesson completion for lesson ${lessonId}`);
       await markLessonComplete();
       console.log(`Lesson completion finished for lesson ${lessonId}`);
+      
+      // 🎉 NEW: Dispatch events to notify other components
+      // Use localStorage event for cross-tab communication
+      localStorage.setItem('lessonCompleted', JSON.stringify({
+        lessonId,
+        moduleId,
+        timestamp: Date.now()
+      }));
+      
+      // Dispatch custom event for same-page components
+      window.dispatchEvent(new CustomEvent('lessonCompleted', {
+        detail: { lessonId, moduleId }
+      }));
+      
+      console.log(`📡 Dispatched completion events for lesson ${lessonId}`);
+      
     } catch (error) {
       console.error('Error in handleFinish:', error);
       alert('Failed to complete lesson. Please try again.');
