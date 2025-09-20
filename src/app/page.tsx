@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation'; // Add this import
+import Image from 'next/image'; // Add this import
 
 export default function Home() {
   const [navOpen, setNavOpen] = useState(false);
@@ -35,27 +36,30 @@ export default function Home() {
         <div className="flex justify-between items-center h-full w-full px-4 md:px-8 lg:px-16">
           {/* Logo */}
           <div className="flex items-center">
-            {/* Replace this img src with your actual logo image path */}
-            <img 
-              src="/path-to-your-logo.png" 
-              alt="Bantay Bayan Logo" 
+            {/* Replace this img src with your actual logo image */}
+            <Image
+              src="/DashboardImage/logo.png"
+              alt="Bantay Bayan Logo"
+              width={64}
+              height={64}
               className="h-16 w-auto object-contain"
+              priority
             />
           </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {["Features", "Modules", "About", "Contact"].map((item) => (
-              <a 
-                href={`#${item.toLowerCase()}`} 
+              <a
+                href={`#${item.toLowerCase()}`}
                 key={item}
                 className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300"
               >
                 {item}
               </a>
             ))}
-            
-            <button 
+
+            <button
               onClick={handleGetStarted}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
             >
@@ -70,7 +74,7 @@ export default function Home() {
               className="text-gray-600 hover:text-blue-600 focus:outline-none"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                       d={navOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} />
               </svg>
             </button>
@@ -82,7 +86,7 @@ export default function Home() {
           <div className="absolute top-20 left-0 w-full bg-white/95 backdrop-blur-md border-b border-blue-100 shadow-lg">
             <div className="flex flex-col items-center gap-6 py-8">
               {["Features", "Modules", "About", "Contact"].map((item) => (
-                <a 
+                <a
                   key={item}
                   href={`#${item.toLowerCase()}`}
                   onClick={toggleNav}
@@ -91,7 +95,7 @@ export default function Home() {
                   {item}
                 </a>
               ))}
-              <button 
+              <button
                 onClick={handleGetStarted}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300"
               >
@@ -105,44 +109,44 @@ export default function Home() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4 md:px-8 lg:px-16 min-h-screen flex items-center">
         <div className="flex flex-col md:flex-row items-center justify-between gap-12 w-full">
-          
+
           {/* Left Column: Content */}
           <div className="flex-1 max-w-2xl">
             <div>
               <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight text-gray-800">
-                Learn 
+                Learn
                 <span className="text-blue-600"> Safety</span>
                 <br />
-                Build 
+                Build
                 <span className="text-yellow-500"> Awareness</span>
               </h1>
-              
+
               <p className="text-xl md:text-2xl text-gray-600 mb-12 leading-relaxed">
-                Interactive safety education platform designed to build awareness and prevent crime. 
+                Interactive safety education platform designed to build awareness and prevent crime.
                 Learn through engaging modules, earn badges, and become a community guardian.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-6">
-                <button 
+                <button
                   onClick={handleGetStarted}
                   className="group relative px-8 py-4 text-lg font-bold rounded-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
                 >
                   <span className="relative z-10">Start Learning</span>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={handleLearnMore}
                   className="px-8 py-4 text-lg font-bold rounded-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-300"
                 >
                   View Modules
                 </button>
               </div>
-              
+
               {/* Add a "Already have an account?" link */}
               <div className="mt-6">
                 <p className="text-gray-600">
                   Already have an account?{' '}
-                  <button 
+                  <button
                     onClick={handleLoginClick}
                     className="text-blue-600 hover:text-blue-700 font-semibold underline transition-colors"
                   >
@@ -157,10 +161,13 @@ export default function Home() {
           <div className="flex-1 flex justify-center md:justify-end">
             <div className="relative w-full max-w-lg">
               {/* Replace with your actual image */}
-              <img 
-                src="/path-to-your-hero-image.png" 
-                alt="Bantay Bayan Safety Education" 
-                className="w-96 h-96 mx-auto object-cover rounded-3xl shadow-xl"
+              <Image
+                src="/MainImage/LandingPage.png"
+                alt="Bantay Bayan Safety Education"
+                width={384}
+                height={384}
+                className="w-96 h-96 mx-auto object-cover rounded-3xl border-none"
+                priority
               />
             </div>
           </div>
@@ -187,14 +194,14 @@ export default function Home() {
               bgColor: "bg-blue-50"
             },
             {
-              title: "Digital & Cyber Safety", 
+              title: "Digital & Cyber Safety",
               lessons: "5 Lessons",
               description: "Protect yourself online with essential cybersecurity knowledge and best practices.",
               bgColor: "bg-purple-50"
             },
             {
               title: "Emergency Response",
-              lessons: "4 Lessons", 
+              lessons: "4 Lessons",
               description: "Essential skills for emergency situations and first aid response techniques.",
               bgColor: "bg-red-50"
             },
@@ -219,12 +226,12 @@ export default function Home() {
           ].map((module, index) => (
             <div key={index} className="group">
               <div className={`${module.bgColor} rounded-2xl p-6 h-full border-2 border-transparent hover:border-blue-200 transition-all duration-300 hover:transform hover:-translate-y-2 hover:shadow-lg`}>
-                
+
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{module.title}</h3>
                 <p className="text-blue-600 font-medium text-sm mb-4">{module.lessons}</p>
                 <p className="text-gray-600 leading-relaxed mb-6">{module.description}</p>
-                
-                <button 
+
+                <button
                   onClick={handleGetStarted}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full transition-all duration-300"
                 >
@@ -244,9 +251,11 @@ export default function Home() {
               title: "Interactive Learning Experience",
               description: "Engage with gamified lessons, quizzes, and interactive content designed to make safety education enjoyable and memorable. Track your progress and earn badges as you complete modules.",
               visual: (
-                <img 
-                  src="/path-to-interactive-learning-image.png" 
-                  alt="Interactive Learning Platform" 
+                <Image
+                  src="/path-to-interactive-learning-image.png"
+                  alt="Interactive Learning Platform"
+                  width={640}
+                  height={320}
                   className="w-full h-80 object-cover rounded-3xl shadow-xl"
                 />
               ),
@@ -256,16 +265,18 @@ export default function Home() {
               title: "Achievement System",
               description: "Earn recognition for your achievements with our comprehensive tracking system. Get rewarded for completing modules, passing quizzes, and demonstrating mastery of safety concepts.",
               visual: (
-                <img 
-                  src="/path-to-achievement-system-image.png" 
-                  alt="Achievement Recognition System" 
+                <Image
+                  src="/path-to-achievement-system-image.png"
+                  alt="Achievement Recognition System"
+                  width={640}
+                  height={320}
                   className="w-full h-80 object-cover rounded-3xl shadow-xl"
                 />
               ),
               reverse: true
             },
             {
-              title: "Community Safety Network", 
+              title: "Community Safety Network",
               description: "Connect with fellow learners and safety advocates in your community. Share knowledge, participate in discussions, and build a stronger, more aware community together.",
               visual: (
                 <div className="relative w-full h-80 bg-gradient-to-br from-green-500 to-green-600 rounded-3xl flex items-center justify-center text-white">
@@ -287,7 +298,7 @@ export default function Home() {
                   {section.description}
                 </p>
                 <button className="inline-flex items-center text-lg font-semibold text-blue-600 hover:text-blue-700 transition-colors group">
-                  Learn more 
+                  Learn more
                   <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -311,7 +322,7 @@ export default function Home() {
             Join thousands of learners already making their communities safer through education.
           </p>
           <div className="flex flex-col sm:flex-row gap-6 justify-center">
-            <button 
+            <button
               onClick={handleGetStarted}
               className="px-12 py-4 text-xl font-bold rounded-full bg-yellow-500 hover:bg-yellow-400 text-gray-800 transition-all duration-300 shadow-lg"
             >
@@ -331,9 +342,11 @@ export default function Home() {
             <div>
               <div className="flex items-center mb-4">
                 {/* Footer logo - same as header */}
-                <img 
-                  src="/path-to-your-logo.png" 
-                  alt="Bantay Bayan Logo" 
+                <Image
+                  src="/path-to-your-logo.png"
+                  alt="Bantay Bayan Logo"
+                  width={48}
+                  height={48}
                   className="h-12 w-auto object-contain"
                 />
               </div>
@@ -341,14 +354,14 @@ export default function Home() {
                 Building safer communities through interactive safety education.
               </p>
             </div>
-            
+
             {[
               {
                 title: "Learning",
                 links: ["Modules", "Quizzes", "Progress Tracking", "Resources"]
               },
               {
-                title: "Support", 
+                title: "Support",
                 links: ["Help Center", "Contact", "FAQ", "Community"]
               },
               {
@@ -370,7 +383,7 @@ export default function Home() {
               </div>
             ))}
           </div>
-          
+
           <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-300">&copy; 2025 Bantay Bayan. All rights reserved.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
