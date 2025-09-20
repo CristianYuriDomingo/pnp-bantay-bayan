@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import AchievementsUI from '../components/Achievement';
 import ProfileSettings from '../components/ProfileSettings';
+import BadgeCollection from '../components/BadgeCollection'; // Import the BadgeCollection component
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRightColumn } from '../layout'; // Import the hook
@@ -142,6 +143,11 @@ export default function ProfilePage() {
           {/* Profile Settings Section - Main Content */}
           <div className="space-y-6">
             <ProfileSettings />
+            
+            {/* Badge Collection Section */}
+            <div className="mt-6">
+              <BadgeCollection />
+            </div>
           </div>
         </div>
       </div>
