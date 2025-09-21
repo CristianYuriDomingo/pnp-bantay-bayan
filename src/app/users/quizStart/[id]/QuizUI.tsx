@@ -1,3 +1,4 @@
+// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete Updated Version)
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -113,69 +114,142 @@ const LoadingSpinner = () => (
   </div>
 );
 
+// Updated QuizComplete component with mastery display and badge showcase
 const QuizComplete = ({ 
   score, 
   totalQuestions, 
   quizTitle, 
+  masteryData,
   onRetakeQuiz, 
   onClose 
 }: {
   score: number;
   totalQuestions: number;
   quizTitle: string;
+  masteryData?: any;
   onRetakeQuiz: () => void;
   onClose: () => void;
-}) => (
-  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-    <div className="max-w-md w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
-      <div className="flex justify-end mb-2">
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-          aria-label="Close results"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+}) => {
+  const percentage = Math.round((score / totalQuestions) * 100);
+  
+  const getMasteryColor = (level: string | null) => {
+    switch (level) {
+      case 'Perfect': return 'text-purple-600 bg-purple-100';
+      case 'Gold': return 'text-yellow-600 bg-yellow-100';
+      case 'Silver': return 'text-gray-600 bg-gray-100';
+      case 'Bronze': return 'text-orange-600 bg-orange-100';
+      default: return 'text-gray-500 bg-gray-50';
+    }
+  };
 
-      <div className="text-center">
-        <div className="mb-6">
-          <div className="text-6xl mb-4">
-            {score >= totalQuestions * 0.8 ? '🎉' : score >= totalQuestions * 0.6 ? '👍' : '📚'}
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
-          <p className="text-gray-600">{quizTitle}</p>
-        </div>
-
-        <div className="bg-blue-50 rounded-xl p-6 mb-6">
-          <div className="text-3xl font-bold text-blue-600 mb-2">
-            {score}/{totalQuestions}
-          </div>
-          <div className="text-gray-700">
-            {Math.round((score / totalQuestions) * 100)}% Score
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={onRetakeQuiz}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Retake Quiz
-          </button>
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="max-w-lg w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
+        <div className="flex justify-end mb-2">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Close results"
           >
-            Close
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
+        </div>
+
+        <div className="text-center">
+          <div className="mb-6">
+            <div className="text-6xl mb-4">
+              {masteryData?.masteryLevel === 'Perfect' ? '🏆' : 
+               masteryData?.masteryLevel === 'Gold' ? '🥇' :
+               masteryData?.masteryLevel === 'Silver' ? '🥈' :
+               masteryData?.masteryLevel === 'Bronze' ? '🥉' :
+               percentage >= 80 ? '🎉' : 
+               percentage >= 60 ? '👍' : '📚'}
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
+            <p className="text-gray-600">{quizTitle}</p>
+          </div>
+
+          {/* Score Display */}
+          <div className="bg-blue-50 rounded-xl p-6 mb-6">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {score}/{totalQuestions}
+            </div>
+            <div className="text-gray-700 mb-2">
+              {percentage}% Score
+            </div>
+            
+            {/* Mastery Level Display */}
+            {masteryData?.masteryLevel && (
+              <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getMasteryColor(masteryData.masteryLevel)}`}>
+                {masteryData.masteryLevel} Mastery ({Math.round(masteryData.masteryScore)}%)
+              </div>
+            )}
+            
+            {/* New Best Score Indicator */}
+            {masteryData?.isNewBestScore && (
+              <div className="mt-2 text-green-600 text-sm font-medium">
+                🎊 New Best Score!
+              </div>
+            )}
+          </div>
+
+          {/* Earned Badges Display */}
+          {masteryData?.earnedBadges && masteryData.earnedBadges.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-gray-800 mb-3">Badges Earned!</h3>
+              <div className="flex justify-center space-x-3 mb-4">
+                {masteryData.earnedBadges.map((badge: any) => (
+                  <div key={badge.id} className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mb-2">
+                      {badge.image ? (
+                        <img src={badge.image} alt={badge.name} className="w-10 h-10" />
+                      ) : (
+                        <span className="text-2xl">🏆</span>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-gray-700">{badge.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {masteryData?.message && (
+            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 text-sm font-medium">{masteryData.message}</p>
+            </div>
+          )}
+
+          {/* Performance Stats */}
+          {masteryData && (
+            <div className="mb-6 text-sm text-gray-600 space-y-1">
+              <div>Time Efficiency: {Math.round(masteryData.timeEfficiency)}%</div>
+              <div>Attempt #{masteryData.attemptCount}</div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onRetakeQuiz}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Retake Quiz
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 interface QuizUIProps {
   quizId: string;
@@ -214,6 +288,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [userAnswers, setUserAnswers] = useState<any[]>([]);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [quizStartTime, setQuizStartTime] = useState<number>(0);
+  const [masteryData, setMasteryData] = useState<any>(null);
 
   const fetchQuizData = async () => {
     try {
@@ -226,14 +302,15 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setShowInstructions(true);
     } catch (error) {
       console.error('Error fetching quiz:', error);
+      // Fallback data for development
       setQuizData({
-        id: "sample-quiz",
-        title: "Cyber Security Quiz",
+        id: quizId,
+        title: "Sample Quiz",
         timer: 30,
         questions: [
           {
             id: "q1",
-            question: "What should you use to create complex passwords?",
+            question: "What should you use to create strong passwords?",
             lesson: "Cyber Security",
             image: "/LearnImage/CyberSecurity/21.png",
             options: [
@@ -241,18 +318,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
               "A mix of letters, numbers, and symbols",
               "Your name and birthdate",
               "The same password for all accounts"
-            ]
-          },
-          {
-            id: "q2",
-            question: "What is phishing?",
-            lesson: "Cyber Security",
-            image: null,
-            options: [
-              "A type of fishing",
-              "A method to catch fish online",
-              "A fraudulent attempt to obtain sensitive information",
-              "A computer game"
             ]
           }
         ]
@@ -308,6 +373,34 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
+  const submitCompleteQuiz = async () => {
+    try {
+      const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+      
+      const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          answers: userAnswers,
+          timeSpent: totalTimeSpent,
+          score: score,
+          totalQuestions: quizData.questions.length,
+        }),
+      });
+
+      if (response.ok) {
+        const completionData = await response.json();
+        setMasteryData(completionData);
+      } else {
+        console.warn('Failed to save quiz completion to database');
+      }
+    } catch (error) {
+      console.error('Error submitting complete quiz:', error);
+    }
+  };
+
   useEffect(() => {
     if (quizStarted && timeLeft > 0 && !showFeedback && !isQuizComplete) {
       const timer = setTimeout(() => {
@@ -323,7 +416,11 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setShowFeedback(true);
     const currentQuestionData = quizData.questions[currentQuestion];
     await submitAnswer(currentQuestionData.id, -1);
-    setUserAnswers([...userAnswers, { questionId: currentQuestionData.id, answer: null, correct: false }]);
+    setUserAnswers(prev => [...prev, { 
+      questionId: currentQuestionData.id, 
+      answer: null, 
+      correct: false 
+    }]);
   };
 
   const handleAnswerSelect = async (answerIndex: number) => {
@@ -335,7 +432,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     const currentQuestionData = quizData.questions[currentQuestion];
     await submitAnswer(currentQuestionData.id, answerIndex);
     
-    setUserAnswers([...userAnswers, { 
+    setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
       answer: answerIndex, 
       correct: answerFeedback?.isCorrect || false
@@ -350,13 +447,16 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setAnswerFeedback(null);
       setTimeLeft(quizData.timer);
     } else {
+      // Quiz completed - submit to database
       setIsQuizComplete(true);
+      submitCompleteQuiz();
     }
   };
 
   const handleStartQuiz = () => {
     setShowInstructions(false);
     setQuizStarted(true);
+    setQuizStartTime(Date.now());
   };
 
   const handleRetakeQuiz = () => {
@@ -369,6 +469,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setIsQuizComplete(false);
     setQuizStarted(false);
     setTimeLeft(quizData.timer);
+    setQuizStartTime(0);
+    setMasteryData(null);
     setShowInstructions(true);
   };
 
@@ -579,6 +681,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           score={score}
           totalQuestions={quizData.questions.length}
           quizTitle={quizData.title}
+          masteryData={masteryData}
           onRetakeQuiz={handleRetakeQuiz}
           onClose={handleCloseQuiz}
         />

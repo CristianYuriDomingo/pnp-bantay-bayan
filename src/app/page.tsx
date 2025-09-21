@@ -252,7 +252,7 @@ export default function Home() {
               description: "Engage with gamified lessons, quizzes, and interactive content designed to make safety education enjoyable and memorable. Track your progress and earn badges as you complete modules.",
               visual: (
                 <Image
-                  src="/path-to-interactive-learning-image.png"
+                  src="/MainImage/LandingPage.png"
                   alt="Interactive Learning Platform"
                   width={640}
                   height={320}
@@ -266,7 +266,7 @@ export default function Home() {
               description: "Earn recognition for your achievements with our comprehensive tracking system. Get rewarded for completing modules, passing quizzes, and demonstrating mastery of safety concepts.",
               visual: (
                 <Image
-                  src="/path-to-achievement-system-image.png"
+                  src="/MainImage/LandingPage.png"
                   alt="Achievement Recognition System"
                   width={640}
                   height={320}
@@ -343,7 +343,7 @@ export default function Home() {
               <div className="flex items-center mb-4">
                 {/* Footer logo - same as header */}
                 <Image
-                  src="/path-to-your-logo.png"
+                  src="/MainImage/LandingPage.png"
                   alt="Bantay Bayan Logo"
                   width={48}
                   height={48}
