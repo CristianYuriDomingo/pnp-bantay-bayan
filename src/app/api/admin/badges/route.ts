@@ -1,4 +1,4 @@
-// app/api/admin/badges/route.ts - Fixed TypeScript errors
+// app/api/admin/badges/route.ts - Updated with new trigger types and fields
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new badge
+// POST - Create a new badge with mastery system support
 export async function POST(request: NextRequest) {
   try {
     console.log('POST /api/admin/badges called'); // Debug log
@@ -41,11 +41,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log('Request body received:', body); // Debug log
 
-    const { name, description, image, category, rarity, triggerType, triggerValue, prerequisites } = body;
+    const { 
+      name, 
+      description, 
+      image, 
+      category, 
+      rarity, 
+      triggerType, 
+      triggerValue, 
+      prerequisites,
+      subjectDomain,
+      masteryLevel,
+      skillArea
+    } = body;
 
     // Validate required fields
     if (!name || !description || !image || !category || !rarity || !triggerType || !triggerValue) {
-      console.log('Missing required fields:', { name: !!name, description: !!description, image: !!image, category: !!category, rarity: !!rarity, triggerType: !!triggerType, triggerValue: !!triggerValue });
+      console.log('Missing required fields:', { 
+        name: !!name, 
+        description: !!description, 
+        image: !!image, 
+        category: !!category, 
+        rarity: !!rarity, 
+        triggerType: !!triggerType, 
+        triggerValue: !!triggerValue 
+      });
       return NextResponse.json({ 
         error: 'All required fields must be provided',
         missing: {
@@ -60,8 +80,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate triggerType
-    const validTriggerTypes = ['module_complete', 'lesson_complete', 'quiz_complete', 'manual'];
+    // Updated trigger type validation to include all mastery types
+    const validTriggerTypes = [
+      'module_complete', 
+      'lesson_complete', 
+      'quiz_mastery_bronze', 
+      'quiz_mastery_silver', 
+      'quiz_mastery_gold', 
+      'quiz_perfect',
+      'subject_domain_bronze',
+      'subject_domain_silver', 
+      'subject_domain_gold',
+      'subject_domain_perfect',
+      'manual'
+    ];
+    
     if (!validTriggerTypes.includes(triggerType)) {
       console.log('Invalid trigger type:', triggerType);
       return NextResponse.json({ 
@@ -75,6 +108,31 @@ export async function POST(request: NextRequest) {
       console.log('Invalid rarity:', rarity);
       return NextResponse.json({ 
         error: `Invalid rarity level. Must be one of: ${validRarities.join(', ')}` 
+      }, { status: 400 });
+    }
+
+    // Validate subject domain if provided
+    const validSubjectDomains = [
+      'cybersecurity',
+      'crime_prevention',
+      'emergency_preparedness',
+      'financial_security',
+      'personal_safety',
+      'digital_literacy',
+      'risk_assessment'
+    ];
+
+    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
+      return NextResponse.json({ 
+        error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` 
+      }, { status: 400 });
+    }
+
+    // Validate mastery level if provided
+    const validMasteryLevels = ['bronze', 'silver', 'gold', 'perfect'];
+    if (masteryLevel && !validMasteryLevels.includes(masteryLevel)) {
+      return NextResponse.json({ 
+        error: `Invalid mastery level. Must be one of: ${validMasteryLevels.join(', ')}` 
       }, { status: 400 });
     }
 
@@ -100,6 +158,9 @@ export async function POST(request: NextRequest) {
       rarity,
       triggerType,
       triggerValue: triggerValue.trim(),
+      subjectDomain,
+      masteryLevel,
+      skillArea,
       hasPrerequisites: !!(prerequisites && prerequisites.length > 0)
     });
 
@@ -112,7 +173,10 @@ export async function POST(request: NextRequest) {
         rarity,
         triggerType,
         triggerValue: triggerValue.trim(),
-        prerequisites: prerequisites || []
+        prerequisites: prerequisites || [],
+        subjectDomain: subjectDomain || null,
+        masteryLevel: masteryLevel || null,
+        skillArea: skillArea ? skillArea.trim() : null
       }
     });
 
@@ -137,7 +201,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Update an existing badge
+// PUT - Update an existing badge with mastery system support
 export async function PUT(request: NextRequest) {
   try {
     console.log('PUT /api/admin/badges called'); // Debug log
@@ -151,7 +215,20 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     console.log('PUT Request body received:', body); // Debug log
 
-    const { id, name, description, image, category, rarity, triggerType, triggerValue, prerequisites } = body;
+    const { 
+      id, 
+      name, 
+      description, 
+      image, 
+      category, 
+      rarity, 
+      triggerType, 
+      triggerValue, 
+      prerequisites,
+      subjectDomain,
+      masteryLevel,
+      skillArea
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Badge ID is required' }, { status: 400 });
@@ -160,6 +237,52 @@ export async function PUT(request: NextRequest) {
     if (!name || !description || !image || !category || !rarity || !triggerType || !triggerValue) {
       return NextResponse.json({ 
         error: 'All required fields must be provided' 
+      }, { status: 400 });
+    }
+
+    // Updated trigger type validation
+    const validTriggerTypes = [
+      'module_complete', 
+      'lesson_complete', 
+      'quiz_mastery_bronze', 
+      'quiz_mastery_silver', 
+      'quiz_mastery_gold', 
+      'quiz_perfect',
+      'subject_domain_bronze',
+      'subject_domain_silver', 
+      'subject_domain_gold',
+      'subject_domain_perfect',
+      'manual'
+    ];
+    
+    if (!validTriggerTypes.includes(triggerType)) {
+      return NextResponse.json({ 
+        error: `Invalid trigger type. Must be one of: ${validTriggerTypes.join(', ')}` 
+      }, { status: 400 });
+    }
+
+    // Validate subject domain if provided
+    const validSubjectDomains = [
+      'cybersecurity',
+      'crime_prevention',
+      'emergency_preparedness',
+      'financial_security',
+      'personal_safety',
+      'digital_literacy',
+      'risk_assessment'
+    ];
+
+    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
+      return NextResponse.json({ 
+        error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` 
+      }, { status: 400 });
+    }
+
+    // Validate mastery level if provided
+    const validMasteryLevels = ['bronze', 'silver', 'gold', 'perfect'];
+    if (masteryLevel && !validMasteryLevels.includes(masteryLevel)) {
+      return NextResponse.json({ 
+        error: `Invalid mastery level. Must be one of: ${validMasteryLevels.join(', ')}` 
       }, { status: 400 });
     }
 
@@ -201,7 +324,10 @@ export async function PUT(request: NextRequest) {
         rarity,
         triggerType,
         triggerValue: triggerValue.trim(),
-        prerequisites: prerequisites || []
+        prerequisites: prerequisites || [],
+        subjectDomain: subjectDomain || null,
+        masteryLevel: masteryLevel || null,
+        skillArea: skillArea ? skillArea.trim() : null
       }
     });
 

@@ -1,4 +1,3 @@
-// app/admin/badges/page.tsx
 'use client';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -11,9 +10,12 @@ interface Badge {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery_bronze' | 'quiz_mastery_silver' | 'quiz_mastery_gold' | 'quiz_perfect' | 'subject_domain_bronze' | 'subject_domain_silver' | 'subject_domain_gold' | 'subject_domain_perfect' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
+  subjectDomain?: string;
+  masteryLevel?: string;
+  skillArea?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,12 +38,39 @@ interface Lesson {
   };
 }
 
+interface Quiz {
+  id: string;
+  title: string;
+  timer: number;
+  subjectDomain?: string;
+  skillArea?: string;
+}
+
 interface OrphanedBadge {
   id: string;
   name: string;
   triggerValue: string;
   type: string;
   reason: string;
+}
+
+interface SubjectDomainTemplate {
+  id: string;
+  domainKey: string;
+  domainName: string;
+  description?: string;
+  category: string;
+  bronzeBadgeName: string;
+  silverBadgeName: string;
+  goldBadgeName: string;
+  perfectBadgeName: string;
+  bronzeDescription: string;
+  silverDescription: string;
+  goldDescription: string;
+  perfectDescription: string;
+  defaultRarity: string;
+  iconTheme?: string;
+  isActive: boolean;
 }
 
 const FormField = ({ label, required = false, children }: { 
@@ -138,6 +167,7 @@ const BadgeCard = ({
   badge, 
   modules, 
   lessons,
+  quizzes,
   badges, 
   onEdit, 
   onDelete,
@@ -147,6 +177,7 @@ const BadgeCard = ({
   badge: Badge; 
   modules: Module[]; 
   lessons: Lesson[];
+  quizzes: Quiz[];
   badges: Badge[];
   onEdit: (badge: Badge) => void; 
   onDelete: (badgeId: string) => void; 
@@ -165,6 +196,16 @@ const BadgeCard = ({
     }
   };
 
+  const getMasteryLevelColor = (level?: string) => {
+    switch (level) {
+      case 'bronze': return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'silver': return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'perfect': return 'bg-purple-100 text-purple-800 border-purple-300';
+      default: return 'bg-blue-100 text-blue-800 border-blue-300';
+    }
+  };
+
   const getTriggerDescription = (badge: Badge) => {
     switch (badge.triggerType) {
       case 'module_complete':
@@ -175,13 +216,27 @@ const BadgeCard = ({
         if (lesson) {
           return `Complete "${lesson.title}" lesson ${lesson.module ? `(${lesson.module.title} module)` : ''}`;
         }
-        const numericValue = parseInt(badge.triggerValue);
-        if (!isNaN(numericValue)) {
-          return `Complete ${badge.triggerValue} lessons`;
-        }
         return `Complete lesson: ${badge.triggerValue}`;
-      case 'quiz_complete':
-        return `Successfully complete quiz with ID: ${badge.triggerValue}`;
+      case 'quiz_mastery_bronze':
+        const bronzeQuiz = quizzes.find(q => q.id === badge.triggerValue);
+        return `Achieve Bronze mastery (60-74%) in "${bronzeQuiz?.title || 'Unknown Quiz'}"`;
+      case 'quiz_mastery_silver':
+        const silverQuiz = quizzes.find(q => q.id === badge.triggerValue);
+        return `Achieve Silver mastery (75-89%) in "${silverQuiz?.title || 'Unknown Quiz'}"`;
+      case 'quiz_mastery_gold':
+        const goldQuiz = quizzes.find(q => q.id === badge.triggerValue);
+        return `Achieve Gold mastery (90-99%) in "${goldQuiz?.title || 'Unknown Quiz'}"`;
+      case 'quiz_perfect':
+        const perfectQuiz = quizzes.find(q => q.id === badge.triggerValue);
+        return `Achieve Perfect mastery (100%) in "${perfectQuiz?.title || 'Unknown Quiz'}"`;
+      case 'subject_domain_bronze':
+        return `Achieve Bronze mastery in ${badge.subjectDomain?.replace('_', ' ')} domain`;
+      case 'subject_domain_silver':
+        return `Achieve Silver mastery in ${badge.subjectDomain?.replace('_', ' ')} domain`;
+      case 'subject_domain_gold':
+        return `Achieve Gold mastery in ${badge.subjectDomain?.replace('_', ' ')} domain`;
+      case 'subject_domain_perfect':
+        return `Achieve Perfect mastery in ${badge.subjectDomain?.replace('_', ' ')} domain`;
       case 'manual':
         return 'Manually awarded by admin';
       default:
@@ -220,13 +275,23 @@ const BadgeCard = ({
                 <h3 className="font-semibold text-lg text-gray-900 truncate">{badge.name}</h3>
                 <p className="text-sm text-gray-600 mt-1">{badge.description}</p>
                 
-                <div className="flex items-center space-x-3 mt-3">
+                <div className="flex items-center flex-wrap gap-2 mt-3">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getRarityColor(badge.rarity)}`}>
                     {badge.rarity}
                   </span>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                     {badge.category}
                   </span>
+                  {badge.masteryLevel && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getMasteryLevelColor(badge.masteryLevel)}`}>
+                      {badge.masteryLevel.charAt(0).toUpperCase() + badge.masteryLevel.slice(1)}
+                    </span>
+                  )}
+                  {badge.subjectDomain && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                      {badge.subjectDomain.replace('_', ' ').toUpperCase()}
+                    </span>
+                  )}
                   {isOrphaned && (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-300">
                       ⚠️ Orphaned
@@ -290,17 +355,21 @@ const AddBadgeForm = ({
   onSave, 
   modules, 
   lessons,
+  quizzes,
   badges, 
   initialBadge,
-  preselectedLessonId 
+  preselectedLessonId,
+  domainTemplates 
 }: { 
   onClose: () => void; 
   onSave: (badge: Badge) => Promise<void>; 
   modules: Module[]; 
   lessons: Lesson[];
+  quizzes: Quiz[];
   badges: Badge[]; 
   initialBadge?: Badge;
   preselectedLessonId?: string;
+  domainTemplates: SubjectDomainTemplate[];
 }) => {
   const [name, setName] = useState(initialBadge?.name || '');
   const [description, setDescription] = useState(initialBadge?.description || '');
@@ -309,6 +378,9 @@ const AddBadgeForm = ({
   const [triggerType, setTriggerType] = useState<Badge['triggerType']>(initialBadge?.triggerType || (preselectedLessonId ? 'lesson_complete' : 'module_complete'));
   const [triggerValue, setTriggerValue] = useState(initialBadge?.triggerValue || preselectedLessonId || '');
   const [prerequisites, setPrerequisites] = useState<string[]>(initialBadge?.prerequisites || []);
+  const [subjectDomain, setSubjectDomain] = useState(initialBadge?.subjectDomain || '');
+  const [masteryLevel, setMasteryLevel] = useState(initialBadge?.masteryLevel || '');
+  const [skillArea, setSkillArea] = useState(initialBadge?.skillArea || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(initialBadge?.image || '');
   const [loading, setLoading] = useState(false);
@@ -331,11 +403,23 @@ const AddBadgeForm = ({
   const categories = Array.from(new Set([
     ...modules.map(m => m.title), 
     'General', 
-    'Quiz Achievement', 
+    'Quiz Mastery', 
     'Performance',
-    'Lesson Completion'
+    'Lesson Completion',
+    'Subject Domain Mastery'
   ]));
+
   const availablePrerequisiteBadges = badges.filter(b => b.id !== initialBadge?.id);
+
+  const subjectDomains = [
+    'cybersecurity',
+    'crime_prevention',
+    'emergency_preparedness',
+    'financial_security',
+    'personal_safety',
+    'digital_literacy',
+    'risk_assessment'
+  ];
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -364,6 +448,9 @@ const AddBadgeForm = ({
         triggerType,
         triggerValue: triggerValue.trim(),
         prerequisites: prerequisites.length > 0 ? prerequisites : undefined,
+        subjectDomain: subjectDomain || undefined,
+        masteryLevel: masteryLevel || undefined,
+        skillArea: skillArea || undefined,
       };
       
       await onSave(badgeData as Badge);
@@ -383,6 +470,8 @@ const AddBadgeForm = ({
     }
   };
 
+  const isMasteryBadge = ['quiz_mastery_bronze', 'quiz_mastery_silver', 'quiz_mastery_gold', 'quiz_perfect', 'subject_domain_bronze', 'subject_domain_silver', 'subject_domain_gold', 'subject_domain_perfect'].includes(triggerType);
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
       <h3 className="text-lg font-semibold mb-4">
@@ -399,7 +488,7 @@ const AddBadgeForm = ({
           <FormField label="Badge Name" required>
             <input 
               type="text" 
-              placeholder="e.g., Crime Prevention Expert" 
+              placeholder="e.g., Cybersecurity Expert" 
               className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
@@ -440,6 +529,35 @@ const AddBadgeForm = ({
               <option value="Legendary">Legendary</option>
             </select>
           </FormField>
+
+          {isMasteryBadge && (
+            <>
+              <FormField label="Subject Domain (Optional)">
+                <select 
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  value={subjectDomain} 
+                  onChange={(e) => setSubjectDomain(e.target.value)}
+                >
+                  <option value="">Select Domain</option>
+                  {subjectDomains.map(domain => (
+                    <option key={domain} value={domain}>
+                      {domain.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+
+              <FormField label="Skill Area (Optional)">
+                <input 
+                  type="text" 
+                  placeholder="e.g., network_security, password_management" 
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                  value={skillArea} 
+                  onChange={(e) => setSkillArea(e.target.value)} 
+                />
+              </FormField>
+            </>
+          )}
         </div>
         
         <div className="space-y-4">
@@ -469,7 +587,14 @@ const AddBadgeForm = ({
             >
               <option value="module_complete">Complete Module</option>
               <option value="lesson_complete">Complete Specific Lesson</option>
-              <option value="quiz_complete">Complete Quiz</option>
+              <option value="quiz_mastery_bronze">Quiz Bronze Mastery</option>
+              <option value="quiz_mastery_silver">Quiz Silver Mastery</option>
+              <option value="quiz_mastery_gold">Quiz Gold Mastery</option>
+              <option value="quiz_perfect">Quiz Perfect Score</option>
+              <option value="subject_domain_bronze">Domain Bronze Mastery</option>
+              <option value="subject_domain_silver">Domain Silver Mastery</option>
+              <option value="subject_domain_gold">Domain Gold Mastery</option>
+              <option value="subject_domain_perfect">Domain Perfect Mastery</option>
               <option value="manual">Manual Award</option>
             </select>
           </FormField>
@@ -499,18 +624,37 @@ const AddBadgeForm = ({
                   </option>
                 ))}
               </select>
-            ) : triggerType === 'quiz_complete' ? (
-              <input 
-                type="text" 
-                placeholder="Quiz ID" 
+            ) : ['quiz_mastery_bronze', 'quiz_mastery_silver', 'quiz_mastery_gold', 'quiz_perfect'].includes(triggerType) ? (
+              <select 
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                 value={triggerValue} 
-                onChange={(e) => setTriggerValue(e.target.value)} 
-              />
+                onChange={(e) => setTriggerValue(e.target.value)}
+              >
+                <option value="">Select Quiz</option>
+                {quizzes.map(quiz => (
+                  <option key={quiz.id} value={quiz.id}>
+                    {quiz.title}
+                    {quiz.subjectDomain && ` (${quiz.subjectDomain.replace('_', ' ')})`}
+                  </option>
+                ))}
+              </select>
+            ) : ['subject_domain_bronze', 'subject_domain_silver', 'subject_domain_gold', 'subject_domain_perfect'].includes(triggerType) ? (
+              <select 
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                value={triggerValue} 
+                onChange={(e) => setTriggerValue(e.target.value)}
+              >
+                <option value="">Select Subject Domain</option>
+                {subjectDomains.map(domain => (
+                  <option key={domain} value={domain}>
+                    {domain.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </option>
+                ))}
+              </select>
             ) : (
               <input 
                 type="text" 
-                placeholder="Manual award (enter description)" 
+                placeholder="Manual award or custom trigger value" 
                 className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
                 value={triggerValue}
                 onChange={(e) => setTriggerValue(e.target.value)}
@@ -538,6 +682,14 @@ const AddBadgeForm = ({
           )}
         </div>
       </div>
+
+      {isMasteryBadge && (
+        <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
+          <p className="text-sm text-indigo-800">
+            <strong>Mastery Badge:</strong> This badge will be automatically awarded when users achieve the corresponding performance level.
+          </p>
+        </div>
+      )}
       
       <div className="mt-6 flex space-x-3">
         <button 
@@ -558,17 +710,91 @@ const AddBadgeForm = ({
   );
 };
 
+const DomainTemplateManager = ({ 
+  templates, 
+  onTemplateUpdate 
+}: { 
+  templates: SubjectDomainTemplate[];
+  onTemplateUpdate: () => void;
+}) => {
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border mb-6">
+      <div className="p-4 border-b">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold">Subject Domain Templates</h3>
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            {showTemplates ? 'Hide Templates' : 'Manage Templates'}
+          </button>
+        </div>
+      </div>
+      
+      {showTemplates && (
+        <div className="p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Define templates for automatic badge creation based on subject domain mastery.
+          </p>
+          
+          {templates.length === 0 ? (
+            <div className="text-center py-8">
+              <div className="text-gray-400 text-4xl mb-2">📋</div>
+              <p className="text-gray-600">No domain templates configured</p>
+              <button className="mt-4 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded">
+                Add First Template
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {templates.map(template => (
+                <div key={template.id} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-semibold">{template.domainName}</h4>
+                      <p className="text-sm text-gray-600">{template.description}</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                        <div><strong>Bronze:</strong> {template.bronzeBadgeName}</div>
+                        <div><strong>Silver:</strong> {template.silverBadgeName}</div>
+                        <div><strong>Gold:</strong> {template.goldBadgeName}</div>
+                        <div><strong>Perfect:</strong> {template.perfectBadgeName}</div>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">
+                        Edit
+                      </button>
+                      <button className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function BadgeManagementPage() {
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [showAddBadge, setShowAddBadge] = useState(false);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterRarity, setFilterRarity] = useState<string>('');
+  const [filterTriggerType, setFilterTriggerType] = useState<string>('');
   const [orphanedBadges, setOrphanedBadges] = useState<OrphanedBadge[]>([]);
   const [cleanupLoading, setCleanupLoading] = useState(false);
+  const [domainTemplates, setDomainTemplates] = useState<SubjectDomainTemplate[]>([]);
 
   // Get URL parameters
   const searchParams = useSearchParams();
@@ -589,22 +815,37 @@ export default function BadgeManagementPage() {
     try {
       setLoading(true);
       
-      const modulesResponse = await fetch('/api/admin/modules');
-      if (modulesResponse.ok) {
-        const modulesData = await modulesResponse.json();
+      const [modulesRes, lessonsRes, quizzesRes, badgesRes, templatesRes] = await Promise.all([
+        fetch('/api/admin/modules'),
+        fetch('/api/admin/lessons'),
+        fetch('/api/admin/quizzes'),
+        fetch('/api/admin/badges'),
+        fetch('/api/admin/domain-templates')
+      ]);
+
+      if (modulesRes.ok) {
+        const modulesData = await modulesRes.json();
         setModules(modulesData);
       }
 
-      const lessonsResponse = await fetch('/api/admin/lessons');
-      if (lessonsResponse.ok) {
-        const lessonsData = await lessonsResponse.json();
+      if (lessonsRes.ok) {
+        const lessonsData = await lessonsRes.json();
         setLessons(lessonsData);
       }
 
-      const badgesResponse = await fetch('/api/admin/badges');
-      if (badgesResponse.ok) {
-        const badgesData = await badgesResponse.json();
+      if (quizzesRes.ok) {
+        const quizzesData = await quizzesRes.json();
+        setQuizzes(quizzesData);
+      }
+
+      if (badgesRes.ok) {
+        const badgesData = await badgesRes.json();
         setBadges(badgesData);
+      }
+
+      if (templatesRes.ok) {
+        const templatesData = await templatesRes.json();
+        setDomainTemplates(templatesData);
       }
 
       // Check for orphaned badges after loading data
@@ -736,16 +977,33 @@ export default function BadgeManagementPage() {
   const categories = Array.from(new Set([
     ...modules.map(m => m.title), 
     'General', 
-    'Quiz Achievement', 
+    'Quiz Mastery', 
     'Performance',
-    'Lesson Completion'
+    'Lesson Completion',
+    'Subject Domain Mastery'
   ]));
+
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
+  
+  const triggerTypes = [
+    'module_complete',
+    'lesson_complete', 
+    'quiz_mastery_bronze',
+    'quiz_mastery_silver',
+    'quiz_mastery_gold',
+    'quiz_perfect',
+    'subject_domain_bronze',
+    'subject_domain_silver',
+    'subject_domain_gold',
+    'subject_domain_perfect',
+    'manual'
+  ];
 
   const filteredBadges = badges.filter(badge => {
     const categoryMatch = !filterCategory || badge.category === filterCategory;
     const rarityMatch = !filterRarity || badge.rarity === filterRarity;
-    return categoryMatch && rarityMatch;
+    const triggerMatch = !filterTriggerType || badge.triggerType === filterTriggerType;
+    return categoryMatch && rarityMatch && triggerMatch;
   });
 
   // Find preselected lesson badge if it exists
@@ -758,12 +1016,21 @@ export default function BadgeManagementPage() {
   // Create set of orphaned badge IDs for quick lookup
   const orphanedBadgeIds = new Set(orphanedBadges.map(b => b.id));
 
+  // Group badges by category for better display
+  const badgesByCategory = filteredBadges.reduce((acc, badge) => {
+    if (!acc[badge.category]) {
+      acc[badge.category] = [];
+    }
+    acc[badge.category].push(badge);
+    return acc;
+  }, {} as Record<string, Badge[]>);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Badge Management</h1>
-          <p className="text-gray-600">Create and manage achievement badges stored in your database</p>
+          <p className="text-gray-600">Create and manage achievement badges with full mastery system integration</p>
           {preselectedLessonId && (
             <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
@@ -794,25 +1061,33 @@ export default function BadgeManagementPage() {
         loading={cleanupLoading}
       />
 
+      {/* Domain Templates Manager */}
+      <DomainTemplateManager 
+        templates={domainTemplates}
+        onTemplateUpdate={fetchData}
+      />
+
       {(showAddBadge || editingBadge) && (
         <AddBadgeForm 
           onClose={handleCloseForm} 
           onSave={handleSaveBadge}
           modules={modules}
           lessons={lessons}
+          quizzes={quizzes}
           badges={badges}
           initialBadge={editingBadge || undefined}
           preselectedLessonId={preselectedLessonId || undefined}
+          domainTemplates={domainTemplates}
         />
       )}
 
-      {/* Filters */}
+      {/* Enhanced Filters */}
       <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center space-x-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">Filter by Category</label>
             <select 
-              className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+              className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               value={filterCategory} 
               onChange={(e) => setFilterCategory(e.target.value)}
             >
@@ -825,7 +1100,7 @@ export default function BadgeManagementPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Filter by Rarity</label>
             <select 
-              className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+              className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               value={filterRarity} 
               onChange={(e) => setFilterRarity(e.target.value)}
             >
@@ -835,18 +1110,48 @@ export default function BadgeManagementPage() {
               ))}
             </select>
           </div>
-          <button
-            onClick={fetchData}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Refresh
-          </button>
+          <div>
+            <label className="block text-sm font-medium mb-1">Filter by Trigger Type</label>
+            <select 
+              className="w-full border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+              value={filterTriggerType} 
+              onChange={(e) => setFilterTriggerType(e.target.value)}
+            >
+              <option value="">All Trigger Types</option>
+              <option value="module_complete">Module Complete</option>
+              <option value="lesson_complete">Lesson Complete</option>
+              <option value="quiz_mastery_bronze">Quiz Bronze Mastery</option>
+              <option value="quiz_mastery_silver">Quiz Silver Mastery</option>
+              <option value="quiz_mastery_gold">Quiz Gold Mastery</option>
+              <option value="quiz_perfect">Quiz Perfect</option>
+              <option value="subject_domain_bronze">Domain Bronze</option>
+              <option value="subject_domain_silver">Domain Silver</option>
+              <option value="subject_domain_gold">Domain Gold</option>
+              <option value="subject_domain_perfect">Domain Perfect</option>
+              <option value="manual">Manual</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={fetchData}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors w-full"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-6 border-b">
-          <h2 className="text-lg font-semibold">All Badges ({filteredBadges.length})</h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">All Badges ({filteredBadges.length})</h2>
+            <div className="text-sm text-gray-600">
+              Total: {badges.length} | 
+              Quiz Mastery: {badges.filter(b => b.triggerType.startsWith('quiz_')).length} |
+              Domain: {badges.filter(b => b.triggerType.startsWith('subject_domain_')).length}
+            </div>
+          </div>
         </div>
         <div className="p-6">
           {loading ? (
@@ -873,19 +1178,29 @@ export default function BadgeManagementPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredBadges.map((badge) => (
-                <BadgeCard 
-                  key={badge.id} 
-                  badge={badge} 
-                  modules={modules}
-                  lessons={lessons}
-                  badges={badges}
-                  onEdit={setEditingBadge} 
-                  onDelete={handleDeleteBadge}
-                  isHighlighted={preselectedLessonBadge?.id === badge.id}
-                  isOrphaned={orphanedBadgeIds.has(badge.id)}
-                />
+            <div className="space-y-6">
+              {Object.entries(badgesByCategory).map(([category, categoryBadges]) => (
+                <div key={category}>
+                  <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">
+                    {category} ({categoryBadges.length})
+                  </h3>
+                  <div className="space-y-4">
+                    {categoryBadges.map((badge) => (
+                      <BadgeCard 
+                        key={badge.id} 
+                        badge={badge} 
+                        modules={modules}
+                        lessons={lessons}
+                        quizzes={quizzes}
+                        badges={badges}
+                        onEdit={setEditingBadge} 
+                        onDelete={handleDeleteBadge}
+                        isHighlighted={preselectedLessonBadge?.id === badge.id}
+                        isOrphaned={orphanedBadgeIds.has(badge.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -894,18 +1209,16 @@ export default function BadgeManagementPage() {
 
       {/* Info section */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">Badge System Information</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">Enhanced Badge System Information</h3>
         <div className="text-sm text-blue-800 space-y-1">
           <p>• <strong>Module Complete:</strong> Triggered when user completes all lessons in a specific module</p>
           <p>• <strong>Lesson Complete:</strong> Triggered when user completes a specific lesson</p>
-          <p>• <strong>Quiz Complete:</strong> Triggered when user successfully passes a specific quiz</p>
-          <p>• <strong>Manual:</strong> Manually awarded by administrators</p>
-          <p>• All badges are stored in your database and properly linked to actual modules/lessons</p>
-          <p>• <strong>Orphaned Badge Cleanup:</strong> The system automatically detects and can remove badges that reference deleted content</p>
-          <p>• Lesson badges now show which module the lesson belongs to for better organization</p>
-          {preselectedLessonId && (
-            <p>• <strong>Navigation from Content Management:</strong> This page opened with a specific lesson pre-selected for badge creation</p>
-          )}
+          <p>• <strong>Quiz Mastery Badges:</strong> Bronze (60-74%), Silver (75-89%), Gold (90-99%), Perfect (100%)</p>
+          <p>• <strong>Subject Domain Badges:</strong> Cross-quiz mastery in specific subject areas</p>
+          <p>• <strong>Smart Award System:</strong> Badges only awarded on new best scores to prevent inflation</p>
+          <p>• <strong>Automatic Integration:</strong> Quiz and domain badges are awarded automatically by the system</p>
+          <p>• <strong>Orphaned Badge Cleanup:</strong> System detects and removes badges referencing deleted content</p>
+          <p>• All badges integrate seamlessly with your Quiz Management and user progress tracking</p>
         </div>
       </div>
     </div>
