@@ -1,16 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
+
+// Validation patterns
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[a-zA-Z\s\-']{2,50}$/;
+
+interface ValidationErrors {
+  [key: string]: string;
+}
+
+interface PasswordStrength {
+  score: number;
+  label: string;
+  color: string;
+  suggestions: string[];
+}
 
 const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<{[key: string]: boolean}>({});
+  const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ 
+    score: 0, label: '', color: '', suggestions: [] 
+  });
   const router = useRouter();
   
   const [formData, setFormData] = useState({
@@ -20,31 +41,134 @@ const SignUpPage = () => {
     confirmPassword: ''
   });
 
+  // Real-time validation
+  useEffect(() => {
+    validateForm();
+  }, [formData]);
+
+  const calculatePasswordStrength = (password: string): PasswordStrength => {
+    if (!password) return { score: 0, label: '', color: '', suggestions: [] };
+
+    let score = 0;
+    const suggestions: string[] = [];
+
+    // Length check
+    if (password.length >= 8) score += 1;
+    else suggestions.push('At least 8 characters');
+
+    // Lowercase check
+    if (/[a-z]/.test(password)) score += 1;
+    else suggestions.push('One lowercase letter');
+
+    // Uppercase check
+    if (/[A-Z]/.test(password)) score += 1;
+    else suggestions.push('One uppercase letter');
+
+    // Number check
+    if (/\d/.test(password)) score += 1;
+    else suggestions.push('One number');
+
+    // Special character check
+    if (/[@$!%*?&]/.test(password)) score += 1;
+    else suggestions.push('One special character (@$!%*?&)');
+
+    // Bonus points
+    if (password.length >= 12) score += 1;
+    if (/[^a-zA-Z0-9@$!%*?&]/.test(password)) score += 0.5; // Extra special chars
+
+    const strengthLevels = [
+      { min: 0, max: 1, label: 'Very Weak', color: 'bg-red-500' },
+      { min: 2, max: 2, label: 'Weak', color: 'bg-orange-500' },
+      { min: 3, max: 3, label: 'Fair', color: 'bg-yellow-500' },
+      { min: 4, max: 4, label: 'Good', color: 'bg-blue-500' },
+      { min: 5, max: 6, label: 'Strong', color: 'bg-green-500' }
+    ];
+
+    const level = strengthLevels.find(l => score >= l.min && score <= l.max) || strengthLevels[0];
+
+    return {
+      score: Math.min(score, 5),
+      label: level.label,
+      color: level.color,
+      suggestions: suggestions.slice(0, 3) // Show max 3 suggestions
+    };
+  };
+
+  const validateForm = () => {
+    const newErrors: ValidationErrors = {};
+
+    // Name validation
+    if (touched.name && formData.name) {
+      if (!NAME_REGEX.test(formData.name.trim())) {
+        newErrors.name = 'Name must be 2-50 characters, letters only (spaces, hyphens, apostrophes allowed)';
+      }
+    }
+
+    // Email validation
+    if (touched.email && formData.email) {
+      if (!EMAIL_REGEX.test(formData.email.trim())) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+    }
+
+    // Password validation
+    if (touched.password && formData.password) {
+      const strength = calculatePasswordStrength(formData.password);
+      setPasswordStrength(strength);
+      
+      if (!PASSWORD_REGEX.test(formData.password)) {
+        newErrors.password = 'Password must contain at least 8 characters with uppercase, lowercase, number, and special character';
+      }
+
+      // Check for common weak passwords
+      const commonPasswords = ['password', '123456789', 'qwerty123', 'abc123456', 'password123'];
+      if (commonPasswords.includes(formData.password.toLowerCase())) {
+        newErrors.password = 'This password is too common. Please choose a stronger one';
+      }
+    }
+
+    // Confirm password validation
+    if (touched.confirmPassword && formData.confirmPassword) {
+      if (formData.password !== formData.confirmPassword) {
+        newErrors.confirmPassword = 'Passwords do not match';
+      }
+    }
+
+    setErrors(newErrors);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-    if (error) setError('');
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({
+      ...prev,
+      [field]: true
+    }));
   };
 
   const handleSocialSignIn = async (provider: string) => {
     setIsLoading(true);
-    setError('');
+    setErrors({});
     
     try {
       const result = await signIn(provider, {
-        callbackUrl: '/dashboard',
+        callbackUrl: '/users/dashboard',
         redirect: false
       });
       
       if (result?.error) {
-        setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-up failed. Please try again.`);
+        setErrors({ general: `${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-up failed. Please try again.` });
       } else if (result?.ok) {
-        router.push('/dashboard');
+        router.push('/users/dashboard');
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      setErrors({ general: 'Something went wrong. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -52,58 +176,99 @@ const SignUpPage = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    // Check if passwords match
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      setIsLoading(false);
+    
+    // Mark all fields as touched for validation
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+    
+    // Validate all fields
+    validateForm();
+    
+    // Check if there are any validation errors
+    if (Object.keys(errors).length > 0) {
       return;
     }
+
+    // Final validation before submit
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirmPassword) {
+      setErrors({ general: 'Please fill in all required fields' });
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setErrors({ confirmPassword: 'Passwords do not match' });
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
 
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password
         })
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         // Auto sign in after successful registration
         const signInResult = await signIn('credentials', {
-          email: formData.email,
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
           redirect: false
         });
 
         if (signInResult?.ok) {
-          router.push('/dashboard');
+          router.push('/users/dashboard');
+        } else {
+          setErrors({ general: 'Account created but sign-in failed. Please try signing in manually.' });
         }
       } else {
-        setError(data.message || 'Registration failed. Please try again.');
+        // Handle validation errors from server
+        if (data.errors && Array.isArray(data.errors)) {
+          const serverErrors: ValidationErrors = {};
+          data.errors.forEach((error: any) => {
+            serverErrors[error.field] = error.message;
+          });
+          setErrors(serverErrors);
+        } else {
+          setErrors({ general: data.message || 'Registration failed. Please try again.' });
+        }
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      console.error('Registration error:', err);
+      setErrors({ general: 'Network error. Please check your connection and try again.' });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const getFieldStatus = (fieldName: string) => {
+    if (!touched[fieldName]) return null;
+    if (errors[fieldName]) return 'error';
+    if (formData[fieldName as keyof typeof formData]) return 'success';
+    return null;
+  };
+
+  const renderFieldIcon = (fieldName: string) => {
+    const status = getFieldStatus(fieldName);
+    if (status === 'error') return <XCircle className="w-5 h-5 text-red-500" />;
+    if (status === 'success') return <CheckCircle className="w-5 h-5 text-green-500" />;
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo and Header - Centered */}
+        {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
             <div className="w-40 h-20 flex items-center justify-center">
-              {/* Replace with your actual logo image */}
               <Image 
                 src="/DashboardImage/logo.png" 
                 alt="Bantay Bayan Logo" 
@@ -113,22 +278,21 @@ const SignUpPage = () => {
               />
             </div>
           </div>
-
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Join Bantay Bayan!
-          </h1>
-          <p className="text-gray-600">Create your account to get started</p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Join Bantay Bayan!</h1>
+          <p className="text-gray-600">Create your secure account to get started</p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
+        {/* General Error Message */}
+        {errors.general && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-red-700 text-sm font-medium">{errors.general}</p>
           </div>
         )}
 
         {/* Form */}
         <form onSubmit={handleSignUp} className="space-y-5 mb-6">
+          {/* Name Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <User className="h-5 w-5 text-gray-400" />
@@ -139,11 +303,26 @@ const SignUpPage = () => {
               placeholder="Full Name"
               value={formData.name}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('name')}
               required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                errors.name ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('name') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {renderFieldIcon('name')}
+            </div>
+            {errors.name && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.name}
+              </p>
+            )}
           </div>
 
+          {/* Email Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400" />
@@ -151,14 +330,29 @@ const SignUpPage = () => {
             <input
               type="email"
               name="email"
-              placeholder="Email"
+              placeholder="Email Address"
               value={formData.email}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('email')}
               required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                errors.email ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('email') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {renderFieldIcon('email')}
+            </div>
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.email}
+              </p>
+            )}
           </div>
 
+          {/* Password Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Lock className="h-5 w-5 text-gray-400" />
@@ -169,8 +363,13 @@ const SignUpPage = () => {
               placeholder="Password"
               value={formData.password}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('password')}
               required
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                errors.password ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('password') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
             <button
               type="button"
@@ -179,26 +378,79 @@ const SignUpPage = () => {
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
+            
+            {/* Password Strength Indicator */}
+            {formData.password && touched.password && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-gray-700">Password Strength:</span>
+                  <span className={`text-xs font-medium ${
+                    passwordStrength.score <= 2 ? 'text-red-600' : 
+                    passwordStrength.score <= 3 ? 'text-yellow-600' : 
+                    passwordStrength.score <= 4 ? 'text-blue-600' : 'text-green-600'
+                  }`}>
+                    {passwordStrength.label}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                    style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                  ></div>
+                </div>
+                {passwordStrength.suggestions.length > 0 && (
+                  <div className="mt-1">
+                    <p className="text-xs text-gray-600">Missing: {passwordStrength.suggestions.join(', ')}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.password}
+              </p>
+            )}
           </div>
 
+          {/* Confirm Password Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Lock className="h-5 w-5 text-gray-400" />
             </div>
             <input
-              type={showPassword ? "text" : "password"}
+              type={showConfirmPassword ? "text" : "password"}
               name="confirmPassword"
               placeholder="Confirm Password"
               value={formData.confirmPassword}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('confirmPassword')}
               required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                errors.confirmPassword ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('confirmPassword') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.confirmPassword}
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || Object.keys(errors).length > 0}
             className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Creating Account...' : 'Create Account'}

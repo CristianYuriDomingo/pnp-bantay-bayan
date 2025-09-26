@@ -4,13 +4,24 @@ import React, { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import Image from 'next/image';
+
+// Validation patterns
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ValidationErrors {
+  [key: string]: string;
+}
 
 const SignInPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [touched, setTouched] = useState<{[key: string]: boolean}>({});
+  const [attemptCount, setAttemptCount] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockTimer, setLockTimer] = useState(0);
   const router = useRouter();
   
   const [formData, setFormData] = useState({
@@ -18,17 +29,68 @@ const SignInPage = () => {
     password: ''
   });
 
+  // Account lockout after too many failed attempts
+  React.useEffect(() => {
+    if (isLocked && lockTimer > 0) {
+      const timer = setTimeout(() => {
+        setLockTimer(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (isLocked && lockTimer === 0) {
+      setIsLocked(false);
+      setAttemptCount(0);
+    }
+  }, [isLocked, lockTimer]);
+
+  const validateForm = () => {
+    const newErrors: ValidationErrors = {};
+
+    // Email validation
+    if (touched.email && formData.email.trim()) {
+      if (!EMAIL_REGEX.test(formData.email.trim())) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+    }
+
+    // Password validation
+    if (touched.password && !formData.password) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
-    if (error) setError('');
+    
+    // Clear field-specific error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({
+      ...prev,
+      [field]: true
+    }));
+    setTimeout(validateForm, 100); // Small delay to ensure state is updated
   };
 
   const handleSocialSignIn = async (provider: string) => {
+    if (isLocked) return;
+    
     setIsLoading(true);
-    setError('');
+    setErrors({});
     
     try {
       const result = await signIn(provider, {
@@ -37,12 +99,12 @@ const SignInPage = () => {
       });
       
       if (result?.error) {
-        setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in failed. Please try again.`);
+        setErrors({ general: `${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in failed. Please try again.` });
       } else if (result?.ok) {
         router.push('/users/dashboard');
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      setErrors({ general: 'Something went wrong. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -50,36 +112,92 @@ const SignInPage = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isLocked) {
+      setErrors({ general: `Account temporarily locked. Please wait ${lockTimer} seconds before trying again.` });
+      return;
+    }
+
+    // Mark all fields as touched
+    setTouched({ email: true, password: true });
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
+    // Basic required field validation
+    if (!formData.email.trim() || !formData.password) {
+      setErrors({ general: 'Please fill in all required fields' });
+      return;
+    }
+
     setIsLoading(true);
-    setError('');
+    setErrors({});
 
     try {
       const result = await signIn('credentials', {
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
         redirect: false
       });
 
       if (result?.error) {
-        setError('Invalid email or password. Please try again.');
+        setAttemptCount(prev => {
+          const newCount = prev + 1;
+          
+          // Lock account after 5 failed attempts
+          if (newCount >= 5) {
+            setIsLocked(true);
+            setLockTimer(300); // 5 minutes lockout
+            setErrors({ 
+              general: 'Too many failed attempts. Account locked for 5 minutes for security.' 
+            });
+          } else {
+            const attemptsLeft = 5 - newCount;
+            setErrors({ 
+              general: `Invalid email or password. ${attemptsLeft} attempt${attemptsLeft !== 1 ? 's' : ''} remaining before temporary lockout.` 
+            });
+          }
+          
+          return newCount;
+        });
       } else if (result?.ok) {
+        // Reset attempt count on successful login
+        setAttemptCount(0);
         router.push('/users/dashboard');
+      } else {
+        setErrors({ general: 'Sign-in failed. Please try again.' });
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.');
+      console.error('Sign-in error:', err);
+      setErrors({ general: 'Network error. Please check your connection and try again.' });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const getFieldStatus = (fieldName: string) => {
+    if (!touched[fieldName]) return null;
+    if (errors[fieldName]) return 'error';
+    if (formData[fieldName as keyof typeof formData].trim()) return 'success';
+    return null;
+  };
+
+  const renderFieldIcon = (fieldName: string) => {
+    const status = getFieldStatus(fieldName);
+    if (status === 'error') return <XCircle className="w-5 h-5 text-red-500" />;
+    if (status === 'success') return <CheckCircle className="w-5 h-5 text-green-500" />;
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo and Header - Centered */}
+        {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
             <div className="w-40 h-20 flex items-center justify-center">
-              {/* Replace with your actual logo image */}
               <Image 
                 src="/DashboardImage/logo.png" 
                 alt="Bantay Bayan Logo" 
@@ -96,15 +214,41 @@ const SignInPage = () => {
           <p className="text-gray-600">Please sign in to your account</p>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-700 text-sm font-medium">{error}</p>
+        {/* Error Messages */}
+        {errors.general && (
+          <div className={`border rounded-lg p-4 mb-6 flex items-start gap-3 ${
+            isLocked ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'
+          }`}>
+            <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+              isLocked ? 'text-orange-500' : 'text-red-500'
+            }`} />
+            <div>
+              <p className={`text-sm font-medium ${
+                isLocked ? 'text-orange-700' : 'text-red-700'
+              }`}>
+                {errors.general}
+              </p>
+              {isLocked && lockTimer > 0 && (
+                <p className="text-sm text-orange-600 mt-1">
+                  Time remaining: {Math.floor(lockTimer / 60)}:{(lockTimer % 60).toString().padStart(2, '0')}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Attempt Counter Warning */}
+        {attemptCount > 0 && attemptCount < 5 && !isLocked && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+            <p className="text-yellow-800 text-sm">
+              Security Notice: {attemptCount} failed attempt{attemptCount !== 1 ? 's' : ''} detected
+            </p>
           </div>
         )}
 
         {/* Form */}
         <form onSubmit={handleSignIn} className="space-y-5 mb-6">
+          {/* Email Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Mail className="h-5 w-5 text-gray-400" />
@@ -115,11 +259,27 @@ const SignInPage = () => {
               placeholder="Email or username"
               value={formData.email}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('email')}
+              disabled={isLocked}
               required
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed ${
+                errors.email ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('email') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              {renderFieldIcon('email')}
+            </div>
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.email}
+              </p>
+            )}
           </div>
 
+          {/* Password Field */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Lock className="h-5 w-5 text-gray-400" />
@@ -130,33 +290,46 @@ const SignInPage = () => {
               placeholder="Password"
               value={formData.password}
               onChange={handleInputChange}
+              onBlur={() => handleBlur('password')}
+              disabled={isLocked}
               required
-              className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700"
+              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed ${
+                errors.password ? 'border-red-300 bg-red-50' : 
+                getFieldStatus('password') === 'success' ? 'border-green-300 bg-green-50' : 
+                'border-gray-300'
+              }`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              disabled={isLocked}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
             >
               {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <XCircle className="w-4 h-4" />
+                {errors.password}
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isLocked || Object.keys(errors).filter(key => key !== 'general').length > 0}
             className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Signing in...' : 'Sign In'}
+            {isLoading ? 'Signing in...' : isLocked ? `Locked (${Math.floor(lockTimer / 60)}:${(lockTimer % 60).toString().padStart(2, '0')})` : 'Sign In'}
           </button>
 
           <div className="text-center">
-            <button
-              type="button"
+            <Link
+              href="/auth/forgot-password"
               className="text-blue-600 hover:text-blue-700 transition-colors font-medium text-sm"
             >
               Forgot password?
-            </button>
+            </Link>
           </div>
         </form>
 
@@ -174,7 +347,7 @@ const SignInPage = () => {
         <div className="space-y-3 mb-8">
           <button
             onClick={() => handleSocialSignIn('google')}
-            disabled={isLoading}
+            disabled={isLoading || isLocked}
             className="w-full bg-white border border-gray-300 rounded-lg py-3 px-4 flex items-center justify-center gap-3 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 font-medium"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -188,7 +361,7 @@ const SignInPage = () => {
 
           <button
             onClick={() => handleSocialSignIn('facebook')}
-            disabled={isLoading}
+            disabled={isLoading || isLocked}
             className="w-full bg-white border border-gray-300 rounded-lg py-3 px-4 flex items-center justify-center gap-3 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 font-medium"
           >
             <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
@@ -210,6 +383,15 @@ const SignInPage = () => {
             </Link>
           </p>
         </div>
+
+        {/* Security Notice */}
+        {attemptCount > 2 && !isLocked && (
+          <div className="text-center mt-6">
+            <p className="text-gray-500 text-xs">
+              Multiple failed attempts detected. Account will be temporarily locked after 5 failed attempts for security.
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8">

@@ -1,13 +1,9 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator erd {
   provider = "prisma-erd-generator"
 }
 
 generator client {
   provider = "prisma-client-js"
-  // Remove the custom output path to use default location
 }
 
 datasource db {
@@ -21,16 +17,17 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?  @db.Text
-  access_token      String?  @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?  @db.Text
+  id_token          String?
   session_state     String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -43,59 +40,61 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?   // For credentials provider
-  role          String    @default("user") // Custom field
-  status        String    @default("active") // Add this field for user status
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  progress      UserProgress[]  // Add this relation
-  badgeEarned   UserBadge[]     // New relation for earned badges
-  quizAttempts  QuizAttempt[]   // NEW: Relation to quiz attempts
-  quizMasteries QuizMastery[]   // NEW: Relation to quiz mastery tracking
+  id               String         @id @default(cuid())
+  name             String?
+  email            String         @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             String         @default("user")
+  status           String         @default("active")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  accounts         Account[]
+  sessions         Session[]
+  quizAttempts     QuizAttempt[]
+  quizMasteries    QuizMastery[]
+  badgeEarned      UserBadge[]
+  progress         UserProgress[]
+
+  @@index([resetToken])
 }
 
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
-// New models for your learning management system
 model Module {
-  id          String   @id @default(cuid())
-  title       String
-  image       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  lessons     Lesson[]
-  progress    UserProgress[]
-  
+  id        String         @id @default(cuid())
+  title     String
+  image     String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  lessons   Lesson[]
+  progress  UserProgress[]
+
   @@map("modules")
 }
 
 model Lesson {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   title        String
   description  String
   bubbleSpeech String?
-  timer        Int      @default(300) // Changed from 50 to 300 seconds (5 minutes)
+  timer        Int            @default(300)
   moduleId     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  module       Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  module       Module         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   tips         Tip[]
   progress     UserProgress[]
-  
+
   @@map("lessons")
 }
 
@@ -103,160 +102,142 @@ model Tip {
   id          String   @id @default(cuid())
   title       String
   description String
-  image       String?  // Optional image for tips
+  image       String?
   lessonId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
   lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  
+
   @@map("tips")
 }
 
-// NEW: Progress tracking model
 model UserProgress {
   id        String   @id @default(cuid())
   userId    String
   moduleId  String
   lessonId  String?
   completed Boolean  @default(false)
-  timeSpent Int?     // seconds spent
-  progress  Float    @default(0) // percentage progress (0-100)
+  timeSpent Int?
+  progress  Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  module Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  lesson Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  module    Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, moduleId, lessonId])
-  @@index([userId])    // ADD THIS LINE for performance
-  @@index([moduleId])  // ADD THIS LINE for performance
+  @@index([userId])
+  @@index([moduleId])
   @@map("user_progress")
 }
 
-// UPDATED: Badge System Models with Subject-Domain Badge support
 model Badge {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
   description   String
-  image         String   // Badge icon/image URL
-  category      String   // Crime Prevention, Cyber Security, Emergency Preparedness, etc.
-  rarity        String   @default("Common") // Common, Rare, Epic, Legendary
-  triggerType   String   // module_complete, lesson_complete, quiz_mastery_bronze, quiz_mastery_silver, quiz_mastery_gold, quiz_perfect, subject_domain_bronze, subject_domain_silver, subject_domain_gold, subject_domain_perfect, manual
-  triggerValue  String   // ID of the module/lesson/quiz or subject domain identifier
-  prerequisites String[] // Array of badge IDs that must be earned first
-  
-  // NEW: Subject Domain Fields for dynamic skill-based badges
-  subjectDomain String?  // The subject domain this badge represents (e.g., "cybersecurity", "crime_prevention")
-  masteryLevel  String?  // The mastery level for domain badges ("bronze", "silver", "gold", "perfect")
-  skillArea     String?  // Optional specific skill area within domain (e.g., "network_security", "incident_response")
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  image         String
+  category      String
+  rarity        String      @default("Common")
+  triggerType   String
+  triggerValue  String
+  prerequisites String[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  masteryLevel  String?
+  skillArea     String?
+  subjectDomain String?
   userBadges    UserBadge[]
-  
-  @@index([subjectDomain])          // Index for efficient domain-based queries
-  @@index([subjectDomain, masteryLevel])  // Composite index for domain + level queries
+
+  @@index([subjectDomain])
+  @@index([subjectDomain, masteryLevel])
   @@map("badges")
 }
 
 model UserBadge {
-  id        String   @id @default(cuid())
-  userId    String
-  badgeId   String
-  earnedAt  DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  
+  id       String   @id @default(cuid())
+  userId   String
+  badgeId  String
+  earnedAt DateTime @default(now())
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, badgeId])
   @@index([userId])
   @@map("user_badges")
 }
 
 model Quiz {
-  id            String   @id @default(cuid())
+  id            String        @id @default(cuid())
   title         String
-  timer         Int      @default(30) // Timer per question in seconds
-  
-  // NEW: Subject Domain Fields to link quizzes with badge domains
-  subjectDomain String?  // Links quiz to badge domain (e.g., "cybersecurity", "crime_prevention")
-  skillArea     String?  // Optional specific skill area (e.g., "password_security", "network_defense")
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  questions     Question[]      // Existing relation
-  quizAttempts  QuizAttempt[]   // NEW: Relation to quiz attempts
-  quizMasteries QuizMastery[]   // NEW: Relation to quiz mastery tracking
-  
-  @@index([subjectDomain])      // Index for efficient domain-based queries
+  timer         Int           @default(30)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  skillArea     String?
+  subjectDomain String?
+  questions     Question[]
+  quizAttempts  QuizAttempt[]
+  quizMasteries QuizMastery[]
+
+  @@index([subjectDomain])
   @@map("quizzes")
 }
 
 model Question {
   id            String   @id @default(cuid())
   question      String
-  lesson        String   // Lesson name (e.g., "Crime Prevention", "Cyber Security")
-  image         String?  // Optional image URL for the question
-  options       String[] // Array of 4 options
-  correctAnswer Int      // Index of correct answer (0-3)
-  explanation   String?  // Optional explanation for the correct answer
+  lesson        String
+  image         String?
+  options       String[]
+  correctAnswer Int
+  explanation   String?
   quizId        String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
   quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+
   @@map("questions")
 }
 
-// NEW: Quiz Attempt Model - Tracks individual quiz sessions
 model QuizAttempt {
-  id            String   @id @default(cuid())
-  userId        String
-  quizId        String
-  score         Int      // Number of correct answers
-  totalQuestions Int     // Total questions in the quiz
-  percentage    Float    // Calculated percentage (score/totalQuestions * 100)
-  timeSpent     Int      // Time spent in seconds
-  timeAllowed   Int      // Total time allowed for the quiz
-  timeEfficiency Float   // Calculated efficiency (timeRemaining/timeAllowed * 100)
-  masteryScore  Float    // Composite score combining accuracy and time efficiency
-  masteryLevel  String?  // Bronze, Silver, Gold, Perfect, or null if below threshold
-  answers       Json     // Array of user's answers with question IDs
-  createdAt     DateTime @default(now())
-  
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+  id             String   @id @default(cuid())
+  userId         String
+  quizId         String
+  score          Int
+  totalQuestions Int
+  percentage     Float
+  timeSpent      Int
+  timeAllowed    Int
+  timeEfficiency Float
+  masteryScore   Float
+  masteryLevel   String?
+  answers        Json
+  createdAt      DateTime @default(now())
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([quizId])
   @@index([userId, quizId])
   @@map("quiz_attempts")
 }
 
-// NEW: Quiz Mastery Model - Tracks best performance per user per quiz
 model QuizMastery {
-  id              String   @id @default(cuid())
-  userId          String
-  quizId          String
-  bestScore       Int      // Best correct answers achieved
-  bestPercentage  Float    // Best percentage achieved
-  bestMasteryScore Float   // Best composite mastery score
-  currentMasteryLevel String? // Current mastery level achieved (Bronze, Silver, Gold, Perfect)
-  attemptCount    Int      @default(1) // Number of attempts made
-  firstAttemptAt  DateTime @default(now()) // When first attempted
-  bestAttemptAt   DateTime @default(now()) // When best score was achieved
-  lastAttemptAt   DateTime @default(now()) // Last attempt date
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  quiz            Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+  id                  String   @id @default(cuid())
+  userId              String
+  quizId              String
+  bestScore           Int
+  bestPercentage      Float
+  bestMasteryScore    Float
+  currentMasteryLevel String?
+  attemptCount        Int      @default(1)
+  firstAttemptAt      DateTime @default(now())
+  bestAttemptAt       DateTime @default(now())
+  lastAttemptAt       DateTime @default(now())
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  quiz                Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, quizId])
   @@index([userId])
   @@index([quizId])
@@ -264,34 +245,26 @@ model QuizMastery {
   @@map("quiz_mastery")
 }
 
-// NEW: Subject Domain Templates - Allows admins to define domains and their badge names dynamically
 model SubjectDomainTemplate {
-  id                String   @id @default(cuid())
-  domainKey         String   @unique // e.g., "cybersecurity", "crime_prevention"
-  domainName        String   // e.g., "Cybersecurity", "Crime Prevention"
-  description       String?  // Description of the subject domain
-  category          String   // Badge category for this domain
-  
-  // Dynamic badge name templates for each mastery level
-  bronzeBadgeName   String   // e.g., "Digital Security Fundamentals"
-  silverBadgeName   String   // e.g., "Cyber Threat Analyst" 
-  goldBadgeName     String   // e.g., "Information Security Expert"
-  perfectBadgeName  String   // e.g., "Cybersecurity Specialist"
-  
-  // Badge descriptions for each level
-  bronzeDescription String   // Description for bronze level achievement
-  silverDescription String   // Description for silver level achievement
-  goldDescription   String   // Description for gold level achievement
-  perfectDescription String  // Description for perfect level achievement
-  
-  // Default badge properties
-  defaultRarity     String   @default("Common") // Can be overridden per level if needed
-  iconTheme         String?  // Icon theme or base image path for this domain
-  
-  isActive          Boolean  @default(true)   // Allow admins to disable domains
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id                 String   @id @default(cuid())
+  domainKey          String   @unique
+  domainName         String
+  description        String?
+  category           String
+  bronzeBadgeName    String
+  silverBadgeName    String
+  goldBadgeName      String
+  perfectBadgeName   String
+  bronzeDescription  String
+  silverDescription  String
+  goldDescription    String
+  perfectDescription String
+  defaultRarity      String   @default("Common")
+  iconTheme          String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
   @@index([domainKey])
   @@index([isActive])
   @@map("subject_domain_templates")

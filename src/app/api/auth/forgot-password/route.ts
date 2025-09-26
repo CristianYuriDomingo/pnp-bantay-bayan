@@ -1,0 +1,184 @@
+// app/api/auth/forgot-password/route.ts - Fixed TypeScript errors
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
+
+function validateEmail(email: string): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  if (!email || email.trim().length === 0) {
+    errors.push({ field: 'email', message: 'Email address is required' });
+  } else if (!EMAIL_REGEX.test(email.trim().toLowerCase())) {
+    errors.push({ field: 'email', message: 'Please enter a valid email address' });
+  } else if (email.length > 254) {
+    errors.push({ field: 'email', message: 'Email address is too long' });
+  }
+
+  return errors;
+}
+
+// Enhanced email sending function for development
+async function sendPasswordResetEmail(email: string, resetToken: string, userName: string = '') {
+  const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;
+  
+  console.log(`Sending password reset email to: ${email}`);
+  
+  // For development - log the reset link prominently
+  if (process.env.NODE_ENV === 'development') {
+    console.log('\n' + '='.repeat(80));
+    console.log('PASSWORD RESET EMAIL - DEVELOPMENT MODE');
+    console.log('='.repeat(80));
+    console.log(`User: ${userName || 'Unknown'}`);
+    console.log(`Email: ${email}`);
+    console.log(`Reset Token: ${resetToken}`);
+    console.log(`Reset URL: ${resetUrl}`);
+    console.log(`Expires: ${new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString()}`);
+    console.log('='.repeat(80));
+    console.log('Copy the Reset URL above and paste it in your browser to reset password');
+    console.log('='.repeat(80) + '\n');
+    
+    // Also write to a file for easier access during development
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(process.cwd(), 'password-reset-logs.txt');
+      const timestamp = new Date().toISOString();
+      const logEntry = `[${timestamp}] ${email} | ${resetUrl}\n`;
+      
+      fs.appendFileSync(logPath, logEntry);
+      console.log(`Reset link also saved to: ${logPath}`);
+    } catch (err) {
+      // Fixed TypeScript error - properly type the error
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.log('Could not save to log file:', errorMessage);
+    }
+    
+    return true;
+  }
+
+  // For production - implement actual email sending
+  try {
+    // Example implementation with console output for now
+    console.log(`Would send email to: ${email} with reset URL: ${resetUrl}`);
+    
+    // TODO: Implement your preferred email service here
+    return true;
+  } catch (error) {
+    console.error('Email sending error:', error);
+    throw error;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email } = await request.json();
+
+    console.log('Processing forgot password request for:', email);
+
+    // Validate input
+    const validationErrors = validateEmail(email);
+    
+    if (validationErrors.length > 0) {
+      console.log('Validation failed:', validationErrors);
+      return NextResponse.json(
+        { 
+          message: 'Validation failed', 
+          errors: validationErrors,
+          success: false 
+        },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    console.log('Looking for user with email:', normalizedEmail);
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, email: true, name: true }
+    });
+
+    // Always return success to prevent email enumeration attacks
+    const successResponse = {
+      message: 'If an account with that email exists, we have sent a password reset link.',
+      success: true
+    };
+
+    if (!user) {
+      console.log('Password reset requested for non-existent email:', normalizedEmail);
+      // Still return success to prevent email enumeration
+      return NextResponse.json(successResponse, { status: 200 });
+    }
+
+    console.log('User found:', user.email);
+
+    // Generate secure reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    console.log('Generated reset token for user:', user.id);
+
+    // Store reset token in database
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetToken: resetToken,
+          resetTokenExpiry: resetTokenExpiry
+        }
+      });
+      console.log('Reset token stored in database');
+    } catch (prismaError) {
+      console.error('Failed to store reset token:', prismaError);
+      
+      return NextResponse.json(
+        { 
+          message: 'An error occurred while processing your request. Please try again.',
+          errors: [{ field: 'general', message: 'Database error occurred' }],
+          success: false
+        },
+        { status: 500 }
+      );
+    }
+
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(user.email, resetToken, user.name || '');
+      console.log('Password reset email processing completed');
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Even if email fails, return success to prevent revealing email existence
+      console.log('Email failed but returning success response for security');
+    }
+
+    return NextResponse.json(successResponse, { status: 200 });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    
+    return NextResponse.json(
+      { 
+        message: 'An error occurred while processing your request. Please try again.',
+        errors: [{ field: 'general', message: 'Server error occurred' }],
+        success: false
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  return NextResponse.json(
+    { message: 'Method not allowed' },
+    { status: 405 }
+  );
+}
