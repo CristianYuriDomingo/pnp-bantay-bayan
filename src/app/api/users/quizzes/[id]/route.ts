@@ -1,4 +1,4 @@
-// FILE 2: app/api/users/quizzes/[id]/route.ts - Updated to handle parent quizzes
+// FILE: app/api/users/quizzes/[id]/route.ts - Updated to handle parent quizzes
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 

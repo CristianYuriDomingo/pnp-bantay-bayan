@@ -1,4 +1,4 @@
-// FILE 1: app/api/users/quizzes/route.ts - Updated to support parent-child structure
+// FILE: app/api/users/quizzes/route.ts - Updated to support parent-child structure
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -100,4 +100,3 @@ export async function GET() {
     );
   }
 }
-

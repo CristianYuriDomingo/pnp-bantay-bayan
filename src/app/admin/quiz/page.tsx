@@ -1,3 +1,4 @@
+// FILE: src/app/admin/quiz/page.tsx - Fixed to hide standalone sub-quizzes from main view
 'use client';
 import { useState, useEffect } from 'react';
 
@@ -163,7 +164,8 @@ const QuizCard = ({
   onAddSubQuiz,
   badges,
   onManageBadge,
-  level = 0
+  level = 0,
+  showAsStandalone = false
 }: { 
   quiz: Quiz; 
   onView: (quiz: Quiz) => void; 
@@ -172,6 +174,7 @@ const QuizCard = ({
   badges: Badge[];
   onManageBadge: (quiz: Quiz) => void;
   level?: number;
+  showAsStandalone?: boolean;
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -195,19 +198,34 @@ const QuizCard = ({
         <div className={`h-48 flex items-center justify-center ${
           quiz.isParent 
             ? 'bg-gradient-to-br from-purple-50 to-purple-100' 
+            : showAsStandalone
+            ? 'bg-gradient-to-br from-orange-50 to-orange-100'
             : 'bg-gradient-to-br from-blue-50 to-indigo-100'
         }`}>
           <div className="text-center">
-            <div className={`text-4xl mb-2 ${quiz.isParent ? 'text-purple-500' : 'text-indigo-500'}`}>
-              {quiz.isParent ? '📂' : '🧠'}
+            <div className={`text-4xl mb-2 ${
+              quiz.isParent 
+                ? 'text-purple-500' 
+                : showAsStandalone 
+                ? 'text-orange-500'
+                : 'text-indigo-500'
+            }`}>
+              {quiz.isParent ? '📂' : showAsStandalone ? '📝' : '🧠'}
             </div>
             <div className={`text-xs px-2 py-1 rounded ${
               quiz.isParent 
                 ? 'bg-purple-100 text-purple-800' 
+                : showAsStandalone
+                ? 'bg-orange-100 text-orange-800'
                 : 'bg-indigo-100 text-indigo-800'
             }`}>
-              {quiz.isParent ? 'PARENT CATEGORY' : 'SUB QUIZ'}
+              {quiz.isParent ? 'PARENT CATEGORY' : showAsStandalone ? 'STANDALONE QUIZ' : 'SUB QUIZ'}
             </div>
+            {showAsStandalone && (
+              <div className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded mt-1">
+                NOT IN CATEGORY
+              </div>
+            )}
             {quiz.subjectDomain && (
               <div className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded mt-1">
                 {quiz.subjectDomain.replace('_', ' ').toUpperCase()}
@@ -370,8 +388,10 @@ const QuizCard = ({
                   {quiz.skillArea && (
                     <p><strong>Skill Area:</strong> {quiz.skillArea.replace('_', ' ')}</p>
                   )}
-                  {quiz.parentId && (
+                  {quiz.parentId ? (
                     <p><strong>Parent Category:</strong> Yes</p>
+                  ) : (
+                    <p><strong>Status:</strong> <span className="text-orange-600 font-medium">Standalone (not in category)</span></p>
                   )}
                 </div>
               </div>
@@ -1012,17 +1032,15 @@ export default function QuizManagement() {
     setSelectedQuiz(null);
   };
 
-  // Organize quizzes hierarchically
-  const organizedQuizzes = quizzes.filter(quiz => quiz.isParent || !quiz.parentId);
-  const quizHierarchy = organizedQuizzes.map(quiz => {
-    if (quiz.isParent) {
-      return {
-        ...quiz,
-        children: quizzes.filter(q => q.parentId === quiz.id)
-      };
-    }
-    return quiz;
-  });
+  // FIXED: Organize quizzes to only show parent quizzes and standalone sub-quizzes that need categories
+  const parentQuizzes = quizzes.filter(quiz => quiz.isParent);
+  const standaloneSubQuizzes = quizzes.filter(quiz => !quiz.isParent && !quiz.parentId);
+  
+  // Create quiz hierarchy for display
+  const quizHierarchy = parentQuizzes.map(parentQuiz => ({
+    ...parentQuiz,
+    children: quizzes.filter(q => q.parentId === parentQuiz.id)
+  }));
 
   if (loading) {
     return (
@@ -1094,7 +1112,7 @@ export default function QuizManagement() {
           <h2 className="text-lg font-semibold">Quiz Categories & Sub-Quizzes</h2>
         </div>
         <div className="p-6">
-          {quizHierarchy.length === 0 ? (
+          {quizHierarchy.length === 0 && standaloneSubQuizzes.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">📂</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No quizzes created yet</h3>
@@ -1117,6 +1135,7 @@ export default function QuizManagement() {
           ) : (
             <>
               <div className="space-y-6 mb-6">
+                {/* Display parent quizzes with their children */}
                 {quizHierarchy.map((quiz) => (
                   <QuizCard 
                     key={quiz.id} 
@@ -1128,6 +1147,32 @@ export default function QuizManagement() {
                     onManageBadge={handleManageQuizBadge}
                   />
                 ))}
+
+                {/* Display standalone sub-quizzes that need to be assigned to categories */}
+                {standaloneSubQuizzes.length > 0 && (
+                  <>
+                    <div className="border-t pt-6">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <h3 className="font-semibold text-yellow-800 mb-2">⚠️ Standalone Sub-Quizzes</h3>
+                        <p className="text-sm text-yellow-700">
+                          These sub-quizzes are not assigned to any parent category. Consider organizing them under appropriate categories for better user experience.
+                        </p>
+                      </div>
+                      
+                      {standaloneSubQuizzes.map((quiz) => (
+                        <QuizCard 
+                          key={quiz.id} 
+                          quiz={quiz} 
+                          onView={handleEditQuiz}
+                          onDelete={handleDeleteQuiz}
+                          badges={badges}
+                          onManageBadge={handleManageQuizBadge}
+                          showAsStandalone={true}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Help text */}
@@ -1138,6 +1183,7 @@ export default function QuizManagement() {
                   <p>• <strong>Sub-Quizzes:</strong> Individual quizzes with questions that users actually take</p>
                   <p>• <strong>Mastery Badges:</strong> Create automatic badges for Bronze (60-74%), Silver (75-89%), Gold (90-99%), and Perfect (100%) performance</p>
                   <p>• <strong>Hierarchical View:</strong> Expand parent categories to see and manage their sub-quizzes</p>
+                  <p>• <strong>Standalone Quizzes:</strong> Sub-quizzes without parent categories are shown separately - assign them to categories for better organization</p>
                 </div>
               </div>
             </>

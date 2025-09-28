@@ -1,4 +1,4 @@
-// app/users/quiz/page.tsx - Updated with parent-child quiz support
+// FILE: app/users/quiz/page.tsx - Fixed to ONLY show parent quizzes
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -46,7 +46,7 @@ interface QuizHistory {
   masteryOverview: QuizMastery[];
 }
 
-// Sub-quiz Modal Component
+// Simple and Clean Sub-quiz Modal Component - Optimized for UI/UX
 const SubQuizModal = ({ 
   parentQuiz, 
   masteryMap, 
@@ -59,88 +59,112 @@ const SubQuizModal = ({
   onQuizSelect: (quizId: string) => void;
 }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-40">
+      <div 
+        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">{parentQuiz.title}</h2>
-              <p className="text-gray-600 mt-1">{parentQuiz.children?.length || 0} quizzes available</p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-2"
-              aria-label="Close modal"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="relative px-6 py-5 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900 text-center pr-8">
+            {parentQuiz.title}
+          </h2>
+          <p className="text-sm text-gray-500 text-center mt-1">
+            {parentQuiz.children?.length || 0} quizzes available
+          </p>
+          
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 max-h-96 overflow-y-auto">
           {parentQuiz.children && parentQuiz.children.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {parentQuiz.children.map((subQuiz) => (
-                <div
-                  key={subQuiz.id}
-                  onClick={() => onQuizSelect(subQuiz.id)}
-                  className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 cursor-pointer 
-                           transition-transform duration-300 hover:scale-105 hover:shadow-xl text-white"
-                >
-                  {/* Mastery badge */}
-                  {masteryMap.get(subQuiz.id)?.masteryLevel && (
-                    <div className="absolute top-3 right-3 bg-white bg-opacity-20 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium">
-                      {getMasteryIcon(masteryMap.get(subQuiz.id)?.masteryLevel || null)} {masteryMap.get(subQuiz.id)?.masteryLevel}
+            <div className="space-y-2">
+              {parentQuiz.children.map((subQuiz, index) => {
+                const mastery = masteryMap.get(subQuiz.id);
+                const isAttempted = mastery && mastery.attemptCount > 0;
+                const bestScore = mastery?.bestPercentage ? Math.round(mastery.bestPercentage) : null;
+                
+                return (
+                  <div
+                    key={subQuiz.id}
+                    onClick={() => onQuizSelect(subQuiz.id)}
+                    className="group p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-sm font-medium text-blue-600">
+                              {index + 1}
+                            </span>
+                          </div>
+                          
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-medium text-gray-900 group-hover:text-blue-700 truncate">
+                              {subQuiz.title}
+                            </h3>
+                            
+                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                              <span>{subQuiz.questions?.length || 0} questions</span>
+                              <span>{subQuiz.timer}s each</span>
+                              {bestScore && (
+                                <span className="text-green-600 font-medium">
+                                  Best: {bestScore}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Status indicator */}
+                      <div className="ml-3 flex-shrink-0">
+                        {isAttempted ? (
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                              <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 border-2 border-gray-300 rounded-full group-hover:border-blue-400"></div>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                  {/* Quiz title */}
-                  <h3 className="text-xl font-bold mb-3 leading-tight">{subQuiz.title}</h3>
-                  
-                  {/* Quiz details */}
-                  <div className="space-y-2 text-sm opacity-90">
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {subQuiz.questions?.length || 0} questions
-                    </div>
-                    <div className="flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      {subQuiz.timer}s per question
-                    </div>
-                    {masteryMap.get(subQuiz.id)?.attemptCount && (
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {masteryMap.get(subQuiz.id)?.attemptCount} attempts
+                    {/* Mastery badge */}
+                    {mastery?.masteryLevel && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          {getMasteryIcon(mastery.masteryLevel)} {mastery.masteryLevel}
+                        </span>
                       </div>
                     )}
                   </div>
-
-                  {/* Best score */}
-                  {masteryMap.get(subQuiz.id)?.bestPercentage && (
-                    <div className="mt-4 pt-3 border-t border-white border-opacity-20">
-                      <div className="text-sm opacity-90">Best Score:</div>
-                      <div className="text-lg font-bold">{Math.round(masteryMap.get(subQuiz.id)?.bestPercentage || 0)}%</div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p>No sub-quizzes available in this category yet.</p>
+            <div className="text-center py-12">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14,2 14,8 20,8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10,9 9,9 8,9"/>
+                </svg>
+              </div>
+              <p className="text-gray-500 text-sm">No quizzes available yet</p>
             </div>
           )}
         </div>
@@ -160,7 +184,7 @@ const getMasteryIcon = (level: string | null) => {
   }
 };
 
-// Updated QuizCard component (same as before)
+// QuizCard component (unchanged)
 const QuizCard = ({ history }: { history: QuizHistory | null }) => {
   return (
     <div className="p-6">
@@ -204,7 +228,7 @@ const QuizCard = ({ history }: { history: QuizHistory | null }) => {
   );
 };
 
-// Parent Quiz Title Component (uses existing QuizTitle styling)
+// Parent Quiz Title Component (unchanged)
 const ParentQuizTitle = ({ 
   parentQuiz,
   masteryMap,
@@ -307,8 +331,8 @@ const ParentQuizTitle = ({
   );
 };
 
+// MAIN COMPONENT - FIXED TO ONLY SHOW PARENT QUIZZES
 export default function Quiz() {
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [parentQuizzes, setParentQuizzes] = useState<Quiz[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizHistory | null>(null);
   const [masteryMap, setMasteryMap] = useState<Map<string, QuizMastery>>(new Map());
@@ -355,13 +379,14 @@ export default function Quiz() {
       }
       const data = await response.json();
       
-      // Separate parent quizzes from regular quizzes
-      const parents = data.filter((quiz: Quiz) => quiz.isParent);
-      const standaloneQuizzes = data.filter((quiz: Quiz) => !quiz.isParent && !quiz.parentId);
+      // FIXED: Only show parent quizzes (isParent: true)
+      // This completely excludes all sub-quizzes from the main view
+      const parentQuizzesOnly = data.filter((quiz: Quiz) => quiz.isParent);
       
-      setParentQuizzes(parents);
-      // Only show standalone quizzes if there are no parent quizzes
-      setQuizzes(parents.length === 0 ? standaloneQuizzes : []);
+      console.log('All quizzes from API:', data);
+      console.log('Parent quizzes only:', parentQuizzesOnly);
+      
+      setParentQuizzes(parentQuizzesOnly);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -397,15 +422,7 @@ export default function Quiz() {
     window.location.href = `/users/quizStart/${quizId}`;
   };
 
-  const handleQuizSelect = (quizId: string) => {
-    window.location.href = `/users/quizStart/${quizId}`;
-  };
-
   const displayedParentQuizzes = showAll ? parentQuizzes : parentQuizzes.slice(0, 4);
-  // Only show regular quizzes if there are no parent quizzes
-  const displayedRegularQuizzes = parentQuizzes.length === 0 
-    ? (showAll ? quizzes : quizzes.slice(0, 4))
-    : [];
 
   if (loading) {
     return (
@@ -467,13 +484,13 @@ export default function Quiz() {
             />
           </div>
           
-          {parentQuizzes.length === 0 && quizzes.length === 0 ? (
+          {parentQuizzes.length === 0 ? (
             <div className="flex justify-center items-center py-10">
-              <div className="text-lg text-gray-600">No quizzes available</div>
+              <div className="text-lg text-gray-600">No quiz categories available</div>
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Display Parent Quizzes */}
+              {/* Display Parent Quizzes Only */}
               {displayedParentQuizzes.map((parentQuiz) => (
                 <ParentQuizTitle
                   key={parentQuiz.id}
@@ -482,22 +499,8 @@ export default function Quiz() {
                   onParentQuizClick={handleParentQuizClick}
                 />
               ))}
-
-              {/* Display Regular Quizzes (standalone quizzes without parent) */}
-              {displayedRegularQuizzes.map((quiz) => (
-                <QuizTitle
-                  key={quiz.id}
-                  id={quiz.id}
-                  title={quiz.title}
-                  timer={quiz.timer}
-                  questionCount={quiz.questionCount}
-                  lessons={quiz.lessons}
-                  createdAt={quiz.createdAt}
-                  onQuizSelect={handleQuizSelect}
-                />
-              ))}
               
-              {(parentQuizzes.length + quizzes.length) > 4 && (
+              {parentQuizzes.length > 4 && (
                 <div className="flex justify-center mt-6">
                   <button
                     onClick={() => setShowAll(!showAll)}
@@ -525,7 +528,7 @@ export default function Quiz() {
         </div>
       </div>
 
-      {/* Sub-Quiz Modal */}
+      {/* Sub-Quiz Modal - Only shows when parent quiz is clicked */}
       {selectedParentQuiz && (
         <SubQuizModal
           parentQuiz={selectedParentQuiz}
