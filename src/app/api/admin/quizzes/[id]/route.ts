@@ -1,4 +1,4 @@
-// app/api/admin/quizzes/[id]/route.ts - Updated for badge management integration
+// app/api/admin/quizzes/[id]/route.ts - Updated for parent-child quiz support
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -23,6 +23,25 @@ export async function GET(
           orderBy: {
             createdAt: 'asc'
           }
+        },
+        children: {
+          include: {
+            questions: {
+              orderBy: {
+                createdAt: 'asc'
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            isParent: true
+          }
         }
       }
     });
@@ -44,7 +63,7 @@ export async function GET(
   }
 }
 
-// PUT - Update a quiz with badge management support
+// PUT - Update a quiz with parent-child support
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -57,14 +76,55 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, timer, subjectDomain, skillArea, questions } = body;
+    const { title, timer, parentId, isParent, subjectDomain, skillArea, questions } = body;
 
     // Validate required fields
-    if (!title || !questions || questions.length === 0) {
+    if (!title) {
       return NextResponse.json(
-        { error: 'Title and at least one question are required' },
+        { error: 'Title is required' },
         { status: 400 }
       );
+    }
+
+    // Check if quiz exists
+    const existingQuiz = await prisma.quiz.findUnique({
+      where: { id: params.id }
+    });
+
+    if (!existingQuiz) {
+      return NextResponse.json(
+        { error: 'Quiz not found' },
+        { status: 404 }
+      );
+    }
+
+    // Validate parent exists if parentId provided
+    if (parentId) {
+      const parentQuiz = await prisma.quiz.findUnique({
+        where: { id: parentId }
+      });
+
+      if (!parentQuiz) {
+        return NextResponse.json(
+          { error: 'Parent quiz not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!parentQuiz.isParent) {
+        return NextResponse.json(
+          { error: 'Referenced parent is not a parent quiz' },
+          { status: 400 }
+        );
+      }
+
+      // Prevent circular references
+      if (parentId === params.id) {
+        return NextResponse.json(
+          { error: 'Quiz cannot be its own parent' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate subjectDomain if provided
@@ -85,24 +145,55 @@ export async function PUT(
       );
     }
 
-    // Check if quiz exists
-    const existingQuiz = await prisma.quiz.findUnique({
-      where: { id: params.id }
-    });
+    // Handle parent quiz updates
+    if (isParent || existingQuiz.isParent) {
+      // Parent quizzes don't have questions - they're organizational containers
+      const updatedQuiz = await prisma.quiz.update({
+        where: { id: params.id },
+        data: {
+          title: title.trim(),
+          timer: timer || 30,
+          isParent: true,
+          parentId: null, // Parent quizzes can't have parents
+          subjectDomain: subjectDomain || null,
+          skillArea: skillArea ? skillArea.trim() : null,
+        },
+        include: {
+          children: {
+            include: {
+              questions: {
+                orderBy: {
+                  createdAt: 'asc'
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          }
+        }
+      });
 
-    if (!existingQuiz) {
+      console.log('Parent quiz updated successfully:', updatedQuiz.id);
+      return NextResponse.json(updatedQuiz);
+    }
+
+    // Handle regular quiz updates
+    if (!questions || questions.length === 0) {
       return NextResponse.json(
-        { error: 'Quiz not found' },
-        { status: 404 }
+        { error: 'Regular quizzes must have at least one question' },
+        { status: 400 }
       );
     }
 
-    // Update quiz and replace all questions
+    // Update regular quiz and replace all questions
     const quiz = await prisma.quiz.update({
       where: { id: params.id },
       data: {
         title: title.trim(),
         timer: timer || 30,
+        parentId: parentId || null,
+        isParent: false,
         subjectDomain: subjectDomain || null,
         skillArea: skillArea ? skillArea.trim() : null,
         questions: {
@@ -122,6 +213,13 @@ export async function PUT(
           orderBy: {
             createdAt: 'asc'
           }
+        },
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            isParent: true
+          }
         }
       }
     });
@@ -137,7 +235,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a quiz (with badge cleanup consideration)
+// DELETE - Delete a quiz (with parent-child cascade handling)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -149,9 +247,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if quiz exists
+    // Check if quiz exists and get its children
     const existingQuiz = await prisma.quiz.findUnique({
-      where: { id: params.id }
+      where: { id: params.id },
+      include: {
+        children: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      }
     });
 
     if (!existingQuiz) {
@@ -161,21 +267,32 @@ export async function DELETE(
       );
     }
 
-    // Use transaction to handle quiz deletion and related badges
+    // Use transaction to handle quiz deletion and related data
     await prisma.$transaction(async (prisma) => {
-      // Delete the quiz (questions will be cascade deleted)
+      // If deleting a parent quiz, handle children
+      if (existingQuiz.isParent && existingQuiz.children.length > 0) {
+        // Convert children to standalone quizzes (remove parent reference)
+        await prisma.quiz.updateMany({
+          where: { parentId: params.id },
+          data: { parentId: null }
+        });
+        
+        console.log(`Converted ${existingQuiz.children.length} sub-quizzes to standalone quizzes`);
+      }
+
+      // Delete the quiz (questions will be cascade deleted due to schema relationship)
       await prisma.quiz.delete({
         where: { id: params.id }
       });
 
-      // Note: Associated mastery badges will become orphaned and 
-      // will be cleaned up by the badge cleanup system
-      console.log(`Quiz deleted: ${params.id}. Associated badges may need cleanup.`);
+      console.log(`Quiz deleted: ${params.id}. Type: ${existingQuiz.isParent ? 'Parent' : 'Regular'}`);
     });
 
-    return NextResponse.json({ 
-      message: 'Quiz deleted successfully. Associated mastery badges may need cleanup.' 
-    });
+    const message = existingQuiz.isParent 
+      ? `Parent quiz deleted successfully. ${existingQuiz.children.length} sub-quizzes converted to standalone quizzes.`
+      : 'Quiz deleted successfully. Associated mastery badges may need cleanup.';
+
+    return NextResponse.json({ message });
   } catch (error) {
     console.error('Error deleting quiz:', error);
     return NextResponse.json(

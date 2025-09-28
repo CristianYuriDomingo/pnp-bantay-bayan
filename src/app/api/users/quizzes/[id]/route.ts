@@ -1,4 +1,4 @@
-// FILE 2: app/api/users/quizzes/[id]/route.ts
+// FILE 2: app/api/users/quizzes/[id]/route.ts - Updated to handle parent quizzes
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -16,6 +16,10 @@ export async function GET(
         id: true,
         title: true,
         timer: true,
+        isParent: true,
+        parentId: true,
+        subjectDomain: true,
+        skillArea: true,
         questions: {
           select: {
             id: true,
@@ -28,6 +32,38 @@ export async function GET(
           orderBy: {
             createdAt: 'asc'
           }
+        },
+        // Include children if this is a parent quiz
+        children: {
+          select: {
+            id: true,
+            title: true,
+            timer: true,
+            isParent: true,
+            questions: {
+              select: {
+                id: true,
+                question: true,
+                lesson: true,
+                image: true,
+                options: true,
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
+        // Include parent info if this is a sub-quiz
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            isParent: true
+          }
         }
       }
     });
@@ -39,7 +75,19 @@ export async function GET(
       );
     }
 
-    // Shuffle questions order for each user session
+    // If this is a parent quiz, return error since parent quizzes don't have questions
+    if (quiz.isParent) {
+      return NextResponse.json(
+        { 
+          error: 'Parent quiz cannot be started directly. Please select a sub-quiz.',
+          isParent: true,
+          children: quiz.children
+        },
+        { status: 400 }
+      );
+    }
+
+    // For regular quizzes, shuffle questions order for each user session
     const shuffledQuestions = quiz.questions.sort(() => Math.random() - 0.5);
 
     return NextResponse.json({

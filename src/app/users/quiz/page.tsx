@@ -1,4 +1,4 @@
-// FILE 5: app/users/quiz/page.tsx (Updated with mastery display)
+// app/users/quiz/page.tsx - Updated with parent-child quiz support
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -14,6 +14,12 @@ interface Quiz {
   questionCount: number;
   lessons: string[];
   createdAt: string;
+  isParent: boolean;
+  parentId: string | null;
+  subjectDomain: string | null;
+  skillArea: string | null;
+  children?: Quiz[];
+  questions?: any[];
 }
 
 interface QuizMastery {
@@ -40,7 +46,121 @@ interface QuizHistory {
   masteryOverview: QuizMastery[];
 }
 
-// Updated QuizCard component
+// Sub-quiz Modal Component
+const SubQuizModal = ({ 
+  parentQuiz, 
+  masteryMap, 
+  onClose, 
+  onQuizSelect 
+}: {
+  parentQuiz: Quiz;
+  masteryMap: Map<string, QuizMastery>;
+  onClose: () => void;
+  onQuizSelect: (quizId: string) => void;
+}) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-800">{parentQuiz.title}</h2>
+              <p className="text-gray-600 mt-1">{parentQuiz.children?.length || 0} quizzes available</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-2"
+              aria-label="Close modal"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {parentQuiz.children && parentQuiz.children.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {parentQuiz.children.map((subQuiz) => (
+                <div
+                  key={subQuiz.id}
+                  onClick={() => onQuizSelect(subQuiz.id)}
+                  className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 cursor-pointer 
+                           transition-transform duration-300 hover:scale-105 hover:shadow-xl text-white"
+                >
+                  {/* Mastery badge */}
+                  {masteryMap.get(subQuiz.id)?.masteryLevel && (
+                    <div className="absolute top-3 right-3 bg-white bg-opacity-20 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium">
+                      {getMasteryIcon(masteryMap.get(subQuiz.id)?.masteryLevel || null)} {masteryMap.get(subQuiz.id)?.masteryLevel}
+                    </div>
+                  )}
+
+                  {/* Quiz title */}
+                  <h3 className="text-xl font-bold mb-3 leading-tight">{subQuiz.title}</h3>
+                  
+                  {/* Quiz details */}
+                  <div className="space-y-2 text-sm opacity-90">
+                    <div className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {subQuiz.questions?.length || 0} questions
+                    </div>
+                    <div className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {subQuiz.timer}s per question
+                    </div>
+                    {masteryMap.get(subQuiz.id)?.attemptCount && (
+                      <div className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {masteryMap.get(subQuiz.id)?.attemptCount} attempts
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Best score */}
+                  {masteryMap.get(subQuiz.id)?.bestPercentage && (
+                    <div className="mt-4 pt-3 border-t border-white border-opacity-20">
+                      <div className="text-sm opacity-90">Best Score:</div>
+                      <div className="text-lg font-bold">{Math.round(masteryMap.get(subQuiz.id)?.bestPercentage || 0)}%</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <p>No sub-quizzes available in this category yet.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper function for mastery icons
+const getMasteryIcon = (level: string | null) => {
+  switch (level) {
+    case 'Perfect': return '🏆';
+    case 'Gold': return '🥇';
+    case 'Silver': return '🥈';
+    case 'Bronze': return '🥉';
+    default: return '📝';
+  }
+};
+
+// Updated QuizCard component (same as before)
 const QuizCard = ({ history }: { history: QuizHistory | null }) => {
   return (
     <div className="p-6">
@@ -84,44 +204,28 @@ const QuizCard = ({ history }: { history: QuizHistory | null }) => {
   );
 };
 
-// Enhanced QuizTitle component with mastery display
-const QuizTitleWithMastery = ({ 
-  quiz,
-  mastery,
-  onQuizSelect
+// Parent Quiz Title Component (uses existing QuizTitle styling)
+const ParentQuizTitle = ({ 
+  parentQuiz,
+  masteryMap,
+  onParentQuizClick
 }: {
-  quiz: Quiz;
-  mastery?: QuizMastery;
-  onQuizSelect?: (id: string) => void;
+  parentQuiz: Quiz;
+  masteryMap: Map<string, QuizMastery>;
+  onParentQuizClick: (parentQuiz: Quiz) => void;
 }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleClick = () => {
-    if (onQuizSelect) {
-      onQuizSelect(quiz.id);
-    }
+    onParentQuizClick(parentQuiz);
   };
 
-  const getMasteryColor = (level: string | null) => {
-    switch (level) {
-      case 'Perfect': return 'bg-purple-500 text-white';
-      case 'Gold': return 'bg-yellow-500 text-white';
-      case 'Silver': return 'bg-gray-400 text-white';
-      case 'Bronze': return 'bg-orange-500 text-white';
-      default: return 'bg-gray-200 text-gray-600';
-    }
-  };
-
-  const getMasteryIcon = (level: string | null) => {
-    switch (level) {
-      case 'Perfect': return '🏆';
-      case 'Gold': return '🥇';
-      case 'Silver': return '🥈';
-      case 'Bronze': return '🥉';
-      default: return '📝';
-    }
-  };
+  // Calculate aggregate stats for parent quiz
+  const subQuizCount = parentQuiz.children?.length || 0;
+  const completedSubQuizzes = parentQuiz.children?.filter(subQuiz => 
+    masteryMap.get(subQuiz.id)?.attemptCount && masteryMap.get(subQuiz.id)!.attemptCount > 0
+  ).length || 0;
 
   const fallbackBackground = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -139,7 +243,7 @@ const QuizTitleWithMastery = ({
         {!imageError && (
           <img
             src="/QuizImage/PoliceTape.png"
-            alt={`${quiz.title} Background`}
+            alt={`${parentQuiz.title} Background`}
             className="w-full h-auto object-cover rounded-2xl border-4 border-[#d4d4d4]"
             onError={() => setImageError(true)}
             onLoad={() => setImageLoaded(true)}
@@ -176,27 +280,26 @@ const QuizTitleWithMastery = ({
               wordBreak: "break-word"
             }}
           >
-            {quiz.title}
+            {parentQuiz.title}
           </h2>
         </div>
         
-        {/* Quiz info overlay */}
+        {/* Sub-quiz count overlay */}
         <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-          {quiz.questionCount} questions
+          {subQuizCount} quizzes
         </div>
 
-        {/* Mastery badge overlay */}
-        {mastery?.masteryLevel && (
-          <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium ${getMasteryColor(mastery.masteryLevel)} flex items-center space-x-1`}>
-            <span>{getMasteryIcon(mastery.masteryLevel)}</span>
-            <span>{mastery.masteryLevel}</span>
+        {/* Progress indicator */}
+        {completedSubQuizzes > 0 && (
+          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+            {completedSubQuizzes}/{subQuizCount} completed
           </div>
         )}
 
-        {/* Attempt count overlay */}
-        {mastery?.attemptCount && mastery.attemptCount > 0 && (
+        {/* Category badge if subject domain exists */}
+        {parentQuiz.subjectDomain && (
           <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-            {mastery.attemptCount} attempts
+            {parentQuiz.subjectDomain.replace('_', ' ')}
           </div>
         )}
       </div>
@@ -206,11 +309,13 @@ const QuizTitleWithMastery = ({
 
 export default function Quiz() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [parentQuizzes, setParentQuizzes] = useState<Quiz[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizHistory | null>(null);
   const [masteryMap, setMasteryMap] = useState<Map<string, QuizMastery>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [selectedParentQuiz, setSelectedParentQuiz] = useState<Quiz | null>(null);
   const { setRightColumnContent } = useRightColumn();
 
   // Set right column content when component mounts
@@ -249,7 +354,14 @@ export default function Quiz() {
         throw new Error('Failed to fetch quizzes');
       }
       const data = await response.json();
-      setQuizzes(data);
+      
+      // Separate parent quizzes from regular quizzes
+      const parents = data.filter((quiz: Quiz) => quiz.isParent);
+      const standaloneQuizzes = data.filter((quiz: Quiz) => !quiz.isParent && !quiz.parentId);
+      
+      setParentQuizzes(parents);
+      // Only show standalone quizzes if there are no parent quizzes
+      setQuizzes(parents.length === 0 ? standaloneQuizzes : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -276,11 +388,24 @@ export default function Quiz() {
     }
   };
 
+  const handleParentQuizClick = (parentQuiz: Quiz) => {
+    setSelectedParentQuiz(parentQuiz);
+  };
+
+  const handleSubQuizSelect = (quizId: string) => {
+    setSelectedParentQuiz(null); // Close modal
+    window.location.href = `/users/quizStart/${quizId}`;
+  };
+
   const handleQuizSelect = (quizId: string) => {
     window.location.href = `/users/quizStart/${quizId}`;
   };
 
-  const displayedQuizzes = showAll ? quizzes : quizzes.slice(0, 4);
+  const displayedParentQuizzes = showAll ? parentQuizzes : parentQuizzes.slice(0, 4);
+  // Only show regular quizzes if there are no parent quizzes
+  const displayedRegularQuizzes = parentQuizzes.length === 0 
+    ? (showAll ? quizzes : quizzes.slice(0, 4))
+    : [];
 
   if (loading) {
     return (
@@ -342,22 +467,37 @@ export default function Quiz() {
             />
           </div>
           
-          {quizzes.length === 0 ? (
+          {parentQuizzes.length === 0 && quizzes.length === 0 ? (
             <div className="flex justify-center items-center py-10">
               <div className="text-lg text-gray-600">No quizzes available</div>
             </div>
           ) : (
             <div className="space-y-6">
-              {displayedQuizzes.map((quiz) => (
-                <QuizTitleWithMastery
+              {/* Display Parent Quizzes */}
+              {displayedParentQuizzes.map((parentQuiz) => (
+                <ParentQuizTitle
+                  key={parentQuiz.id}
+                  parentQuiz={parentQuiz}
+                  masteryMap={masteryMap}
+                  onParentQuizClick={handleParentQuizClick}
+                />
+              ))}
+
+              {/* Display Regular Quizzes (standalone quizzes without parent) */}
+              {displayedRegularQuizzes.map((quiz) => (
+                <QuizTitle
                   key={quiz.id}
-                  quiz={quiz}
-                  mastery={masteryMap.get(quiz.id)}
+                  id={quiz.id}
+                  title={quiz.title}
+                  timer={quiz.timer}
+                  questionCount={quiz.questionCount}
+                  lessons={quiz.lessons}
+                  createdAt={quiz.createdAt}
                   onQuizSelect={handleQuizSelect}
                 />
               ))}
               
-              {quizzes.length > 4 && (
+              {(parentQuizzes.length + quizzes.length) > 4 && (
                 <div className="flex justify-center mt-6">
                   <button
                     onClick={() => setShowAll(!showAll)}
@@ -384,6 +524,16 @@ export default function Quiz() {
           )}
         </div>
       </div>
+
+      {/* Sub-Quiz Modal */}
+      {selectedParentQuiz && (
+        <SubQuizModal
+          parentQuiz={selectedParentQuiz}
+          masteryMap={masteryMap}
+          onClose={() => setSelectedParentQuiz(null)}
+          onQuizSelect={handleSubQuizSelect}
+        />
+      )}
     </div>
   );
 }

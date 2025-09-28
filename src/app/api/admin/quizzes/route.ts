@@ -1,10 +1,10 @@
-// app/api/admin/quizzes/route.ts - Updated for badge management integration
+// app/api/admin/quizzes/route.ts - Fixed for parent-child quiz support
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-// GET - Fetch all quizzes
+// GET - Fetch all quizzes with hierarchical structure
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,11 +19,31 @@ export async function GET(request: NextRequest) {
           orderBy: {
             createdAt: 'asc'
           }
+        },
+        children: {
+          include: {
+            questions: {
+              orderBy: {
+                createdAt: 'asc'
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            isParent: true
+          }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: [
+        { isParent: 'desc' }, // Parent quizzes first
+        { createdAt: 'desc' }
+      ]
     });
 
     return NextResponse.json(quizzes);
@@ -36,7 +56,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new quiz with badge management support
+// POST - Create a new quiz (both parent and sub-quiz support)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,14 +66,75 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, timer, subjectDomain, skillArea, questions } = body;
+    const { title, timer, parentId, isParent, subjectDomain, skillArea, questions } = body;
 
     // Validate required fields
-    if (!title || !questions || questions.length === 0) {
+    if (!title) {
       return NextResponse.json(
-        { error: 'Title and at least one question are required' },
+        { error: 'Title is required' },
         { status: 400 }
       );
+    }
+
+    // Validate parent quiz creation
+    if (isParent) {
+      // Parent quizzes don't need questions - they're just organizational containers
+      const parentQuiz = await prisma.quiz.create({
+        data: {
+          title: title.trim(),
+          timer: timer || 30,
+          isParent: true,
+          parentId: null, // Parent quizzes can't have parents
+          subjectDomain: subjectDomain || null,
+          skillArea: skillArea ? skillArea.trim() : null,
+        },
+        include: {
+          children: {
+            include: {
+              questions: {
+                orderBy: {
+                  createdAt: 'asc'
+                }
+              }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          }
+        }
+      });
+
+      console.log('Parent quiz created successfully:', parentQuiz.id);
+      return NextResponse.json(parentQuiz, { status: 201 });
+    }
+
+    // Validate sub-quiz creation (regular quiz)
+    if (!questions || questions.length === 0) {
+      return NextResponse.json(
+        { error: 'Regular quizzes must have at least one question' },
+        { status: 400 }
+      );
+    }
+
+    // Validate parent exists if parentId provided
+    if (parentId) {
+      const parentQuiz = await prisma.quiz.findUnique({
+        where: { id: parentId }
+      });
+
+      if (!parentQuiz) {
+        return NextResponse.json(
+          { error: 'Parent quiz not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!parentQuiz.isParent) {
+        return NextResponse.json(
+          { error: 'Referenced parent is not a parent quiz' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate subjectDomain if provided
@@ -74,11 +155,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create quiz with questions and new badge management fields
+    // Create regular quiz with questions
     const quiz = await prisma.quiz.create({
       data: {
         title: title.trim(),
         timer: timer || 30,
+        parentId: parentId || null,
+        isParent: false,
         subjectDomain: subjectDomain || null,
         skillArea: skillArea ? skillArea.trim() : null,
         questions: {
@@ -96,6 +179,13 @@ export async function POST(request: NextRequest) {
         questions: {
           orderBy: {
             createdAt: 'asc'
+          }
+        },
+        parent: {
+          select: {
+            id: true,
+            title: true,
+            isParent: true
           }
         }
       }

@@ -170,6 +170,8 @@ model Quiz {
   id            String        @id @default(cuid())
   title         String
   timer         Int           @default(30)
+  parentId      String?       // NEW: References parent quiz
+  isParent      Boolean       @default(false) // NEW: Marks if this is a parent quiz
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   skillArea     String?
@@ -177,8 +179,14 @@ model Quiz {
   questions     Question[]
   quizAttempts  QuizAttempt[]
   quizMasteries QuizMastery[]
+  
+  // NEW: Self-referencing relations for parent-child hierarchy
+  parent        Quiz?         @relation("QuizHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children      Quiz[]        @relation("QuizHierarchy")
 
   @@index([subjectDomain])
+  @@index([parentId])        // NEW: Index for efficient parent queries
+  @@index([isParent])        // NEW: Index for efficient parent filtering
   @@map("quizzes")
 }
 
