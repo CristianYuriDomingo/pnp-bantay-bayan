@@ -18,8 +18,6 @@ export async function GET(
         timer: true,
         isParent: true,
         parentId: true,
-        subjectDomain: true,
-        skillArea: true,
         questions: {
           select: {
             id: true,
@@ -27,7 +25,6 @@ export async function GET(
             lesson: true,
             image: true,
             options: true,
-            // Don't include correctAnswer or explanation
           },
           orderBy: {
             createdAt: 'asc'

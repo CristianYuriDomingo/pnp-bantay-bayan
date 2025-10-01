@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-// Types (same as before)
+// Types
 interface Module {
   id: string;
   title: string;
@@ -39,6 +39,7 @@ interface Badge {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+  xpValue: number; // ADD THIS LINE
   triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
@@ -117,7 +118,17 @@ const BadgeIndicator = ({
   );
 };
 
-// Badge creation modal component (unchanged)
+// Add this helper function at the top of your file (outside components)
+const calculateLessonBadgeMetrics = (tipCount: number) => {
+  if (tipCount >= 1 && tipCount <= 3) {
+    return { rarity: 'Common' as const, xpValue: 10 };
+  } else if (tipCount >= 4) {
+    return { rarity: 'Rare' as const, xpValue: 25 };
+  }
+  return { rarity: 'Common' as const, xpValue: 10 }; // default
+};
+
+// Updated Badge creation modal component with better pre-fill and XP logic
 const QuickBadgeModal = ({ 
   isOpen, 
   onClose, 
@@ -139,16 +150,44 @@ const QuickBadgeModal = ({
   const [imagePreview, setImagePreview] = useState(existingBadge?.image || '');
   const [loading, setLoading] = useState(false);
 
+  // NEW: XP and tip count state
+  const [xpValue, setXpValue] = useState(existingBadge?.xpValue || 0);
+  const [tipCount, setTipCount] = useState(0);
+
   useEffect(() => {
-    if (isOpen && targetItem && !existingBadge) {
-      if (badgeType === 'module') {
-        setName(`${targetItem.title} Master`);
-        setDescription(`Complete all lessons in the ${targetItem.title} module to earn this badge`);
-        setRarity('Rare');
+    if (isOpen && targetItem) {
+      if (existingBadge) {
+        setName(existingBadge.name);
+        setDescription(existingBadge.description);
+        setRarity(existingBadge.rarity);
+        setImagePreview(existingBadge.image);
+        setXpValue(existingBadge.xpValue || 0);
+        setTipCount(
+          badgeType === 'lesson' && (targetItem as Lesson).tips
+            ? (targetItem as Lesson).tips.length
+            : 0
+        );
       } else {
-        setName(`${targetItem.title} Champion`);
-        setDescription(`Complete the ${targetItem.title} lesson to earn this badge`);
-        setRarity('Common');
+        if (badgeType === 'module') {
+          setName(`${targetItem.title} Master`);
+          setDescription(`Complete all lessons in the ${targetItem.title} module to earn this badge`);
+          setRarity('Epic');
+          setXpValue(50);
+          setTipCount(0);
+        } else {
+          // CALCULATE TIP COUNT from the lesson
+          const lessonTipCount = (targetItem as Lesson).tips?.length || 0;
+          setTipCount(lessonTipCount);
+
+          // AUTO-CALCULATE rarity and XP based on tip count
+          const { rarity: calculatedRarity, xpValue } = calculateLessonBadgeMetrics(lessonTipCount);
+
+          setName(`${targetItem.title} Reader`);
+          setDescription(`Completed the ${targetItem.title} lesson and learned about important safety topics`);
+          setRarity(calculatedRarity);
+          setXpValue(xpValue);
+        }
+        setImagePreview('');
       }
     }
   }, [isOpen, targetItem, badgeType, existingBadge]);
@@ -176,6 +215,7 @@ const QuickBadgeModal = ({
         image: imagePreview,
         category: badgeType === 'module' ? targetItem.title : 'Lesson Completion',
         rarity,
+        xpValue, // ADD THIS
         triggerType: badgeType === 'module' ? 'module_complete' : 'lesson_complete',
         triggerValue: targetItem.id,
       };
@@ -238,7 +278,24 @@ const QuickBadgeModal = ({
             </h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
           </div>
-          
+
+          {/* Optional: Prominent tip count display for lesson badges */}
+          {badgeType === 'lesson' && !existingBadge && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">
+                    This lesson has {tipCount} tip{tipCount !== 1 ? 's' : ''}
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Auto-assigned: {rarity} rarity ({xpValue} XP)
+                  </p>
+                </div>
+                <span className="text-2xl">💡</span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-1">Badge Name *</label>
@@ -261,20 +318,60 @@ const QuickBadgeModal = ({
               />
             </div>
             
-            <div>
-              <label className="block text-sm font-medium mb-1">Rarity *</label>
-              <select 
-                value={rarity} 
-                onChange={(e) => setRarity(e.target.value as Badge['rarity'])}
-                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Common">Common</option>
-                <option value="Rare">Rare</option>
-                <option value="Epic">Epic</option>
-                <option value="Legendary">Legendary</option>
-              </select>
-            </div>
-            
+            {/* Rarity and XP UI */}
+            {badgeType === 'lesson' && !existingBadge ? (
+              // READ-ONLY display for lesson badges (auto-calculated)
+              <div>
+                <label className="block text-sm font-medium mb-1">Rarity (Auto-calculated) *</label>
+                <div className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{rarity}</span>
+                    <span className="text-sm text-gray-600">{xpValue} XP</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Based on {tipCount} tip{tipCount !== 1 ? 's' : ''} in this lesson
+                  </p>
+                </div>
+              </div>
+            ) : badgeType === 'module' && !existingBadge ? (
+              // READ-ONLY display for module badges (always Epic/50 XP)
+              <div>
+                <label className="block text-sm font-medium mb-1">Rarity (Fixed) *</label>
+                <div className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Epic</span>
+                    <span className="text-sm text-gray-600">50 XP</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Module completion badges are always Epic rarity
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Regular dropdown ONLY for editing existing badges
+              <div>
+                <label className="block text-sm font-medium mb-1">Rarity *</label>
+                <select 
+                  value={rarity} 
+                  onChange={(e) => {
+                    const newRarity = e.target.value as Badge['rarity'];
+                    setRarity(newRarity);
+                    // Update XP based on rarity
+                    if (newRarity === 'Common') setXpValue(10);
+                    else if (newRarity === 'Rare') setXpValue(25);
+                    else if (newRarity === 'Epic') setXpValue(50);
+                    else if (newRarity === 'Legendary') setXpValue(100);
+                  }}
+                  className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="Common">Common (10 XP)</option>
+                  <option value="Rare">Rare (25 XP)</option>
+                  <option value="Epic">Epic (50 XP)</option>
+                  <option value="Legendary">Legendary (100 XP)</option>
+                </select>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium mb-1">Badge Image *</label>
               <input 
@@ -313,7 +410,7 @@ const QuickBadgeModal = ({
   );
 };
 
-// Add Tip Modal Component (unchanged - keeping it brief)
+// Add Tip Modal Component
 const AddTipModal = ({ onClose, onSave, tipNumber, initialTip }: { 
   onClose: () => void; 
   onSave: (tip: { title: string; description: string; image?: string }) => void; 
@@ -392,7 +489,7 @@ const AddTipModal = ({ onClose, onSave, tipNumber, initialTip }: {
   );
 };
 
-// Add Lesson Form Component (keeping brief for space)
+// Add Lesson Form Component
 const AddLessonForm = ({ module, onClose, onSave, initialLesson }: { 
   module: Module; 
   onClose: () => void; 
@@ -1129,7 +1226,7 @@ export default function ContentManagementPage() {
             <p>• All badges are stored in your database and can be managed in the Badge Management section</p>
             <p>• Orange indicators show modules/lessons without badges - click to create them</p>
             <p>• Module badges require at least one lesson to be created first</p>
-            <p>• <strong>NEW:</strong> Lesson badge indicators are now clickable and will navigate you to the Badge Management page</p>
+            <p>• Lesson badge indicators are clickable and will navigate you to the Badge Management page</p>
           </div>
         </div>
       )}

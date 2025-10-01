@@ -1,4 +1,4 @@
-// app/api/admin/badges/route.ts - Updated with new trigger types and fields
+// app/api/admin/badges/route.ts - Updated with quiz_mastery and parent_quiz_mastery support
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
@@ -29,30 +29,29 @@ export async function GET(request: NextRequest) {
 // POST - Create a new badge with mastery system support
 export async function POST(request: NextRequest) {
   try {
-    console.log('POST /api/admin/badges called'); // Debug log
+    console.log('POST /api/admin/badges called');
 
     const session = await getServerSession(authOptions);
     
     if (!session || session.user?.role !== 'admin') {
-      console.log('Unauthorized access attempt'); // Debug log
+      console.log('Unauthorized access attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    console.log('Request body received:', body); // Debug log
+    console.log('Request body received:', body);
 
     const { 
       name, 
       description, 
       image, 
       category, 
-      rarity, 
+      rarity,
+      xpValue,
       triggerType, 
       triggerValue, 
       prerequisites,
-      subjectDomain,
-      masteryLevel,
-      skillArea
+      masteryLevel
     } = body;
 
     // Validate required fields
@@ -80,18 +79,12 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Updated trigger type validation to include all mastery types
+    // Updated trigger types without subject domain
     const validTriggerTypes = [
       'module_complete', 
       'lesson_complete', 
-      'quiz_mastery_bronze', 
-      'quiz_mastery_silver', 
-      'quiz_mastery_gold', 
-      'quiz_perfect',
-      'subject_domain_bronze',
-      'subject_domain_silver', 
-      'subject_domain_gold',
-      'subject_domain_perfect',
+      'quiz_mastery',
+      'parent_quiz_mastery',
       'manual'
     ];
     
@@ -108,23 +101,6 @@ export async function POST(request: NextRequest) {
       console.log('Invalid rarity:', rarity);
       return NextResponse.json({ 
         error: `Invalid rarity level. Must be one of: ${validRarities.join(', ')}` 
-      }, { status: 400 });
-    }
-
-    // Validate subject domain if provided
-    const validSubjectDomains = [
-      'cybersecurity',
-      'crime_prevention',
-      'emergency_preparedness',
-      'financial_security',
-      'personal_safety',
-      'digital_literacy',
-      'risk_assessment'
-    ];
-
-    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
-      return NextResponse.json({ 
-        error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` 
       }, { status: 400 });
     }
 
@@ -156,11 +132,10 @@ export async function POST(request: NextRequest) {
       description: description.trim(),
       category: category.trim(),
       rarity,
+      xpValue: xpValue || 0,
       triggerType,
       triggerValue: triggerValue.trim(),
-      subjectDomain,
       masteryLevel,
-      skillArea,
       hasPrerequisites: !!(prerequisites && prerequisites.length > 0)
     });
 
@@ -171,12 +146,11 @@ export async function POST(request: NextRequest) {
         image,
         category: category.trim(),
         rarity,
+        xpValue: xpValue || 0,
         triggerType,
         triggerValue: triggerValue.trim(),
         prerequisites: prerequisites || [],
-        subjectDomain: subjectDomain || null,
-        masteryLevel: masteryLevel || null,
-        skillArea: skillArea ? skillArea.trim() : null
+        masteryLevel: masteryLevel || null
       }
     });
 
@@ -204,7 +178,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update an existing badge with mastery system support
 export async function PUT(request: NextRequest) {
   try {
-    console.log('PUT /api/admin/badges called'); // Debug log
+    console.log('PUT /api/admin/badges called');
 
     const session = await getServerSession(authOptions);
     
@@ -213,7 +187,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('PUT Request body received:', body); // Debug log
+    console.log('PUT Request body received:', body);
 
     const { 
       id, 
@@ -221,13 +195,12 @@ export async function PUT(request: NextRequest) {
       description, 
       image, 
       category, 
-      rarity, 
+      rarity,
+      xpValue,
       triggerType, 
       triggerValue, 
       prerequisites,
-      subjectDomain,
-      masteryLevel,
-      skillArea
+      masteryLevel
     } = body;
 
     if (!id) {
@@ -240,41 +213,18 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Updated trigger type validation
+    // Updated trigger types without subject domain
     const validTriggerTypes = [
       'module_complete', 
       'lesson_complete', 
-      'quiz_mastery_bronze', 
-      'quiz_mastery_silver', 
-      'quiz_mastery_gold', 
-      'quiz_perfect',
-      'subject_domain_bronze',
-      'subject_domain_silver', 
-      'subject_domain_gold',
-      'subject_domain_perfect',
+      'quiz_mastery',
+      'parent_quiz_mastery',
       'manual'
     ];
     
     if (!validTriggerTypes.includes(triggerType)) {
       return NextResponse.json({ 
         error: `Invalid trigger type. Must be one of: ${validTriggerTypes.join(', ')}` 
-      }, { status: 400 });
-    }
-
-    // Validate subject domain if provided
-    const validSubjectDomains = [
-      'cybersecurity',
-      'crime_prevention',
-      'emergency_preparedness',
-      'financial_security',
-      'personal_safety',
-      'digital_literacy',
-      'risk_assessment'
-    ];
-
-    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
-      return NextResponse.json({ 
-        error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` 
       }, { status: 400 });
     }
 
@@ -322,12 +272,11 @@ export async function PUT(request: NextRequest) {
         image,
         category: category.trim(),
         rarity,
+        xpValue: xpValue || 0,
         triggerType,
         triggerValue: triggerValue.trim(),
         prerequisites: prerequisites || [],
-        subjectDomain: subjectDomain || null,
-        masteryLevel: masteryLevel || null,
-        skillArea: skillArea ? skillArea.trim() : null
+        masteryLevel: masteryLevel || null
       }
     });
 

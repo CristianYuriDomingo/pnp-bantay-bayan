@@ -1,4 +1,4 @@
-// app/api/admin/quizzes/route.ts - Fixed for parent-child quiz support
+// FILE: app/api/admin/quizzes/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: [
-        { isParent: 'desc' }, // Parent quizzes first
+        { isParent: 'desc' },
         { createdAt: 'desc' }
       ]
     });
@@ -66,9 +66,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, timer, parentId, isParent, subjectDomain, skillArea, questions } = body;
+    const { title, timer, parentId, isParent, questions } = body;
+    // REMOVED: subjectDomain, skillArea from destructuring
 
-    // Validate required fields
     if (!title) {
       return NextResponse.json(
         { error: 'Title is required' },
@@ -76,17 +76,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate parent quiz creation
+    // Create parent quiz
     if (isParent) {
-      // Parent quizzes don't need questions - they're just organizational containers
       const parentQuiz = await prisma.quiz.create({
         data: {
           title: title.trim(),
           timer: timer || 30,
           isParent: true,
-          parentId: null, // Parent quizzes can't have parents
-          subjectDomain: subjectDomain || null,
-          skillArea: skillArea ? skillArea.trim() : null,
+          parentId: null,
+          // REMOVED: subjectDomain, skillArea
         },
         include: {
           children: {
@@ -108,7 +106,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(parentQuiz, { status: 201 });
     }
 
-    // Validate sub-quiz creation (regular quiz)
+    // Validate sub-quiz has questions
     if (!questions || questions.length === 0) {
       return NextResponse.json(
         { error: 'Regular quizzes must have at least one question' },
@@ -137,24 +135,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate subjectDomain if provided
-    const validSubjectDomains = [
-      'cybersecurity',
-      'crime_prevention',
-      'emergency_preparedness',
-      'financial_security',
-      'personal_safety',
-      'digital_literacy',
-      'risk_assessment'
-    ];
-
-    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
-      return NextResponse.json(
-        { error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` },
-        { status: 400 }
-      );
-    }
-
     // Create regular quiz with questions
     const quiz = await prisma.quiz.create({
       data: {
@@ -162,8 +142,7 @@ export async function POST(request: NextRequest) {
         timer: timer || 30,
         parentId: parentId || null,
         isParent: false,
-        subjectDomain: subjectDomain || null,
-        skillArea: skillArea ? skillArea.trim() : null,
+        // REMOVED: subjectDomain, skillArea
         questions: {
           create: questions.map((q: any) => ({
             question: q.question.trim(),

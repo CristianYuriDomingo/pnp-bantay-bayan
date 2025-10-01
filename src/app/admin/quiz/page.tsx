@@ -1,4 +1,4 @@
-// FILE: src/app/admin/quiz/page.tsx - Fixed to hide standalone sub-quizzes from main view
+// FILE: src/app/admin/quiz/page.tsx - Updated with badge creation system
 'use client';
 import { useState, useEffect } from 'react';
 
@@ -12,7 +12,7 @@ interface Quiz {
   subjectDomain?: string;
   skillArea?: string;
   questions: Question[];
-  children?: Quiz[]; // For parent quizzes
+  children?: Quiz[];
 }
 
 interface Question {
@@ -32,12 +32,438 @@ interface Badge {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery_bronze' | 'quiz_mastery_silver' | 'quiz_mastery_gold' | 'quiz_perfect' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery_bronze' | 'quiz_mastery_silver' | 'quiz_mastery_gold' | 'quiz_perfect' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Badge Indicator Component
+const BadgeIndicator = ({ 
+  hasBadge, 
+  badgeType, 
+  onClick, 
+  disabled = false,
+  isClickable = true,
+  disabledReason = ''
+}: { 
+  hasBadge: boolean; 
+  badgeType: 'parent' | 'sub';
+  onClick: () => void;
+  disabled?: boolean;
+  isClickable?: boolean;
+  disabledReason?: string;
+}) => {
+  if (hasBadge) {
+    return (
+      <div className="flex items-center space-x-2 text-green-600 text-sm">
+        <span className="text-lg">🏆</span>
+        <span>{badgeType === 'parent' ? 'Master' : 'Mastery'} badge created</span>
+        {isClickable && (
+          <button 
+            onClick={onClick}
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            Manage
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (disabled) {
+    return (
+      <div className="flex items-center space-x-2 text-gray-400 text-sm" title={disabledReason}>
+        <span className="text-lg">⭐</span>
+        <span>Create {badgeType === 'parent' ? 'master' : 'mastery'} badge</span>
+        <span className="text-xs text-gray-500">({disabledReason})</span>
+      </div>
+    );
+  }
+
+  return (
+    <button 
+      onClick={onClick}
+      className="flex items-center space-x-2 text-orange-600 hover:text-orange-800 text-sm border border-orange-200 rounded-lg px-3 py-2 hover:bg-orange-50 transition-colors"
+    >
+      <span className="text-lg">⭐</span>
+      <span>Create {badgeType === 'parent' ? 'master' : 'mastery'} badge</span>
+    </button>
+  );
+};
+
+// Sub-Quiz Mastery Badge Modal (Epic - 90%+)
+const SubQuizMasteryBadgeModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  targetQuiz,
+  existingBadge,
+  parentQuiz
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (badge: Badge) => void;
+  targetQuiz: Quiz | null;
+  existingBadge?: Badge;
+  parentQuiz?: Quiz;
+}) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && targetQuiz) {
+      if (existingBadge) {
+        setName(existingBadge.name);
+        setDescription(existingBadge.description);
+        setImagePreview(existingBadge.image);
+      } else {
+        setName(`${targetQuiz.title} Expert`);
+        setDescription(`Achieve Gold or Perfect mastery (90%+) on ${targetQuiz.title}`);
+      }
+    }
+  }, [isOpen, targetQuiz, existingBadge]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !description.trim() || !imagePreview || !targetQuiz) {
+      return alert('Please fill in all required fields and select an image');
+    }
+    
+    setLoading(true);
+    try {
+      const badgeData = {
+        ...(existingBadge?.id && { id: existingBadge.id }),
+        name: name.trim(),
+        description: description.trim(),
+        image: imagePreview,
+        category: parentQuiz?.title || targetQuiz.subjectDomain || 'Quiz Mastery',
+        rarity: 'Epic' as const,
+        triggerType: 'quiz_mastery' as const,
+        triggerValue: targetQuiz.id,
+        xpValue: 50, // ADD THIS LINE
+      };
+      
+      const method = existingBadge ? 'PUT' : 'POST';
+      const response = await fetch('/api/admin/badges', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(badgeData),
+      });
+
+      if (!response.ok) throw new Error('Failed to save badge');
+
+      const savedBadge = await response.json();
+      onSave(savedBadge);
+      onClose();
+      alert(`Sub-quiz mastery badge ${existingBadge ? 'updated' : 'created'} successfully!`);
+    } catch (error) {
+      console.error('Error saving badge:', error);
+      alert('Error saving badge. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !targetQuiz) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              {existingBadge ? 'Edit' : 'Create'} Sub-Quiz Mastery Badge
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+          </div>
+          
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Epic Badge:</strong> Awarded when users score 90% or higher on this quiz (Gold or Perfect mastery)
+            </p>
+          </div>
+
+          <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+            <p className="text-sm text-purple-800">
+              <strong>For Quiz:</strong> {targetQuiz.title}
+            </p>
+            {parentQuiz && (
+              <p className="text-xs text-purple-700 mt-1">
+                Parent Category: {parentQuiz.title}
+              </p>
+            )}
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Name *</label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., Password Security Expert"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Description *</label>
+              <textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg h-20 focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe what this badge represents..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Rarity</label>
+              <input 
+                type="text" 
+                value="Epic"
+                disabled
+                className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100 text-gray-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Rarity is fixed for sub-quiz mastery badges</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Image *</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange}
+                className="w-full border border-gray-300 p-3 rounded-lg"
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-3">
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loading ? (existingBadge ? 'Updating...' : 'Creating...') : (existingBadge ? 'Update Badge' : 'Create Badge')}
+            </button>
+            <button 
+              onClick={onClose}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Parent Quiz Master Badge Modal (Legendary - All sub-quizzes 90%+)
+const ParentQuizMasterBadgeModal = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  targetQuiz,
+  existingBadge
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (badge: Badge) => void;
+  targetQuiz: Quiz | null;
+  existingBadge?: Badge;
+}) => {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && targetQuiz) {
+      if (existingBadge) {
+        setName(existingBadge.name);
+        setDescription(existingBadge.description);
+        setImagePreview(existingBadge.image);
+      } else {
+        setName(`${targetQuiz.title} Master`);
+        setDescription(`Master all quizzes in ${targetQuiz.title} with Gold or Perfect scores (90%+)`);
+      }
+    }
+  }, [isOpen, targetQuiz, existingBadge]);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || !description.trim() || !imagePreview || !targetQuiz) {
+      return alert('Please fill in all required fields and select an image');
+    }
+    
+    setLoading(true);
+    try {
+      const badgeData = {
+        ...(existingBadge?.id && { id: existingBadge.id }),
+        name: name.trim(),
+        description: description.trim(),
+        image: imagePreview,
+        category: targetQuiz.title,
+        rarity: 'Legendary' as const,
+        triggerType: 'parent_quiz_mastery' as const,
+        triggerValue: targetQuiz.id,
+        xpValue: 100, // ADD THIS LINE
+      };
+      
+      const method = existingBadge ? 'PUT' : 'POST';
+      const response = await fetch('/api/admin/badges', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(badgeData),
+      });
+
+      if (!response.ok) throw new Error('Failed to save badge');
+
+      const savedBadge = await response.json();
+      onSave(savedBadge);
+      onClose();
+      alert(`Parent quiz master badge ${existingBadge ? 'updated' : 'created'} successfully!`);
+    } catch (error) {
+      console.error('Error saving badge:', error);
+      alert('Error saving badge. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen || !targetQuiz) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">
+              {existingBadge ? 'Edit' : 'Create'} Parent Quiz Master Badge
+            </h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+          </div>
+          
+          <div className="mb-4 p-3 bg-yellow-50 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Legendary Badge:</strong> Awarded when users achieve 90%+ on ALL sub-quizzes in this category
+            </p>
+          </div>
+
+          <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+            <p className="text-sm text-purple-800 font-medium mb-2">
+              Sub-quizzes that must be mastered:
+            </p>
+            {targetQuiz.children && targetQuiz.children.length > 0 ? (
+              <ul className="text-xs text-purple-700 space-y-1">
+                {targetQuiz.children.map((child, index) => (
+                  <li key={child.id}>
+                    {index + 1}. {child.title} ({child.questions.length} questions)
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-purple-700">No sub-quizzes yet</p>
+            )}
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Name *</label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., Cybersecurity Master"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Description *</label>
+              <textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border border-gray-300 p-3 rounded-lg h-20 focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe what this badge represents..."
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Rarity</label>
+              <input 
+                type="text" 
+                value="Legendary"
+                disabled
+                className="w-full border border-gray-300 p-3 rounded-lg bg-gray-100 text-gray-600"
+              />
+              <p className="text-xs text-gray-500 mt-1">Rarity is fixed for parent quiz master badges</p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Badge Image *</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange}
+                className="w-full border border-gray-300 p-3 rounded-lg"
+              />
+              {imagePreview && (
+                <div className="mt-2">
+                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                  <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded border" />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-6 flex space-x-3">
+            <button 
+              onClick={handleSave} 
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {loading ? (existingBadge ? 'Updating...' : 'Creating...') : (existingBadge ? 'Update Badge' : 'Create Badge')}
+            </button>
+            <button 
+              onClick={onClose}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Parent Quiz Creation Modal
 const ParentQuizModal = ({ 
@@ -123,26 +549,6 @@ const ParentQuizModal = ({
   );
 };
 
-// Badge creation modal (existing code - no changes needed)
-const QuizMasteryBadgeModal = ({ 
-  isOpen, 
-  onClose, 
-  onSave, 
-  targetQuiz,
-  existingBadges 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSave: (badges: Badge[]) => void;
-  targetQuiz: Quiz | null;
-  existingBadges: Badge[];
-}) => {
-  // ... existing badge modal code remains the same
-  if (!isOpen || !targetQuiz || targetQuiz.isParent) return null;
-  // Only show for sub-quizzes, not parent quizzes
-  return null; // Simplified for now - use your existing modal code
-};
-
 const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) => 
   isOpen ? (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -156,14 +562,15 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => 
     </div>
   ) : null;
 
-// Updated Quiz Card for hierarchical display
+// Updated Quiz Card with Badge Indicators
 const QuizCard = ({ 
   quiz, 
   onView, 
   onDelete,
   onAddSubQuiz,
   badges,
-  onManageBadge,
+  onManageSubQuizBadge,
+  onManageParentBadge,
   level = 0,
   showAsStandalone = false
 }: { 
@@ -172,21 +579,26 @@ const QuizCard = ({
   onDelete: (quizId: string) => void;
   onAddSubQuiz?: (parentQuiz: Quiz) => void;
   badges: Badge[];
-  onManageBadge: (quiz: Quiz) => void;
+  onManageSubQuizBadge: (quiz: Quiz) => void;
+  onManageParentBadge: (quiz: Quiz) => void;
   level?: number;
   showAsStandalone?: boolean;
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Get unique lessons from questions (only for sub-quizzes)
   const uniqueLessons = quiz.isParent ? [] : [...new Set(quiz.questions.map(q => q.lesson))];
   
-  // Get quiz mastery badges (only for sub-quizzes)
-  const quizBadges = quiz.isParent ? [] : badges.filter(badge => 
-    ['quiz_mastery_bronze', 'quiz_mastery_silver', 'quiz_mastery_gold', 'quiz_perfect'].includes(badge.triggerType) && 
-    badge.triggerValue === quiz.id
-  );
+  // Get badges for this quiz
+  const subQuizBadge = !quiz.isParent ? badges.find(badge => 
+    badge.triggerType === 'quiz_mastery' && badge.triggerValue === quiz.id
+  ) : null;
+
+  const parentQuizBadge = quiz.isParent ? badges.find(badge => 
+    badge.triggerType === 'parent_quiz_mastery' && badge.triggerValue === quiz.id
+  ) : null;
+
+  const canCreateParentBadge = quiz.isParent && (quiz.children?.length || 0) > 0;
 
   const cardWidth = level === 0 ? 'w-80' : 'w-72';
   const cardMargin = level > 0 ? 'ml-8 mt-4' : '';
@@ -194,7 +606,6 @@ const QuizCard = ({
   return (
     <>
       <div className={`bg-white rounded-lg shadow border overflow-hidden ${cardWidth} ${cardMargin}`}>
-        {/* Header with parent/child indicator */}
         <div className={`h-48 flex items-center justify-center ${
           quiz.isParent 
             ? 'bg-gradient-to-br from-purple-50 to-purple-100' 
@@ -272,18 +683,25 @@ const QuizCard = ({
             )}
           </div>
           
-          {/* Mastery badge indicator (only for sub-quizzes) */}
-          {!quiz.isParent && (
-            <div className="mb-4">
-              <button 
-                onClick={() => onManageBadge(quiz)}
-                className="flex items-center space-x-2 text-sm border rounded-lg px-3 py-2 hover:bg-opacity-50 transition-colors text-blue-600 hover:text-blue-800 border-blue-200 hover:bg-blue-50"
-              >
-                <span className="text-lg">⭐</span>
-                <span>Mastery badges ({quizBadges.length}/4)</span>
-              </button>
-            </div>
-          )}
+          {/* Badge Indicator Section */}
+          <div className="mb-4">
+            {quiz.isParent ? (
+              <BadgeIndicator 
+                hasBadge={!!parentQuizBadge}
+                badgeType="parent"
+                onClick={() => onManageParentBadge(quiz)}
+                disabled={!canCreateParentBadge}
+                disabledReason={!canCreateParentBadge ? 'needs sub-quizzes' : ''}
+              />
+            ) : (
+              <BadgeIndicator 
+                hasBadge={!!subQuizBadge}
+                badgeType="sub"
+                onClick={() => onManageSubQuizBadge(quiz)}
+                disabled={false}
+              />
+            )}
+          </div>
           
           <div className="flex space-x-2">
             {quiz.isParent ? (
@@ -313,7 +731,6 @@ const QuizCard = ({
         </div>
       </div>
 
-      {/* Expanded sub-quizzes */}
       {quiz.isParent && isExpanded && quiz.children && (
         <div className="ml-4 mt-2 space-y-4">
           {quiz.children.map((subQuiz) => (
@@ -323,21 +740,20 @@ const QuizCard = ({
               onView={onView}
               onDelete={onDelete}
               badges={badges}
-              onManageBadge={onManageBadge}
+              onManageSubQuizBadge={onManageSubQuizBadge}
+              onManageParentBadge={onManageParentBadge}
               level={level + 1}
             />
           ))}
         </div>
       )}
 
-      {/* Modal for viewing details */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <div className="p-6">
           <h3 className="text-xl font-bold mb-4">{quiz.title}</h3>
           
           {quiz.isParent ? (
             <>
-              {/* Parent quiz details */}
               <div className="mb-4 p-4 bg-purple-50 rounded-lg">
                 <h4 className="font-semibold text-purple-800 mb-2">Parent Quiz Category</h4>
                 <div className="text-sm text-purple-700 space-y-1">
@@ -346,6 +762,16 @@ const QuizCard = ({
                   {quiz.subjectDomain && <p>Subject Domain: {quiz.subjectDomain.replace('_', ' ')}</p>}
                   {quiz.skillArea && <p>Skill Area: {quiz.skillArea.replace('_', ' ')}</p>}
                 </div>
+              </div>
+
+              <div className="mb-4">
+                <BadgeIndicator 
+                  hasBadge={!!parentQuizBadge}
+                  badgeType="parent"
+                  onClick={() => { onManageParentBadge(quiz); setIsModalOpen(false); }}
+                  disabled={!canCreateParentBadge}
+                  disabledReason={!canCreateParentBadge ? 'needs sub-quizzes' : ''}
+                />
               </div>
 
               {quiz.children && quiz.children.length > 0 && (
@@ -374,7 +800,6 @@ const QuizCard = ({
             </>
           ) : (
             <>
-              {/* Sub-quiz details (existing code) */}
               <div className="mb-4 grid grid-cols-2 gap-4">
                 <div>
                   <p><strong>Lessons:</strong> {uniqueLessons.join(', ')}</p>
@@ -395,8 +820,16 @@ const QuizCard = ({
                   )}
                 </div>
               </div>
+
+              <div className="mb-4">
+                <BadgeIndicator 
+                  hasBadge={!!subQuizBadge}
+                  badgeType="sub"
+                  onClick={() => { onManageSubQuizBadge(quiz); setIsModalOpen(false); }}
+                  disabled={false}
+                />
+              </div>
               
-              {/* Questions preview */}
               <div className="mb-6">
                 <h4 className="font-semibold mb-2">Questions Preview:</h4>
                 <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -460,7 +893,6 @@ const QuestionForm = ({ question, onSave, onCancel, questionNumber }: {
   onCancel: () => void; 
   questionNumber: number;
 }) => {
-  // ... existing question form code remains the same
   const [questionText, setQuestionText] = useState(question?.question || '');
   const [lesson, setLesson] = useState(question?.lesson || '');
   const [options, setOptions] = useState(question?.options || ['', '', '', '']);
@@ -580,7 +1012,6 @@ const QuestionForm = ({ question, onSave, onCancel, questionNumber }: {
   );
 };
 
-// Updated Add Quiz Form with parent selection
 const AddQuizForm = ({ 
   onClose, 
   onSave, 
@@ -597,23 +1028,11 @@ const AddQuizForm = ({
   const [title, setTitle] = useState(initialQuiz?.title || '');
   const [timer, setTimer] = useState(initialQuiz?.timer || 30);
   const [parentId, setParentId] = useState(initialQuiz?.parentId || selectedParent?.id || '');
-  const [subjectDomain, setSubjectDomain] = useState(initialQuiz?.subjectDomain || selectedParent?.subjectDomain || '');
-  const [skillArea, setSkillArea] = useState(initialQuiz?.skillArea || selectedParent?.skillArea || '');
   const [questions, setQuestions] = useState<Question[]>(initialQuiz?.questions || []);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const subjectDomains = [
-    'cybersecurity',
-    'crime_prevention',
-    'emergency_preparedness',
-    'financial_security',
-    'personal_safety',
-    'digital_literacy',
-    'risk_assessment'
-  ];
 
   const handleSaveQuestion = (question: Question) => {
     if (editingIndex !== null) {
@@ -650,9 +1069,7 @@ const AddQuizForm = ({
         title: title.trim(),
         timer,
         parentId: parentId || null,
-        isParent: false, // This form is for sub-quizzes only
-        subjectDomain: subjectDomain || null,
-        skillArea: skillArea || null,
+        isParent: false,
         questions
       };
       
@@ -734,42 +1151,13 @@ const AddQuizForm = ({
           </FormField>
         )}
 
-        <FormField label="Subject Domain (Optional)">
-          <select 
-            value={subjectDomain} 
-            onChange={(e) => setSubjectDomain(e.target.value)}
-            className="w-full border border-gray-300 p-2 rounded"
-          >
-            <option value="">Select domain for badge linking</option>
-            {subjectDomains.map(domain => (
-              <option key={domain} value={domain}>
-                {domain.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        
-        <FormField label="Skill Area (Optional)">
-          <input 
-            type="text"
-            value={skillArea} 
-            onChange={(e) => setSkillArea(e.target.value)}
-            placeholder="e.g., network_security, password_management"
-            className="w-full border border-gray-300 p-2 rounded"
-          />
-        </FormField>
+        {/* REMOVED Subject Domain and Skill Area fields */}
       </div>
       
       <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Mastery Badge System:</strong> Create mastery badges that are automatically awarded based on performance:
+          <strong>Badge System:</strong> After creating this quiz, you can create a mastery badge that is automatically awarded when users score 90% or higher (Epic rarity).
         </p>
-        <ul className="text-sm text-blue-700 mt-2 space-y-1">
-          <li>• <strong>Bronze:</strong> 60-74% accuracy with good time efficiency</li>
-          <li>• <strong>Silver:</strong> 75-89% accuracy with good time efficiency</li>
-          <li>• <strong>Gold:</strong> 90-99% accuracy with excellent time efficiency</li>
-          <li>• <strong>Perfect:</strong> 100% accuracy (any time)</li>
-        </ul>
       </div>
       
       <div className="mb-6">
@@ -866,25 +1254,23 @@ export default function QuizManagement() {
   const [selectedParent, setSelectedParent] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Mastery badge modal states
-  const [showBadgeModal, setShowBadgeModal] = useState(false);
-  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
+  // NEW: Badge modal states
+  const [showSubQuizBadgeModal, setShowSubQuizBadgeModal] = useState(false);
+  const [showParentQuizBadgeModal, setShowParentQuizBadgeModal] = useState(false);
+  const [selectedQuizForBadge, setSelectedQuizForBadge] = useState<Quiz | null>(null);
 
-  // Fetch quizzes and badges from API
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
     try {
-      // Fetch quizzes with hierarchical structure
       const quizzesResponse = await fetch('/api/admin/quizzes');
       if (quizzesResponse.ok) {
         const data = await quizzesResponse.json();
         setQuizzes(data);
       }
 
-      // Fetch badges
       const badgesResponse = await fetch('/api/admin/badges');
       if (badgesResponse.ok) {
         const data = await badgesResponse.json();
@@ -905,7 +1291,6 @@ export default function QuizManagement() {
       
       if (response.ok) {
         setQuizzes(quizzes.filter(quiz => quiz.id !== quizId));
-        // Also remove associated badges
         setBadges(badges.filter(badge => badge.triggerValue !== quizId));
       } else {
         alert('Failed to delete quiz');
@@ -925,13 +1310,11 @@ export default function QuizManagement() {
     }
     setShowAddQuiz(false);
     setSelectedParent(null);
+    fetchData();
   };
 
-  // Updated handleSaveParentQuiz function - replace in your component
   const handleSaveParentQuiz = async (parentData: { title: string }) => {
     try {
-      console.log('Creating parent quiz with data:', parentData);
-      
       const response = await fetch('/api/admin/quizzes', {
         method: 'POST',
         headers: {
@@ -940,26 +1323,19 @@ export default function QuizManagement() {
         body: JSON.stringify({
           title: parentData.title,
           isParent: true,
-          timer: 30,
-          // Don't send questions field for parent quizzes
-          subjectDomain: null,
-          skillArea: null
+          timer: 30
+          // Removed: subjectDomain and skillArea
         }),
       });
       
-      console.log('Response status:', response.status);
-      
       if (!response.ok) {
-        const errorData = await response.text();
-        console.error('API Error Response:', errorData);
-        throw new Error(`Failed to create parent quiz: ${response.status} ${errorData}`);
+        throw new Error('Failed to create parent quiz');
       }
       
       const savedParent = await response.json();
-      console.log('Parent quiz created successfully:', savedParent);
-      
       setQuizzes([savedParent, ...quizzes]);
       setShowParentModal(false);
+      fetchData();
     } catch (error) {
       console.error('Error saving parent quiz:', error);
       throw error;
@@ -982,61 +1358,60 @@ export default function QuizManagement() {
     setShowAddQuiz(true);
   };
 
-  const handleManageQuizBadge = (quiz: Quiz) => {
+  // NEW: Sub-quiz badge management
+  const handleManageSubQuizBadge = (quiz: Quiz) => {
     if (quiz.isParent) {
-      alert('Mastery badges can only be created for sub-quizzes, not parent categories.');
+      alert('This function is for sub-quizzes only.');
       return;
     }
-    setSelectedQuiz(quiz);
-    setShowBadgeModal(true);
+    setSelectedQuizForBadge(quiz);
+    setShowSubQuizBadgeModal(true);
   };
 
-  const handleSaveBadges = async (savedBadges: Badge[]) => {
-    try {
-      // Save badges to API
-      const promises = savedBadges.map(async (badge) => {
-        const response = await fetch('/api/admin/badges', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(badge),
-        });
-        return response.json();
-      });
-
-      const results = await Promise.all(promises);
-      
-      // Update local badges state
-      const updatedBadges = [...badges];
-      results.forEach(newBadge => {
-        const existingIndex = updatedBadges.findIndex(b => b.id === newBadge.id);
-        if (existingIndex >= 0) {
-          updatedBadges[existingIndex] = newBadge;
-        } else {
-          updatedBadges.push(newBadge);
-        }
-      });
-      
-      setBadges(updatedBadges);
-      setShowBadgeModal(false);
-      setSelectedQuiz(null);
-      
-      alert(`Successfully created ${savedBadges.length} mastery badge(s)!`);
-    } catch (error) {
-      console.error('Error saving badges:', error);
-      alert('Error saving badges. Please try again.');
+  // NEW: Parent quiz badge management
+  const handleManageParentBadge = (quiz: Quiz) => {
+    if (!quiz.isParent) {
+      alert('This function is for parent quizzes only.');
+      return;
     }
+    if (!quiz.children || quiz.children.length === 0) {
+      alert('Please add sub-quizzes first before creating a master badge.');
+      return;
+    }
+    setSelectedQuizForBadge(quiz);
+    setShowParentQuizBadgeModal(true);
   };
 
-  const handleCloseBadgeModal = () => {
-    setShowBadgeModal(false);
-    setSelectedQuiz(null);
+  // NEW: Save badge handler
+  const handleSaveBadge = (savedBadge: Badge) => {
+    const existingIndex = badges.findIndex(b => b.id === savedBadge.id);
+    if (existingIndex >= 0) {
+      setBadges(badges.map((b, i) => i === existingIndex ? savedBadge : b));
+    } else {
+      setBadges([...badges, savedBadge]);
+    }
+    
+    setShowSubQuizBadgeModal(false);
+    setShowParentQuizBadgeModal(false);
+    setSelectedQuizForBadge(null);
   };
 
-  // FIXED: Organize quizzes to only show parent quizzes and standalone sub-quizzes that need categories
+  // Helper functions to get badges
+  const getSubQuizBadge = (quizId: string) => {
+    return badges.find(badge => 
+      badge.triggerType === 'quiz_mastery' && badge.triggerValue === quizId
+    );
+  };
+
+  const getParentQuizBadge = (quizId: string) => {
+    return badges.find(badge => 
+      badge.triggerType === 'parent_quiz_mastery' && badge.triggerValue === quizId
+    );
+  };
+
   const parentQuizzes = quizzes.filter(quiz => quiz.isParent);
   const standaloneSubQuizzes = quizzes.filter(quiz => !quiz.isParent && !quiz.parentId);
   
-  // Create quiz hierarchy for display
   const quizHierarchy = parentQuizzes.map(parentQuiz => ({
     ...parentQuiz,
     children: quizzes.filter(q => q.parentId === parentQuiz.id)
@@ -1087,24 +1462,35 @@ export default function QuizManagement() {
         />
       )}
 
-      {/* Parent Quiz Creation Modal */}
       <ParentQuizModal 
         isOpen={showParentModal}
         onClose={() => setShowParentModal(false)}
         onSave={handleSaveParentQuiz}
       />
 
-      {/* Quiz Mastery Badge Creation Modal */}
-      <QuizMasteryBadgeModal 
-        isOpen={showBadgeModal}
-        onClose={handleCloseBadgeModal}
-        onSave={handleSaveBadges}
-        targetQuiz={selectedQuiz}
-        existingBadges={badges.filter(b => 
-          selectedQuiz && 
-          ['quiz_mastery_bronze', 'quiz_mastery_silver', 'quiz_mastery_gold', 'quiz_perfect'].includes(b.triggerType) && 
-          b.triggerValue === selectedQuiz.id
-        )}
+      {/* NEW: Sub-Quiz Mastery Badge Modal */}
+      <SubQuizMasteryBadgeModal 
+        isOpen={showSubQuizBadgeModal}
+        onClose={() => {
+          setShowSubQuizBadgeModal(false);
+          setSelectedQuizForBadge(null);
+        }}
+        onSave={handleSaveBadge}
+        targetQuiz={selectedQuizForBadge}
+        existingBadge={selectedQuizForBadge ? getSubQuizBadge(selectedQuizForBadge.id) : undefined}
+        parentQuiz={selectedQuizForBadge?.parentId ? quizzes.find(q => q.id === selectedQuizForBadge.parentId) : undefined}
+      />
+
+      {/* NEW: Parent Quiz Master Badge Modal */}
+      <ParentQuizMasterBadgeModal 
+        isOpen={showParentQuizBadgeModal}
+        onClose={() => {
+          setShowParentQuizBadgeModal(false);
+          setSelectedQuizForBadge(null);
+        }}
+        onSave={handleSaveBadge}
+        targetQuiz={selectedQuizForBadge}
+        existingBadge={selectedQuizForBadge ? getParentQuizBadge(selectedQuizForBadge.id) : undefined}
       />
 
       <div className="bg-white rounded-lg shadow">
@@ -1135,7 +1521,6 @@ export default function QuizManagement() {
           ) : (
             <>
               <div className="space-y-6 mb-6">
-                {/* Display parent quizzes with their children */}
                 {quizHierarchy.map((quiz) => (
                   <QuizCard 
                     key={quiz.id} 
@@ -1144,11 +1529,11 @@ export default function QuizManagement() {
                     onDelete={handleDeleteQuiz}
                     onAddSubQuiz={handleAddSubQuiz}
                     badges={badges}
-                    onManageBadge={handleManageQuizBadge}
+                    onManageSubQuizBadge={handleManageSubQuizBadge}
+                    onManageParentBadge={handleManageParentBadge}
                   />
                 ))}
 
-                {/* Display standalone sub-quizzes that need to be assigned to categories */}
                 {standaloneSubQuizzes.length > 0 && (
                   <>
                     <div className="border-t pt-6">
@@ -1166,7 +1551,8 @@ export default function QuizManagement() {
                           onView={handleEditQuiz}
                           onDelete={handleDeleteQuiz}
                           badges={badges}
-                          onManageBadge={handleManageQuizBadge}
+                          onManageSubQuizBadge={handleManageSubQuizBadge}
+                          onManageParentBadge={handleManageParentBadge}
                           showAsStandalone={true}
                         />
                       ))}
@@ -1175,15 +1561,15 @@ export default function QuizManagement() {
                 )}
               </div>
 
-              {/* Help text */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-semibold text-green-900 mb-2">Quiz Management Guide</h3>
+                <h3 className="font-semibold text-green-900 mb-2">Quiz Badge System Guide</h3>
                 <div className="text-sm text-green-800 space-y-1">
-                  <p>• <strong>Parent Categories:</strong> Organize related quizzes under meaningful categories (e.g., "Cybersecurity Fundamentals")</p>
-                  <p>• <strong>Sub-Quizzes:</strong> Individual quizzes with questions that users actually take</p>
-                  <p>• <strong>Mastery Badges:</strong> Create automatic badges for Bronze (60-74%), Silver (75-89%), Gold (90-99%), and Perfect (100%) performance</p>
-                  <p>• <strong>Hierarchical View:</strong> Expand parent categories to see and manage their sub-quizzes</p>
-                  <p>• <strong>Standalone Quizzes:</strong> Sub-quizzes without parent categories are shown separately - assign them to categories for better organization</p>
+                  <p>• <strong>Parent Categories:</strong> Organize related quizzes under meaningful categories</p>
+                  <p>• <strong>Sub-Quiz Mastery Badges (Epic):</strong> Create badges awarded when users score 90%+ on individual quizzes</p>
+                  <p>• <strong>Parent Master Badges (Legendary):</strong> Create ultimate badges awarded when users master ALL sub-quizzes in a category</p>
+                  <p>• <strong>Badge Creation:</strong> Click the orange "Create Badge" button on any quiz card to set up mastery rewards</p>
+                  <p>• <strong>Requirements:</strong> Parent master badges require at least 1 sub-quiz to be created first</p>
+                  <p>• <strong>Auto-Award:</strong> All badges are automatically awarded based on user performance - no manual intervention needed</p>
                 </div>
               </div>
             </>

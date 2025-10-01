@@ -48,6 +48,8 @@ model User {
   password         String?
   role             String         @default("user")
   status           String         @default("active")
+  totalXP          Int            @default(0)
+  level            Int            @default(1)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   resetToken       String?
@@ -60,6 +62,7 @@ model User {
   progress         UserProgress[]
 
   @@index([resetToken])
+  @@index([totalXP])
 }
 
 model VerificationToken {
@@ -138,31 +141,32 @@ model Badge {
   image         String
   category      String
   rarity        String      @default("Common")
+  xpValue       Int         @default(0)
   triggerType   String
   triggerValue  String
   prerequisites String[]
+  masteryLevel  String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  masteryLevel  String?
-  skillArea     String?
-  subjectDomain String?
   userBadges    UserBadge[]
 
-  @@index([subjectDomain])
-  @@index([subjectDomain, masteryLevel])
+  @@index([rarity])
+  @@index([masteryLevel])
   @@map("badges")
 }
 
 model UserBadge {
-  id       String   @id @default(cuid())
-  userId   String
-  badgeId  String
-  earnedAt DateTime @default(now())
-  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  xpAwarded Int      @default(0)
+  earnedAt  DateTime @default(now())
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, badgeId])
   @@index([userId])
+  @@index([earnedAt])
   @@map("user_badges")
 }
 
@@ -170,23 +174,18 @@ model Quiz {
   id            String        @id @default(cuid())
   title         String
   timer         Int           @default(30)
-  parentId      String?       // NEW: References parent quiz
-  isParent      Boolean       @default(false) // NEW: Marks if this is a parent quiz
+  parentId      String?
+  isParent      Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  skillArea     String?
-  subjectDomain String?
   questions     Question[]
   quizAttempts  QuizAttempt[]
   quizMasteries QuizMastery[]
-  
-  // NEW: Self-referencing relations for parent-child hierarchy
   parent        Quiz?         @relation("QuizHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children      Quiz[]        @relation("QuizHierarchy")
 
-  @@index([subjectDomain])
-  @@index([parentId])        // NEW: Index for efficient parent queries
-  @@index([isParent])        // NEW: Index for efficient parent filtering
+  @@index([parentId])
+  @@index([isParent])
   @@map("quizzes")
 }
 
@@ -251,29 +250,4 @@ model QuizMastery {
   @@index([quizId])
   @@index([currentMasteryLevel])
   @@map("quiz_mastery")
-}
-
-model SubjectDomainTemplate {
-  id                 String   @id @default(cuid())
-  domainKey          String   @unique
-  domainName         String
-  description        String?
-  category           String
-  bronzeBadgeName    String
-  silverBadgeName    String
-  goldBadgeName      String
-  perfectBadgeName   String
-  bronzeDescription  String
-  silverDescription  String
-  goldDescription    String
-  perfectDescription String
-  defaultRarity      String   @default("Common")
-  iconTheme          String?
-  isActive           Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  @@index([domainKey])
-  @@index([isActive])
-  @@map("subject_domain_templates")
 }

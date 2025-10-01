@@ -1,83 +1,82 @@
-// FILE 1: app/api/users/quizzes/[id]/complete/route.ts
+// FILE: app/api/users/quizzes/[id]/complete/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
 import { PrismaClient } from '@prisma/client';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 const prisma = new PrismaClient();
 
-// POST - Complete quiz submission with mastery calculation and badge awarding
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get user session - adjust this based on your auth setup
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get user from database
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const userId = user.id;
+    const quizId = params.id;
     const body = await request.json();
-    const { 
-      answers, 
-      timeSpent, 
-      score, 
-      totalQuestions 
-    } = body;
+    const { answers, timeSpent } = body;
 
-    // Validate input
-    if (!answers || !Array.isArray(answers) || typeof timeSpent !== 'number') {
-      return NextResponse.json(
-        { error: 'Invalid submission data' },
-        { status: 400 }
-      );
-    }
-
-    // Get quiz data to calculate mastery
+    // Fetch quiz with correct answers
     const quiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
-      include: {
-        questions: true
+      where: { id: quizId },
+      include: { 
+        questions: true,
+        parent: {
+          select: {
+            id: true,
+            children: {
+              select: { id: true }
+            }
+          }
+        }
       }
     });
 
     if (!quiz) {
-      return NextResponse.json(
-        { error: 'Quiz not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
     }
 
-    // Calculate mastery metrics
-    const timeAllowed = quiz.questions.length * quiz.timer;
-    const percentage = (score / totalQuestions) * 100;
+    // Calculate score
+    let correctAnswers = 0;
+    const detailedAnswers = quiz.questions.map((question, index) => {
+      const userAnswer = answers[index];
+      const isCorrect = userAnswer === question.correctAnswer;
+      if (isCorrect) correctAnswers++;
+
+      return {
+        questionId: question.id,
+        question: question.question,
+        userAnswer,
+        correctAnswer: question.correctAnswer,
+        isCorrect,
+        explanation: question.explanation
+      };
+    });
+
+    const totalQuestions = quiz.questions.length;
+    const percentage = (correctAnswers / totalQuestions) * 100;
+    const timeAllowed = totalQuestions * quiz.timer;
     const timeEfficiency = Math.max(0, ((timeAllowed - timeSpent) / timeAllowed) * 100);
     
-    // Mastery calculation formula
-    const baseScore = percentage * 0.6; // 60% weight for accuracy
-    const timeBonus = timeEfficiency * 0.25; // 25% weight for time efficiency
-    const perfectBonus = (score === totalQuestions ? 15 : 0); // 15% bonus for perfect score
-    
-    const masteryScore = Math.min(100, baseScore + timeBonus + perfectBonus);
+    // Calculate mastery score (70% accuracy + 30% time efficiency)
+    const masteryScore = (percentage * 0.7) + (timeEfficiency * 0.3);
     
     // Determine mastery level
-    let masteryLevel: string | null = null;
-    if (masteryScore >= 100) {
+    let masteryLevel = null;
+    if (percentage === 100) {
       masteryLevel = 'Perfect';
     } else if (masteryScore >= 90) {
       masteryLevel = 'Gold';
@@ -88,11 +87,11 @@ export async function POST(
     }
 
     // Save quiz attempt
-    const quizAttempt = await prisma.quizAttempt.create({
+    await prisma.quizAttempt.create({
       data: {
-        userId: user.id,
-        quizId: params.id,
-        score,
+        userId,
+        quizId,
+        score: correctAnswers,
         totalQuestions,
         percentage,
         timeSpent,
@@ -100,155 +99,306 @@ export async function POST(
         timeEfficiency,
         masteryScore,
         masteryLevel,
-        answers: answers
+        answers: detailedAnswers
       }
     });
 
     // Update or create quiz mastery record
     const existingMastery = await prisma.quizMastery.findUnique({
       where: {
-        userId_quizId: {
-          userId: user.id,
-          quizId: params.id
-        }
+        userId_quizId: { userId, quizId }
       }
     });
 
-    let quizMastery;
-    let isNewBestScore = false;
-
     if (existingMastery) {
-      // Update if this is a better score
       if (masteryScore > existingMastery.bestMasteryScore) {
-        isNewBestScore = true;
-        quizMastery = await prisma.quizMastery.update({
-          where: {
-            userId_quizId: {
-              userId: user.id,
-              quizId: params.id
-            }
-          },
+        await prisma.quizMastery.update({
+          where: { id: existingMastery.id },
           data: {
-            bestScore: score,
+            bestScore: correctAnswers,
             bestPercentage: percentage,
             bestMasteryScore: masteryScore,
             currentMasteryLevel: masteryLevel,
-            attemptCount: existingMastery.attemptCount + 1,
+            attemptCount: { increment: 1 },
             bestAttemptAt: new Date(),
             lastAttemptAt: new Date()
           }
         });
       } else {
-        // Just update attempt count and last attempt
-        quizMastery = await prisma.quizMastery.update({
-          where: {
-            userId_quizId: {
-              userId: user.id,
-              quizId: params.id
-            }
-          },
+        await prisma.quizMastery.update({
+          where: { id: existingMastery.id },
           data: {
-            attemptCount: existingMastery.attemptCount + 1,
+            attemptCount: { increment: 1 },
             lastAttemptAt: new Date()
           }
         });
       }
     } else {
-      // Create new mastery record
-      isNewBestScore = true;
-      quizMastery = await prisma.quizMastery.create({
+      await prisma.quizMastery.create({
         data: {
-          userId: user.id,
-          quizId: params.id,
-          bestScore: score,
+          userId,
+          quizId,
+          bestScore: correctAnswers,
           bestPercentage: percentage,
           bestMasteryScore: masteryScore,
           currentMasteryLevel: masteryLevel,
-          attemptCount: 1,
-          firstAttemptAt: new Date(),
-          bestAttemptAt: new Date(),
-          lastAttemptAt: new Date()
+          attemptCount: 1
         }
       });
     }
 
-    // Award badges if new best score and mastery level achieved
+    // Badge awarding logic
     const earnedBadges = [];
-    if (isNewBestScore && masteryLevel) {
-      const badgeTriggerTypes: Record<string, string> = {
-        'Bronze': 'quiz_mastery_bronze',
-        'Silver': 'quiz_mastery_silver', 
-        'Gold': 'quiz_mastery_gold',
-        'Perfect': 'quiz_perfect'
-      };
+    let totalXPGained = 0;
 
-      const triggerType = badgeTriggerTypes[masteryLevel];
-      
-      if (triggerType) {
-        // Find eligible badges
-        const eligibleBadges = await prisma.badge.findMany({
+    // 1. Bronze Badge (60-74%)
+    if (masteryScore >= 60 && masteryScore < 75) {
+      const bronzeBadge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'quiz_mastery_bronze',
+          triggerValue: quizId
+        }
+      });
+
+      if (bronzeBadge) {
+        const existingBadge = await prisma.userBadge.findUnique({
           where: {
-            triggerType,
-            triggerValue: params.id
+            userId_badgeId: {
+              userId,
+              badgeId: bronzeBadge.id
+            }
           }
         });
 
-        for (const badge of eligibleBadges) {
-          // Check if user already has this badge
-          const existingUserBadge = await prisma.userBadge.findUnique({
+        if (!existingBadge) {
+          await prisma.userBadge.create({
+            data: {
+              userId,
+              badgeId: bronzeBadge.id,
+              xpAwarded: bronzeBadge.xpValue
+            }
+          });
+          earnedBadges.push(bronzeBadge);
+          totalXPGained += bronzeBadge.xpValue;
+        }
+      }
+    }
+
+    // 2. Silver Badge (75-89%)
+    if (masteryScore >= 75 && masteryScore < 90) {
+      const silverBadge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'quiz_mastery_silver',
+          triggerValue: quizId
+        }
+      });
+
+      if (silverBadge) {
+        const existingBadge = await prisma.userBadge.findUnique({
+          where: {
+            userId_badgeId: {
+              userId,
+              badgeId: silverBadge.id
+            }
+          }
+        });
+
+        if (!existingBadge) {
+          await prisma.userBadge.create({
+            data: {
+              userId,
+              badgeId: silverBadge.id,
+              xpAwarded: silverBadge.xpValue
+            }
+          });
+          earnedBadges.push(silverBadge);
+          totalXPGained += silverBadge.xpValue;
+        }
+      }
+    }
+
+    // 3. Gold Badge (90-99%)
+    if (masteryScore >= 90 && percentage < 100) {
+      const goldBadge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'quiz_mastery_gold',
+          triggerValue: quizId
+        }
+      });
+
+      if (goldBadge) {
+        const existingBadge = await prisma.userBadge.findUnique({
+          where: {
+            userId_badgeId: {
+              userId,
+              badgeId: goldBadge.id
+            }
+          }
+        });
+
+        if (!existingBadge) {
+          await prisma.userBadge.create({
+            data: {
+              userId,
+              badgeId: goldBadge.id,
+              xpAwarded: goldBadge.xpValue
+            }
+          });
+          earnedBadges.push(goldBadge);
+          totalXPGained += goldBadge.xpValue;
+        }
+      }
+    }
+
+    // 4. Perfect Badge (100%)
+    if (percentage === 100) {
+      const perfectBadge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'quiz_perfect',
+          triggerValue: quizId
+        }
+      });
+
+      if (perfectBadge) {
+        const existingBadge = await prisma.userBadge.findUnique({
+          where: {
+            userId_badgeId: {
+              userId,
+              badgeId: perfectBadge.id
+            }
+          }
+        });
+
+        if (!existingBadge) {
+          await prisma.userBadge.create({
+            data: {
+              userId,
+              badgeId: perfectBadge.id,
+              xpAwarded: perfectBadge.xpValue
+            }
+          });
+          earnedBadges.push(perfectBadge);
+          totalXPGained += perfectBadge.xpValue;
+        }
+      }
+    }
+
+    // 5. Sub-Quiz Mastery Badge (Epic - 90%+)
+    if (masteryScore >= 90) {
+      const subQuizMasteryBadge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'quiz_mastery',
+          triggerValue: quizId
+        }
+      });
+
+      if (subQuizMasteryBadge) {
+        const existingSubQuizBadge = await prisma.userBadge.findUnique({
+          where: {
+            userId_badgeId: {
+              userId,
+              badgeId: subQuizMasteryBadge.id
+            }
+          }
+        });
+
+        if (!existingSubQuizBadge) {
+          await prisma.userBadge.create({
+            data: {
+              userId,
+              badgeId: subQuizMasteryBadge.id,
+              xpAwarded: subQuizMasteryBadge.xpValue
+            }
+          });
+          earnedBadges.push(subQuizMasteryBadge);
+          totalXPGained += subQuizMasteryBadge.xpValue;
+        }
+      }
+    }
+
+    // 6. Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
+    if (quiz.parentId && quiz.parent) {
+      const parentId = quiz.parentId;
+      const allSubQuizIds = quiz.parent.children.map(child => child.id);
+
+      // Check if user has mastered ALL sub-quizzes at 90%+
+      const userMasteries = await prisma.quizMastery.findMany({
+        where: {
+          userId,
+          quizId: { in: allSubQuizIds }
+        }
+      });
+
+      // Check if all sub-quizzes have been attempted and mastered at 90%+
+      const allSubQuizzesMastered = 
+        userMasteries.length === allSubQuizIds.length &&
+        userMasteries.every(mastery => mastery.bestMasteryScore >= 90);
+
+      if (allSubQuizzesMastered) {
+        const parentMasterBadge = await prisma.badge.findFirst({
+          where: {
+            triggerType: 'parent_quiz_mastery',
+            triggerValue: parentId
+          }
+        });
+
+        if (parentMasterBadge) {
+          const existingParentBadge = await prisma.userBadge.findUnique({
             where: {
               userId_badgeId: {
-                userId: user.id,
-                badgeId: badge.id
+                userId,
+                badgeId: parentMasterBadge.id
               }
             }
           });
 
-          if (!existingUserBadge) {
-            // Award the badge
+          if (!existingParentBadge) {
             await prisma.userBadge.create({
               data: {
-                userId: user.id,
-                badgeId: badge.id
+                userId,
+                badgeId: parentMasterBadge.id,
+                xpAwarded: parentMasterBadge.xpValue
               }
             });
-
-            earnedBadges.push({
-              id: badge.id,
-              name: badge.name,
-              description: badge.description,
-              image: badge.image,
-              rarity: badge.rarity
-            });
+            earnedBadges.push(parentMasterBadge);
+            totalXPGained += parentMasterBadge.xpValue;
           }
         }
       }
     }
 
+    // Update user XP and level
+    if (totalXPGained > 0) {
+      const newTotalXP = user.totalXP + totalXPGained;
+      const newLevel = Math.floor(newTotalXP / 100) + 1;
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          totalXP: newTotalXP,
+          level: newLevel
+        }
+      });
+    }
+
     return NextResponse.json({
-      attemptId: quizAttempt.id,
-      score,
+      score: correctAnswers,
       totalQuestions,
       percentage,
-      timeSpent,
-      timeEfficiency: Math.round(timeEfficiency * 100) / 100,
-      masteryScore: Math.round(masteryScore * 100) / 100,
+      masteryScore,
       masteryLevel,
-      isNewBestScore,
-      currentBestMastery: quizMastery.currentMasteryLevel,
-      attemptCount: quizMastery.attemptCount,
+      timeSpent,
+      timeAllowed,
+      timeEfficiency,
+      answers: detailedAnswers,
       earnedBadges,
-      message: earnedBadges.length > 0 
-        ? `Congratulations! You earned ${earnedBadges.length} new badge${earnedBadges.length > 1 ? 's' : ''}!`
-        : masteryLevel 
-          ? `You achieved ${masteryLevel} mastery level!`
-          : 'Keep practicing to achieve mastery!'
+      totalXPGained
     });
 
   } catch (error) {
     console.error('Error completing quiz:', error);
     return NextResponse.json(
-      { error: 'Failed to complete quiz submission' },
+      { error: 'Failed to complete quiz' },
       { status: 500 }
     );
   }

@@ -15,8 +15,6 @@ export async function GET() {
         createdAt: true,
         isParent: true,
         parentId: true,
-        subjectDomain: true,
-        skillArea: true,
         questions: {
           select: {
             id: true,
@@ -33,8 +31,6 @@ export async function GET() {
             createdAt: true,
             isParent: true,
             parentId: true,
-            subjectDomain: true,
-            skillArea: true,
             questions: {
               select: {
                 id: true,
@@ -71,8 +67,6 @@ export async function GET() {
       createdAt: quiz.createdAt,
       isParent: quiz.isParent,
       parentId: quiz.parentId,
-      subjectDomain: quiz.subjectDomain,
-      skillArea: quiz.skillArea,
       // Include children data for parent quizzes
       children: quiz.children ? quiz.children.map(child => ({
         id: child.id,
@@ -83,8 +77,6 @@ export async function GET() {
         createdAt: child.createdAt,
         isParent: child.isParent,
         parentId: child.parentId,
-        subjectDomain: child.subjectDomain,
-        skillArea: child.skillArea,
         questions: child.questions // Include for counting
       })) : [],
       // Include parent info
