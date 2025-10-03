@@ -21,7 +21,8 @@
     "baseUrl": ".",                     // ✅ added
     "paths": {
       "@/*": ["./src/*"]                // Or use ["./*"] if you prefer the 2nd version’s mapping
-    }
+    },
+    "ignoreDeprecations": "6.0"
   },
   "include": [
     "next-env.d.ts",

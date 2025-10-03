@@ -1,118 +1,75 @@
-// FILE 6: scripts/seed-quiz-badges.ts
+// FILE: scripts/seed-quiz-badges.ts
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// NOTE: This seed file creates GENERIC achievement badges only
+// Actual quiz mastery badges (Epic) and parent master badges (Legendary)
+// are created by admins via the Quiz Management UI for each specific quiz
+
 const quizBadges = [
-  // Generic quiz mastery badges
-  {
-    name: "Quiz Novice",
-    description: "Complete your first quiz with Bronze mastery",
-    image: "/badges/quiz-novice.png",
-    category: "Quiz Mastery",
-    rarity: "Common",
-    triggerType: "quiz_mastery_bronze",
-    triggerValue: "any", // This would apply to any quiz
-    prerequisites: []
-  },
-  {
-    name: "Silver Scholar",
-    description: "Achieve Silver mastery on any quiz",
-    image: "/badges/silver-scholar.png",
-    category: "Quiz Mastery",
-    rarity: "Rare",
-    triggerType: "quiz_mastery_silver",
-    triggerValue: "any",
-    prerequisites: []
-  },
-  {
-    name: "Gold Champion",
-    description: "Achieve Gold mastery on any quiz",
-    image: "/badges/gold-champion.png",
-    category: "Quiz Mastery",
-    rarity: "Epic",
-    triggerType: "quiz_mastery_gold",
-    triggerValue: "any",
-    prerequisites: []
-  },
-  {
-    name: "Perfect Master",
-    description: "Achieve Perfect mastery on any quiz",
-    image: "/badges/perfect-master.png",
-    category: "Quiz Mastery",
-    rarity: "Legendary",
-    triggerType: "quiz_perfect",
-    triggerValue: "any",
-    prerequisites: []
-  },
-
-  // Subject-specific badges (you'll need to replace quiz IDs with actual ones)
-  {
-    name: "Cyber Security Expert",
-    description: "Master the Cyber Security quiz with Gold level",
-    image: "/badges/cyber-security-expert.png",
-    category: "Cyber Security",
-    rarity: "Epic",
-    triggerType: "quiz_mastery_gold",
-    triggerValue: "CYBER_SECURITY_QUIZ_ID", // Replace with actual quiz ID
-    prerequisites: []
-  },
-  {
-    name: "Crime Prevention Specialist",
-    description: "Achieve Perfect mastery in Crime Prevention",
-    image: "/badges/crime-prevention-specialist.png",
-    category: "Crime Prevention",
-    rarity: "Legendary",
-    triggerType: "quiz_perfect",
-    triggerValue: "CRIME_PREVENTION_QUIZ_ID", // Replace with actual quiz ID
-    prerequisites: []
-  },
-  {
-    name: "Emergency Response Hero",
-    description: "Master Emergency Preparedness with Silver level",
-    image: "/badges/emergency-hero.png",
-    category: "Emergency Preparedness",
-    rarity: "Rare",
-    triggerType: "quiz_mastery_silver",
-    triggerValue: "EMERGENCY_QUIZ_ID", // Replace with actual quiz ID
-    prerequisites: []
-  },
-
-  // Achievement progression badges
+  // Achievement progression badges (manual trigger)
   {
     name: "Knowledge Seeker",
     description: "Complete 5 different quizzes",
     image: "/badges/knowledge-seeker.png",
     category: "Achievement",
     rarity: "Common",
-    triggerType: "manual", // This would be triggered by custom logic
+    xpValue: 25,
+    triggerType: "manual",
     triggerValue: "5_quizzes_completed",
     prerequisites: []
   },
   {
-    name: "Quiz Master",
-    description: "Achieve mastery on 3 different quizzes",
-    image: "/badges/quiz-master.png",
+    name: "Quiz Enthusiast",
+    description: "Complete 10 different quizzes",
+    image: "/badges/quiz-enthusiast.png",
+    category: "Achievement",
+    rarity: "Rare",
+    xpValue: 50,
+    triggerType: "manual",
+    triggerValue: "10_quizzes_completed",
+    prerequisites: []
+  },
+  {
+    name: "Master Student",
+    description: "Achieve Gold or Perfect mastery on 3 different quizzes",
+    image: "/badges/master-student.png",
     category: "Achievement",
     rarity: "Epic",
+    xpValue: 75,
     triggerType: "manual",
     triggerValue: "3_masteries_achieved",
     prerequisites: []
   },
   {
     name: "Perfectionist",
-    description: "Achieve Perfect mastery on 2 different quizzes",
+    description: "Achieve Perfect mastery on 5 different quizzes",
     image: "/badges/perfectionist.png",
     category: "Achievement",
     rarity: "Legendary",
+    xpValue: 100,
     triggerType: "manual",
-    triggerValue: "2_perfect_masteries",
+    triggerValue: "5_perfect_masteries",
+    prerequisites: []
+  },
+  {
+    name: "Quiz Legend",
+    description: "Complete all available quizzes with Gold or Perfect mastery",
+    image: "/badges/quiz-legend.png",
+    category: "Achievement",
+    rarity: "Legendary",
+    xpValue: 150,
+    triggerType: "manual",
+    triggerValue: "all_quizzes_mastered",
     prerequisites: []
   }
 ];
 
 async function seedQuizBadges() {
   console.log('Starting quiz badge seeding...');
+  console.log('Note: This only seeds generic achievement badges.');
+  console.log('Quiz-specific mastery badges are created via Admin UI.\n');
 
   try {
     for (const badgeData of quizBadges) {
@@ -126,28 +83,31 @@ async function seedQuizBadges() {
         const badge = await prisma.badge.create({
           data: badgeData
         });
-        console.log(`✅ Created badge: ${badge.name}`);
+        console.log(`✅ Created badge: ${badge.name} (${badge.rarity}, ${badge.xpValue} XP)`);
       } else {
         console.log(`⏭️  Badge already exists: ${badgeData.name}`);
       }
     }
 
-    console.log('🎉 Quiz badge seeding completed successfully!');
+    console.log('\n🎉 Quiz badge seeding completed successfully!');
 
     // Display some stats
     const totalBadges = await prisma.badge.count();
-    const quizBadgeCount = await prisma.badge.count({
-      where: {
-        OR: [
-          { category: 'Quiz Mastery' },
-          { category: 'Achievement' },
-          { triggerType: { contains: 'quiz_' } }
-        ]
-      }
+    const achievementBadges = await prisma.badge.count({
+      where: { category: 'Achievement' }
+    });
+    const quizMasteryBadges = await prisma.badge.count({
+      where: { triggerType: 'quiz_mastery' }
+    });
+    const parentMasteryBadges = await prisma.badge.count({
+      where: { triggerType: 'parent_quiz_mastery' }
     });
 
-    console.log(`📊 Total badges in system: ${totalBadges}`);
-    console.log(`🎯 Quiz-related badges: ${quizBadgeCount}`);
+    console.log('\n📊 Badge Statistics:');
+    console.log(`   Total badges: ${totalBadges}`);
+    console.log(`   Achievement badges: ${achievementBadges}`);
+    console.log(`   Quiz mastery badges (Epic): ${quizMasteryBadges}`);
+    console.log(`   Parent master badges (Legendary): ${parentMasteryBadges}`);
 
   } catch (error) {
     console.error('❌ Error seeding quiz badges:', error);
@@ -167,4 +127,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

@@ -147,143 +147,12 @@ export async function POST(
       });
     }
 
-    // Badge awarding logic
+    // Badge awarding logic - SIMPLIFIED to match admin badge creation
     const earnedBadges = [];
     let totalXPGained = 0;
 
-    // 1. Bronze Badge (60-74%)
-    if (masteryScore >= 60 && masteryScore < 75) {
-      const bronzeBadge = await prisma.badge.findFirst({
-        where: {
-          triggerType: 'quiz_mastery_bronze',
-          triggerValue: quizId
-        }
-      });
-
-      if (bronzeBadge) {
-        const existingBadge = await prisma.userBadge.findUnique({
-          where: {
-            userId_badgeId: {
-              userId,
-              badgeId: bronzeBadge.id
-            }
-          }
-        });
-
-        if (!existingBadge) {
-          await prisma.userBadge.create({
-            data: {
-              userId,
-              badgeId: bronzeBadge.id,
-              xpAwarded: bronzeBadge.xpValue
-            }
-          });
-          earnedBadges.push(bronzeBadge);
-          totalXPGained += bronzeBadge.xpValue;
-        }
-      }
-    }
-
-    // 2. Silver Badge (75-89%)
-    if (masteryScore >= 75 && masteryScore < 90) {
-      const silverBadge = await prisma.badge.findFirst({
-        where: {
-          triggerType: 'quiz_mastery_silver',
-          triggerValue: quizId
-        }
-      });
-
-      if (silverBadge) {
-        const existingBadge = await prisma.userBadge.findUnique({
-          where: {
-            userId_badgeId: {
-              userId,
-              badgeId: silverBadge.id
-            }
-          }
-        });
-
-        if (!existingBadge) {
-          await prisma.userBadge.create({
-            data: {
-              userId,
-              badgeId: silverBadge.id,
-              xpAwarded: silverBadge.xpValue
-            }
-          });
-          earnedBadges.push(silverBadge);
-          totalXPGained += silverBadge.xpValue;
-        }
-      }
-    }
-
-    // 3. Gold Badge (90-99%)
-    if (masteryScore >= 90 && percentage < 100) {
-      const goldBadge = await prisma.badge.findFirst({
-        where: {
-          triggerType: 'quiz_mastery_gold',
-          triggerValue: quizId
-        }
-      });
-
-      if (goldBadge) {
-        const existingBadge = await prisma.userBadge.findUnique({
-          where: {
-            userId_badgeId: {
-              userId,
-              badgeId: goldBadge.id
-            }
-          }
-        });
-
-        if (!existingBadge) {
-          await prisma.userBadge.create({
-            data: {
-              userId,
-              badgeId: goldBadge.id,
-              xpAwarded: goldBadge.xpValue
-            }
-          });
-          earnedBadges.push(goldBadge);
-          totalXPGained += goldBadge.xpValue;
-        }
-      }
-    }
-
-    // 4. Perfect Badge (100%)
-    if (percentage === 100) {
-      const perfectBadge = await prisma.badge.findFirst({
-        where: {
-          triggerType: 'quiz_perfect',
-          triggerValue: quizId
-        }
-      });
-
-      if (perfectBadge) {
-        const existingBadge = await prisma.userBadge.findUnique({
-          where: {
-            userId_badgeId: {
-              userId,
-              badgeId: perfectBadge.id
-            }
-          }
-        });
-
-        if (!existingBadge) {
-          await prisma.userBadge.create({
-            data: {
-              userId,
-              badgeId: perfectBadge.id,
-              xpAwarded: perfectBadge.xpValue
-            }
-          });
-          earnedBadges.push(perfectBadge);
-          totalXPGained += perfectBadge.xpValue;
-        }
-      }
-    }
-
-    // 5. Sub-Quiz Mastery Badge (Epic - 90%+)
+    // 1. Sub-Quiz Mastery Badge (Epic - 90%+)
+    // This is awarded when user gets Gold or Perfect on this specific quiz
     if (masteryScore >= 90) {
       const subQuizMasteryBadge = await prisma.badge.findFirst({
         where: {
@@ -310,18 +179,20 @@ export async function POST(
               xpAwarded: subQuizMasteryBadge.xpValue
             }
           });
+
           earnedBadges.push(subQuizMasteryBadge);
           totalXPGained += subQuizMasteryBadge.xpValue;
         }
       }
     }
 
-    // 6. Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
+    // 2. Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
+    // This checks if user has mastered ALL sub-quizzes in the parent category
     if (quiz.parentId && quiz.parent) {
       const parentId = quiz.parentId;
       const allSubQuizIds = quiz.parent.children.map(child => child.id);
 
-      // Check if user has mastered ALL sub-quizzes at 90%+
+      // Get FRESH mastery records (including the one we just created/updated)
       const userMasteries = await prisma.quizMastery.findMany({
         where: {
           userId,
@@ -329,8 +200,8 @@ export async function POST(
         }
       });
 
-      // Check if all sub-quizzes have been attempted and mastered at 90%+
-      const allSubQuizzesMastered = 
+      // Check if ALL sub-quizzes have been attempted AND mastered at 90%+
+      const allSubQuizzesMastered =
         userMasteries.length === allSubQuizIds.length &&
         userMasteries.every(mastery => mastery.bestMasteryScore >= 90);
 
@@ -360,6 +231,7 @@ export async function POST(
                 xpAwarded: parentMasterBadge.xpValue
               }
             });
+
             earnedBadges.push(parentMasterBadge);
             totalXPGained += parentMasterBadge.xpValue;
           }

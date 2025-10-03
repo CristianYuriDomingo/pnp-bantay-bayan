@@ -76,7 +76,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, timer, parentId, isParent, subjectDomain, skillArea, questions } = body;
+    const { title, timer, parentId, isParent, questions } = body;
 
     // Validate required fields
     if (!title) {
@@ -128,22 +128,22 @@ export async function PUT(
     }
 
     // Validate subjectDomain if provided
-    const validSubjectDomains = [
-      'cybersecurity',
-      'crime_prevention',
-      'emergency_preparedness',
-      'financial_security',
-      'personal_safety',
-      'digital_literacy',
-      'risk_assessment'
-    ];
+    // const validSubjectDomains = [
+    //   'cybersecurity',
+    //   'crime_prevention',
+    //   'emergency_preparedness',
+    //   'financial_security',
+    //   'personal_safety',
+    //   'digital_literacy',
+    //   'risk_assessment'
+    // ];
 
-    if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
-      return NextResponse.json(
-        { error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` },
-        { status: 400 }
-      );
-    }
+    // if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
+    //   return NextResponse.json(
+    //     { error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` },
+    //     { status: 400 }
+    //   );
+    // }
 
     // Handle parent quiz updates
     if (isParent || existingQuiz.isParent) {
@@ -155,8 +155,8 @@ export async function PUT(
           timer: timer || 30,
           isParent: true,
           parentId: null, // Parent quizzes can't have parents
-          subjectDomain: subjectDomain || null,
-          skillArea: skillArea ? skillArea.trim() : null,
+          // subjectDomain: subjectDomain || null,
+          // skillArea: skillArea ? skillArea.trim() : null,
         },
         include: {
           children: {
@@ -194,8 +194,8 @@ export async function PUT(
         timer: timer || 30,
         parentId: parentId || null,
         isParent: false,
-        subjectDomain: subjectDomain || null,
-        skillArea: skillArea ? skillArea.trim() : null,
+        // subjectDomain: subjectDomain || null,
+        // skillArea: skillArea ? skillArea.trim() : null,
         questions: {
           deleteMany: {}, // Delete all existing questions
           create: questions.map((q: any) => ({
