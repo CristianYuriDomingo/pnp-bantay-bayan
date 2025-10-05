@@ -151,8 +151,7 @@ export async function POST(
     const earnedBadges = [];
     let totalXPGained = 0;
 
-    // 1. Sub-Quiz Mastery Badge (Epic - 90%+)
-    // This is awarded when user gets Gold or Perfect on this specific quiz
+    // KEEP: Sub-Quiz Mastery Badge (Epic - 90%+)
     if (masteryScore >= 90) {
       const subQuizMasteryBadge = await prisma.badge.findFirst({
         where: {
@@ -186,8 +185,7 @@ export async function POST(
       }
     }
 
-    // 2. Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
-    // This checks if user has mastered ALL sub-quizzes in the parent category
+    // KEEP: Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
     if (quiz.parentId && quiz.parent) {
       const parentId = quiz.parentId;
       const allSubQuizIds = quiz.parent.children.map(child => child.id);

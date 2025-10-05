@@ -10,7 +10,7 @@ export interface BadgeWithProgress {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';  // ← FIXED LINE
   triggerValue: string;
   prerequisites?: string[];
   earnedAt: Date | null;

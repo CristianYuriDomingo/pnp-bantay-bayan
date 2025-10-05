@@ -1,27 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, Trophy, Star, Award, Crown } from 'lucide-react';
 
-// Import your actual hooks
-import { useAllBadges, groupBadgesByCategory } from '@/hooks/use-all-badges';
+// Import your actual hooks and types
+import { useAllBadges, groupBadgesByCategory, BadgeWithProgress, BadgeStats } from '@/hooks/use-all-badges';
 import { useBadgeNotifications } from '@/hooks/use-user-badges';
 
-// TypeScript interfaces to match your backend
-interface BadgeWithProgress {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  category: string;
-  rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
-  triggerValue: string;
-  prerequisites?: string[];
-  earnedAt: Date | null;
-  isEarned: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
+// Keep only BadgeCategory interface since it's component-specific.
 interface BadgeCategory {
   name: string;
   badges: BadgeWithProgress[];
@@ -29,20 +13,6 @@ interface BadgeCategory {
   totalCount: number;
 }
 
-interface BadgeStats {
-  totalEarned: number;
-  totalAvailable: number;
-  completionPercentage: number;
-  rarityBreakdown: {
-    Common: number;
-    Rare: number;
-    Epic: number;
-    Legendary: number;
-  };
-  latestBadge: BadgeWithProgress | null;
-}
-
-// Utility functions
 const getRarityColor = (rarity: string): string => {
   switch (rarity) {
     case 'Common': return 'text-gray-600 bg-gray-100 border-gray-300';
