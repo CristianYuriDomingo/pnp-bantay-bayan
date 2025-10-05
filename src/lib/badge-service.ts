@@ -294,6 +294,37 @@ export class BadgeService {
       case 'module_complete':
         return await this.checkModuleCompletion(userId, badge.triggerValue);
 
+      case 'quiz_mastery':
+        // Check if user has achieved 90%+ on this quiz
+        const quizMastery = await prisma.quizMastery.findFirst({
+          where: {
+            userId: userId,
+            quizId: badge.triggerValue,
+            bestMasteryScore: { gte: 90 }
+          }
+        });
+        return !!quizMastery;
+
+      case 'parent_quiz_mastery':
+        // Check if user has mastered all sub-quizzes
+        const parentQuiz = await prisma.quiz.findUnique({
+          where: { id: badge.triggerValue },
+          include: { children: { select: { id: true } } }
+        });
+
+        if (!parentQuiz || !parentQuiz.children.length) return false;
+
+        const subQuizIds = parentQuiz.children.map(c => c.id);
+        const masteries = await prisma.quizMastery.findMany({
+          where: {
+            userId: userId,
+            quizId: { in: subQuizIds },
+            bestMasteryScore: { gte: 90 }
+          }
+        });
+
+        return masteries.length === subQuizIds.length;
+
       case 'manual':
         return false; // Manual badges are not automatically awarded
 
@@ -343,5 +374,155 @@ export class BadgeService {
       rarityBreakdown: rarityCount,
       latestBadge: userBadges[0] || null
     };
+  }
+
+  /**
+   * Check and award badges for quiz completion
+   */
+  static async awardBadgesForQuizCompletion(
+    userId: string,
+    quizId: string,
+    masteryScore: number,
+    percentage: number
+  ): Promise<BadgeAwardResult> {
+    console.log(`🏆 Checking quiz badges for user ${userId}, quiz ${quizId}, mastery: ${masteryScore}%`);
+    
+    const result: BadgeAwardResult = {
+      success: true,
+      newBadges: [],
+      errors: []
+    };
+
+    try {
+      // Get quiz to check question count
+      const quiz = await prisma.quiz.findUnique({
+        where: { id: quizId },
+        include: { questions: true, parent: { include: { children: { select: { id: true } } } } }
+      });
+
+      if (!quiz) {
+        result.errors.push('Quiz not found');
+        return result;
+      }
+
+      // Determine threshold based on question count
+      let threshold = 90;
+      if (quiz.questions.length <= 2) {
+        // For 1-2 question quizzes, require 100% accuracy
+        threshold = 100;
+      } else if (quiz.questions.length <= 5) {
+        threshold = 80; // Lower threshold for short quizzes
+      }
+
+      console.log(`Quiz has ${quiz.questions.length} questions, using threshold: ${threshold}%`);
+
+      // Award if user achieved threshold
+      if (percentage >= threshold || masteryScore >= threshold) {
+        // 1. Award sub-quiz mastery badge
+        const subQuizBadges = await this.awardQuizMasteryBadges(userId, quizId);
+        result.newBadges.push(...subQuizBadges);
+
+        // 2. Check if this quiz completion unlocks parent quiz master badge
+        if (quiz?.parentId && quiz.parent) {
+          const parentBadges = await this.checkParentQuizMasterBadge(
+            userId,
+            quiz.parent.id,
+            quiz.parent.children.map(c => c.id)
+          );
+          result.newBadges.push(...parentBadges);
+        }
+      }
+
+      console.log(`✅ Quiz badge check complete: ${result.newBadges.length} new badges`);
+      return result;
+    } catch (error) {
+      console.error('Error in quiz badge awarding:', error);
+      result.success = false;
+      result.errors.push(error instanceof Error ? error.message : 'Unknown error');
+      return result;
+    }
+  }
+
+  /**
+   * Award quiz mastery badges (Epic - 90%+)
+   */
+  private static async awardQuizMasteryBadges(userId: string, quizId: string): Promise<any[]> {
+    const badges = await prisma.badge.findMany({
+      where: {
+        triggerType: 'quiz_mastery',
+        triggerValue: quizId
+      }
+    });
+
+    const newBadges: any[] = [];
+
+    for (const badge of badges) {
+      const eligibility = await this.checkBadgeEligibility(userId, badge.id);
+      
+      if (eligibility.eligible) {
+        const userBadge = await this.awardBadgeToUser(userId, badge.id);
+        if (userBadge) {
+          newBadges.push({
+            ...badge,
+            earnedAt: userBadge.earnedAt
+          });
+          console.log(`🏅 Awarded quiz mastery badge "${badge.name}" to user ${userId}`);
+        }
+      }
+    }
+
+    return newBadges;
+  }
+
+  /**
+   * Check and award parent quiz master badges (when all sub-quizzes are mastered)
+   */
+  private static async checkParentQuizMasterBadge(userId: string, parentQuizId: string, subQuizIds: string[]): Promise<any[]> {
+    // Check if user already has the parent quiz master badge
+    const existingBadge = await prisma.userBadge.findFirst({
+      where: {
+        userId: userId,
+        badge: {
+          triggerType: 'parent_quiz_mastery',
+          triggerValue: parentQuizId
+        }
+      }
+    });
+
+    if (existingBadge) {
+      return []; // Already awarded
+    }
+
+    // Check if all sub-quizzes are mastered by the user
+    const masteries = await prisma.quizMastery.findMany({
+      where: {
+        userId: userId,
+        quizId: { in: subQuizIds },
+        bestMasteryScore: { gte: 90 }
+      }
+    });
+
+    if (masteries.length === subQuizIds.length) {
+      // All sub-quizzes mastered, award the parent quiz master badge
+      const badge = await prisma.badge.findFirst({
+        where: {
+          triggerType: 'parent_quiz_mastery',
+          triggerValue: parentQuizId
+        }
+      });
+
+      if (badge) {
+        const userBadge = await this.awardBadgeToUser(userId, badge.id);
+        if (userBadge) {
+          console.log(`🏆 Awarded parent quiz master badge "${badge.name}" to user ${userId}`);
+          return [{
+            ...badge,
+            earnedAt: userBadge.earnedAt
+          }];
+        }
+      }
+    }
+
+    return [];
   }
 }

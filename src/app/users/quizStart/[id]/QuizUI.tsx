@@ -202,11 +202,16 @@ const QuizComplete = ({
               <div className="flex justify-center space-x-3 mb-4">
                 {masteryData.earnedBadges.map((badge: any) => (
                   <div key={badge.id} className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center mb-2">
+                    {/* Removed colored background, just show the image */}
+                    <div className="w-16 h-16 flex items-center justify-center mb-2">
                       {badge.image ? (
-                        <img src={badge.image} alt={badge.name} className="w-10 h-10" />
+                        <img 
+                          src={badge.image} 
+                          alt={badge.name} 
+                          className="w-16 h-16 object-contain" 
+                        />
                       ) : (
-                        <span className="text-2xl">🏆</span>
+                        <span className="text-4xl">🏆</span>
                       )}
                     </div>
                     <p className="text-xs font-medium text-gray-700">{badge.name}</p>
@@ -349,14 +354,16 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       
       const feedback = await response.json();
       setAnswerFeedback(feedback);
-      
+
       if (feedback.isCorrect) {
         setScore(score + 1);
       }
+
+      return feedback; // ✅ Return feedback!
     } catch (error) {
       console.error('Error submitting answer:', error);
       const isCorrect = selectedAnswerIndex === 1;
-      setAnswerFeedback({
+      const fallbackFeedback = {
         questionId,
         selectedAnswer: selectedAnswerIndex,
         correctAnswer: 1,
@@ -365,25 +372,31 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         explanation: isCorrect ? "Great job!" : "The correct answer provides better security.",
         question: quizData.questions[currentQuestion].question,
         options: quizData.questions[currentQuestion].options
-      });
-      
+      };
+
+      setAnswerFeedback(fallbackFeedback);
+
       if (isCorrect) {
         setScore(score + 1);
       }
+
+      return fallbackFeedback; // ✅ Return fallback feedback!
     }
   };
 
   const submitCompleteQuiz = async () => {
     try {
       const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
-      
+
+      // Debug log removed
+
       const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          answers: userAnswers,
+          answers: userAnswers.map(ua => ua.answer),
           timeSpent: totalTimeSpent,
           score: score,
           totalQuestions: quizData.questions.length,
@@ -425,17 +438,17 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
   const handleAnswerSelect = async (answerIndex: number) => {
     if (showFeedback || timeLeft === 0) return;
-    
+
     setSelectedAnswer(answerIndex);
     setShowFeedback(true);
-    
+
     const currentQuestionData = quizData.questions[currentQuestion];
-    await submitAnswer(currentQuestionData.id, answerIndex);
-    
+    const feedback = await submitAnswer(currentQuestionData.id, answerIndex);
+
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
       answer: answerIndex, 
-      correct: answerFeedback?.isCorrect || false
+      correct: feedback?.isCorrect || false // ✅ Use feedback directly
     }]);
   };
 
@@ -626,6 +639,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
                 </div>
               </button>
             ))}
+
           </div>
 
           {/* Feedback */}

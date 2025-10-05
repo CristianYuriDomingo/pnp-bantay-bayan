@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { BadgeService } from '@/lib/badge-service';
 
 const prisma = new PrismaClient();
 
@@ -73,7 +74,18 @@ export async function POST(
     
     // Calculate mastery score (70% accuracy + 30% time efficiency)
     const masteryScore = (percentage * 0.7) + (timeEfficiency * 0.3);
-    
+
+    // Debug logging
+    console.log('=== QUIZ COMPLETION DEBUG ===');
+    console.log('Correct Answers:', correctAnswers);
+    console.log('Total Questions:', totalQuestions);
+    console.log('Percentage:', percentage);
+    console.log('Time Spent:', timeSpent);
+    console.log('Time Allowed:', timeAllowed);
+    console.log('Time Efficiency:', timeEfficiency);
+    console.log('Mastery Score:', masteryScore);
+    console.log('=============================');
+
     // Determine mastery level
     let masteryLevel = null;
     if (percentage === 100) {
@@ -147,94 +159,20 @@ export async function POST(
       });
     }
 
-    // Badge awarding logic - SIMPLIFIED to match admin badge creation
-    const earnedBadges = [];
-    let totalXPGained = 0;
+    // Award badges using BadgeService
+    const badgeResult = await BadgeService.awardBadgesForQuizCompletion(
+      userId,
+      quizId,
+      masteryScore,
+      percentage
+    );
 
-    // KEEP: Sub-Quiz Mastery Badge (Epic - 90%+)
-    if (masteryScore >= 90) {
-      const subQuizMasteryBadge = await prisma.badge.findFirst({
-        where: {
-          triggerType: 'quiz_mastery',
-          triggerValue: quizId
-        }
-      });
+    const earnedBadges = badgeResult.newBadges;
+    let totalXPGained = earnedBadges.reduce((sum, badge) => sum + (badge.xpValue || 0), 0);
 
-      if (subQuizMasteryBadge) {
-        const existingSubQuizBadge = await prisma.userBadge.findUnique({
-          where: {
-            userId_badgeId: {
-              userId,
-              badgeId: subQuizMasteryBadge.id
-            }
-          }
-        });
-
-        if (!existingSubQuizBadge) {
-          await prisma.userBadge.create({
-            data: {
-              userId,
-              badgeId: subQuizMasteryBadge.id,
-              xpAwarded: subQuizMasteryBadge.xpValue
-            }
-          });
-
-          earnedBadges.push(subQuizMasteryBadge);
-          totalXPGained += subQuizMasteryBadge.xpValue;
-        }
-      }
-    }
-
-    // KEEP: Parent Quiz Master Badge (Legendary - ALL sub-quizzes at 90%+)
-    if (quiz.parentId && quiz.parent) {
-      const parentId = quiz.parentId;
-      const allSubQuizIds = quiz.parent.children.map(child => child.id);
-
-      // Get FRESH mastery records (including the one we just created/updated)
-      const userMasteries = await prisma.quizMastery.findMany({
-        where: {
-          userId,
-          quizId: { in: allSubQuizIds }
-        }
-      });
-
-      // Check if ALL sub-quizzes have been attempted AND mastered at 90%+
-      const allSubQuizzesMastered =
-        userMasteries.length === allSubQuizIds.length &&
-        userMasteries.every(mastery => mastery.bestMasteryScore >= 90);
-
-      if (allSubQuizzesMastered) {
-        const parentMasterBadge = await prisma.badge.findFirst({
-          where: {
-            triggerType: 'parent_quiz_mastery',
-            triggerValue: parentId
-          }
-        });
-
-        if (parentMasterBadge) {
-          const existingParentBadge = await prisma.userBadge.findUnique({
-            where: {
-              userId_badgeId: {
-                userId,
-                badgeId: parentMasterBadge.id
-              }
-            }
-          });
-
-          if (!existingParentBadge) {
-            await prisma.userBadge.create({
-              data: {
-                userId,
-                badgeId: parentMasterBadge.id,
-                xpAwarded: parentMasterBadge.xpValue
-              }
-            });
-
-            earnedBadges.push(parentMasterBadge);
-            totalXPGained += parentMasterBadge.xpValue;
-          }
-        }
-      }
+    // Dispatch badge event if badges were earned
+    if (earnedBadges.length > 0) {
+      console.log(`🏆 User earned ${earnedBadges.length} badges from quiz completion`);
     }
 
     // Update user XP and level
