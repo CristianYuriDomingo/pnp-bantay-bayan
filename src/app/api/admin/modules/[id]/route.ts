@@ -131,7 +131,7 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Module not found' },
         { status: 404 }
-      );
+      );  
     }
 
     // Delete module (lessons and tips will be cascade deleted)

@@ -1,23 +1,16 @@
+// app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
-// FIXED: More flexible password validation regex
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,}$/;
+// Password validation regex
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Name validation (no numbers, special chars except spaces, hyphens, apostrophes)
 const NAME_REGEX = /^[a-zA-Z\s\-']{2,50}$/;
-
-// FIXED: Same common passwords list as frontend
-const COMMON_PASSWORDS = [
-  'password', '123456789', 'qwerty123', 'abc123456', 
-  'password123', '12345678', 'admin123', 'user123',
-  'welcome123', 'letmein123', 'monkey123', 'dragon123',
-  'master123', 'shadow123', 'jesus123', 'michael123'
-];
 
 interface ValidationError {
   field: string;
@@ -56,18 +49,18 @@ function validateInput(name: string, email: string, password: string): Validatio
   } else if (!PASSWORD_REGEX.test(password)) {
     errors.push({ 
       field: 'password', 
-      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character' 
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)' 
     });
   }
 
   // Check for common weak passwords
-  if (COMMON_PASSWORDS.includes(password.toLowerCase())) {
+  const commonPasswords = [
+    'password', '123456789', 'qwerty123', 'abc123456', 
+    'password123', '12345678', 'admin123', 'user123'
+  ];
+  
+  if (commonPasswords.includes(password.toLowerCase())) {
     errors.push({ field: 'password', message: 'Password is too common. Please choose a stronger password' });
-  }
-
-  // Check for repeated characters (security)
-  if (/(.)\1{3,}/.test(password)) {
-    errors.push({ field: 'password', message: 'Password cannot contain more than 3 consecutive identical characters' });
   }
 
   return errors;

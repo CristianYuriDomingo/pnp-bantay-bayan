@@ -13,7 +13,7 @@ interface BadgeWithProgress {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
   earnedAt: Date | null;
@@ -42,27 +42,6 @@ interface BadgeStats {
   latestBadge: BadgeWithProgress | null;
 }
 
-// Remove mock hook implementations - use your actual hooks instead
-// const useCurrentUserId = () => {
-//   return "mock-user-id";
-// };
-
-// const useCurrentUser = () => {
-//   return {
-//     user: {
-//       email: "user@example.com"
-//     }
-//   };
-// };
-
-// const useAllBadges = () => {
-//   // Mock implementation - remove this
-// };
-
-// const useBadgeNotifications = () => {
-//   // Mock implementation - remove this
-// };
-
 // Utility functions
 const getRarityColor = (rarity: string): string => {
   switch (rarity) {
@@ -90,13 +69,30 @@ const BadgeCollection: React.FC = () => {
   const [selectedBadge, setSelectedBadge] = useState<BadgeWithProgress | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
-  // Group badges by category - FIXED: Changed Badge[] to BadgeWithProgress[]
-  const badgeCategories: BadgeCategory[] = React.useMemo(() => {
-    if (!badges.length) return [];
+  // Separate quiz badges from learning badges
+  const quizBadges = React.useMemo(() => {
+    return badges.filter(badge => 
+      badge.triggerType === 'quiz_mastery' || 
+      badge.triggerType === 'parent_quiz_mastery' ||
+      badge.category === 'Achievement'
+    );
+  }, [badges]);
+  
+  const learningBadges = React.useMemo(() => {
+    return badges.filter(badge => 
+      badge.triggerType !== 'quiz_mastery' && 
+      badge.triggerType !== 'parent_quiz_mastery' &&
+      badge.category !== 'Achievement'
+    );
+  }, [badges]);
+
+  // Group learning badges by category
+  const learningBadgeCategories: BadgeCategory[] = React.useMemo(() => {
+    if (!learningBadges.length) return [];
 
     const categoryMap = new Map<string, BadgeWithProgress[]>();
     
-    badges.forEach(badge => {
+    learningBadges.forEach(badge => {
       if (!categoryMap.has(badge.category)) {
         categoryMap.set(badge.category, []);
       }
@@ -106,20 +102,18 @@ const BadgeCollection: React.FC = () => {
     return Array.from(categoryMap.entries()).map(([name, categoryBadges]) => ({
       name,
       badges: categoryBadges.sort((a, b) => {
-        // Sort earned badges first, then by rarity
         if (a.isEarned !== b.isEarned) return b.isEarned ? 1 : -1;
-        
         const rarityOrder: Record<string, number> = { 'Legendary': 0, 'Epic': 1, 'Rare': 2, 'Common': 3 };
         return (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
       }),
       earnedCount: categoryBadges.filter(b => b.isEarned).length,
       totalCount: categoryBadges.length
     }));
-  }, [badges]);
+  }, [learningBadges]);
 
   const filteredCategories = selectedCategory === 'All' 
-    ? badgeCategories 
-    : badgeCategories.filter(cat => cat.name === selectedCategory);
+    ? learningBadgeCategories 
+    : learningBadgeCategories.filter(cat => cat.name === selectedCategory);
 
   const BadgeIcon: React.FC<{ badge: BadgeWithProgress; size?: number }> = ({ badge, size = 64 }) => {
     const isEarned = badge.isEarned;
@@ -147,32 +141,27 @@ const BadgeCollection: React.FC = () => {
             }}
           />
           
-          {/* Fallback icon */}
           <div className="fallback-icon absolute inset-0 bg-gray-100 items-center justify-center text-gray-400" style={{ display: 'none' }}>
             <Trophy size={size / 2} />
           </div>
         </div>
 
-        {/* Lock overlay for unearned badges */}
         {!isEarned && (
           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20 rounded-lg">
             <Lock size={size / 3} className="text-gray-600" />
           </div>
         )}
 
-        {/* Rarity indicator */}
         <div className="absolute -top-1 -right-1">
           {getRarityIcon(badge.rarity)}
         </div>
 
-        {/* Earned indicator */}
         {isEarned && (
           <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
             <span className="text-white text-xs">✓</span>
           </div>
         )}
 
-        {/* Hover tooltip */}
         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
           {badge.name}
         </div>
@@ -180,7 +169,6 @@ const BadgeCollection: React.FC = () => {
     );
   };
 
-  // Badge notification component
   const BadgeNotification: React.FC = () => {
     if (!showNotification || !newBadges.length) return null;
 
@@ -238,14 +226,14 @@ const BadgeCollection: React.FC = () => {
           )}
         </div>
         
-        {/* Category filter */}
+        {/* Category filter - for learning badges only */}
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
           className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
         >
-          <option value="All">All Categories</option>
-          {badgeCategories.map(category => (
+          <option value="All">All Learning Categories</option>
+          {learningBadgeCategories.map(category => (
             <option key={category.name} value={category.name}>
               {category.name} ({category.earnedCount}/{category.totalCount})
             </option>
@@ -341,47 +329,81 @@ const BadgeCollection: React.FC = () => {
         </div>
       )}
 
-      {/* Badge Categories */}
-      <div className="space-y-8">
-        {filteredCategories.length === 0 ? (
-          <div className="text-center py-12">
-            <Trophy size={64} className="mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No badges yet</h3>
-            <p className="text-gray-600">Start learning to earn your first badges!</p>
+      {/* Quiz Badges Section */}
+      {quizBadges.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">Quiz Badges</h2>
+            <span className="text-sm text-gray-500">
+              {quizBadges.filter(b => b.isEarned).length}/{quizBadges.length} earned
+            </span>
           </div>
-        ) : (
-          filteredCategories.map((category) => (
-            <div
-              key={category.name}
-              className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm"
-            >
-              <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
-                <h3 className="text-lg font-semibold text-gray-700">
-                  {category.name}
-                </h3>
-                <span className="text-sm text-gray-500">
-                  {category.earnedCount}/{category.totalCount} earned
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-                {category.badges.map((badge) => (
-                  <div key={badge.id} className="flex flex-col items-center">
-                    <BadgeIcon badge={badge} />
-                    <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
-                      {badge.name}
+          
+          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+              {quizBadges.map((badge) => (
+                <div key={badge.id} className="flex flex-col items-center">
+                  <BadgeIcon badge={badge} />
+                  <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
+                    {badge.name}
+                  </span>
+                  {badge.isEarned && (
+                    <span className="text-xs text-green-600 mt-1">
+                      Earned {badge.earnedAt?.toLocaleDateString()}
                     </span>
-                    {badge.isEarned && (
-                      <span className="text-xs text-green-600 mt-1">
-                        Earned {badge.earnedAt?.toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+                  )}
+                </div>
+              ))}
             </div>
-          ))
-        )}
+          </div>
+        </div>
+      )}
+
+      {/* Learning Badges Section */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Learning Badges</h2>
+        
+        <div className="space-y-8">
+          {filteredCategories.length === 0 ? (
+            <div className="text-center py-12">
+              <Trophy size={64} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No learning badges yet</h3>
+              <p className="text-gray-600">Start learning to earn your first badges!</p>
+            </div>
+          ) : (
+            filteredCategories.map((category) => (
+              <div
+                key={category.name}
+                className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm"
+              >
+                <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
+                  <h3 className="text-lg font-semibold text-gray-700">
+                    {category.name}
+                  </h3>
+                  <span className="text-sm text-gray-500">
+                    {category.earnedCount}/{category.totalCount} earned
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+                  {category.badges.map((badge) => (
+                    <div key={badge.id} className="flex flex-col items-center">
+                      <BadgeIcon badge={badge} />
+                      <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
+                        {badge.name}
+                      </span>
+                      {badge.isEarned && (
+                        <span className="text-xs text-green-600 mt-1">
+                          Earned {badge.earnedAt?.toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
