@@ -1,4 +1,4 @@
-// components/LearnCard.tsx - ENHANCED: Now shows both module and lesson badges
+// components/LearnCard.tsx - FIXED: Badge type compatibility
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOverallProgress } from '@/hooks/use-progress';
@@ -34,14 +34,14 @@ interface Lesson {
   updatedAt: string;
 }
 
-// Badge interface for display
+// Badge interface for display - FIXED: Updated trigger types to match use-all-badges.ts
 interface BadgeDisplay {
   id: string;
   name: string;
   image: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
   earnedAt: Date;
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_complete' | 'manual';
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
   triggerValue: string;
 }
 
@@ -110,7 +110,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
   const totalLessons = moduleProgress?.totalLessons || 0;
   const completionPercentage = moduleProgress?.percentage || 0;
 
-  // ENHANCED: Filter badges for this module AND its lessons
+  // ENHANCED: Filter badges for this module AND its lessons (EXCLUDING quiz badges)
   const moduleBadges: BadgeDisplay[] = React.useMemo(() => {
     if (!badges || badgesLoading || !moduleLessons.length) return [];
     
@@ -118,23 +118,21 @@ const LearnCard: React.FC<LearnCardProps> = ({
     const lessonIds = moduleLessons.map(lesson => lesson.id);
     
     // Filter badges that are earned and related to this module or its lessons
+    // ONLY show module_complete and lesson_complete badges (NO quiz badges)
     const earnedBadges = badges
       .filter(badge => {
         if (!badge.isEarned) return false;
         
-        // Check if badge is for this module
+        // Check if badge is for this module (module completion)
         const isModuleBadge = badge.triggerValue === moduleId || 
                              badge.category.toLowerCase().includes(title.toLowerCase().split(' ')[0]);
         
-        // Check if badge is for any lesson in this module
+        // Check if badge is for any lesson in this module (lesson completion only)
         const isLessonBadge = badge.triggerType === 'lesson_complete' && 
                              lessonIds.includes(badge.triggerValue);
         
-        // Check if badge is for quiz completion of lessons in this module
-        const isQuizBadge = badge.triggerType === 'quiz_complete' && 
-                           lessonIds.includes(badge.triggerValue);
-        
-        return isModuleBadge || isLessonBadge || isQuizBadge;
+        // ONLY return module and lesson badges (quiz badges excluded)
+        return isModuleBadge || isLessonBadge;
       })
       .map(badge => ({
         id: badge.id,
@@ -193,13 +191,12 @@ const LearnCard: React.FC<LearnCardProps> = ({
     };
 
     fetchLessons();
-  }, [moduleId]); // Fixed: Only moduleId in dependency array
+  }, [moduleId]);
 
   const handleLessonClick = (lessonId: string, lessonTitle: string) => {
     closeModal();
-    // Navigate to the lesson page without alert
     router.push(`/users/lessons/${lessonId}`);
-    onCardClick?.(); // Call the original onCardClick function if provided
+    onCardClick?.();
   };
 
   // Function to handle badge click
@@ -208,19 +205,15 @@ const LearnCard: React.FC<LearnCardProps> = ({
     setBadgeModalOpen(true);
   };
 
-  // Function to get badge source description
+  // Function to get badge source description (simplified - no quiz badges)
   const getBadgeSourceDescription = (badge: BadgeDisplay) => {
-    if (badge.triggerValue === moduleId) {
+    if (badge.triggerValue === moduleId || badge.triggerType === 'module_complete') {
       return `Module completion badge`;
     }
     
     const lesson = moduleLessons.find(l => l.id === badge.triggerValue);
-    if (lesson) {
-      if (badge.triggerType === 'lesson_complete') {
-        return `Lesson: ${lesson.title}`;
-      } else if (badge.triggerType === 'quiz_complete') {
-        return `Quiz: ${lesson.title}`;
-      }
+    if (lesson && badge.triggerType === 'lesson_complete') {
+      return `Lesson: ${lesson.title}`;
     }
     
     return badge.triggerType.replace('_', ' ');
@@ -260,7 +253,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
           {moduleBadges.length > 0 && (
             <div className="absolute top-2 left-2 flex space-x-2 z-20">
               {moduleBadges.slice(0, 3).map((badge, index) => {
-                // Check if this is a module badge (parent badge)
                 const isModuleBadge = badge.triggerValue === moduleId || badge.triggerType === 'module_complete';
                 
                 return (
@@ -268,8 +260,8 @@ const LearnCard: React.FC<LearnCardProps> = ({
                     key={badge.id} 
                     className={`relative filter drop-shadow-lg transition-transform duration-200 hover:scale-110 cursor-pointer ${
                       isModuleBadge 
-                        ? 'w-10 h-10 sm:w-12 sm:h-12' // Larger size for module badges
-                        : 'w-6 h-6 sm:w-8 sm:h-8'     // Regular size for lesson badges
+                        ? 'w-10 h-10 sm:w-12 sm:h-12'
+                        : 'w-6 h-6 sm:w-8 sm:h-8'
                     }`}
                     onClick={() => handleBadgeClick(badge)}
                   >
@@ -281,13 +273,11 @@ const LearnCard: React.FC<LearnCardProps> = ({
                           isModuleBadge ? 'ring-2 ring-yellow-400 ring-opacity-60 rounded-full' : ''
                         }`}
                         onError={(e) => {
-                          // Hide the image if it fails to load
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
                         }}
                       />
                       
-                      {/* Special glow effect for module badges */}
                       {isModuleBadge && (
                         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-200/20 to-amber-200/20 animate-pulse"></div>
                       )}
@@ -304,7 +294,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 if (isAvailable) {
-                  openModal(); // Open modal on button click only
+                  openModal();
                 }
               }}
               disabled={!isAvailable}
@@ -321,15 +311,12 @@ const LearnCard: React.FC<LearnCardProps> = ({
 
         {/* Content Section with Fading Gradient Overlay - takes up 30% of card height */}
         <div className="relative bg-white py-3 px-4 h-[30%] flex flex-col justify-center">
-          {/* Fading gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 via-blue-300/10 to-transparent"></div>
                   
-          {/* Title and Lessons Info */}
           <div className="relative text-left z-10">
             <h3 className="text-blue-600 font-bold text-sm sm:text-base md:text-lg mb-1 line-clamp-2 leading-tight">{title}</h3>
             <div className="flex items-center justify-between">
               <p className="text-blue-500 text-xs sm:text-sm font-medium">{lessons}</p>
-              {/* Progress indicator - simple fraction format */}
               {totalLessons > 0 && !progressLoading && (
                 <span className="text-xs text-blue-600 font-medium">
                   {completedLessons}/{totalLessons}
@@ -346,7 +333,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
           <h2 className="text-2xl font-bold text-gray-800 mb-2">{title}</h2>
           <p className="text-gray-600 mb-6">Choose a Lesson</p>
           
-          {/* Lesson List */}
           <div className="space-y-3 max-h-64 overflow-y-auto">
             {lessonsLoading ? (
               <div className="flex items-center justify-center py-8">
@@ -359,7 +345,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 <button 
                   onClick={() => {
                     setLessonsError(null);
-                    // Trigger refetch by toggling modal
                     setIsModalOpen(false);
                     setTimeout(() => setIsModalOpen(true), 100);
                   }}
@@ -405,7 +390,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 alt={selectedBadge.name}
                 className="w-full h-full object-contain"
                 onError={(e) => {
-                  // Just hide the image if it fails to load
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                 }}

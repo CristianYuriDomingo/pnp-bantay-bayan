@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 interface Lesson {
   id: string;
   title: string;
-  path: string;
   description?: string;
   moduleId?: string;
   moduleName?: string;
@@ -18,16 +16,21 @@ interface LessonCategory {
   image: string;
   moduleId: string;
   lessons: Lesson[];
+  totalLessons: number;
+  relevanceScore: number;
 }
 
 interface ApiResponse {
   success: boolean;
   data: LessonCategory[];
   total: number;
+  query?: string;
+  suggestions?: string[];
+  hasMore?: boolean;
   error?: string;
+  message?: string;
 }
 
-// Updated Modal Component
 const Modal = ({ isOpen, onClose, children, imageSrc }: {
   isOpen: boolean;
   onClose: () => void;
@@ -39,20 +42,28 @@ const Modal = ({ isOpen, onClose, children, imageSrc }: {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-lg mx-4">
-        <div className="absolute -top-14 left-1/2 transform -translate-x-1/2">
-          <img
-            src={imageSrc || "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=128&h=128&fit=crop&crop=face"}
-            alt="Modal"
-            className="w-32 h-32 object-cover shadow-lg"
-          />
-        </div>
+        {/* Top image - same as LearnCard modal */}
+        {imageSrc && (
+          <div className="absolute -top-14 left-1/2 transform -translate-x-1/2">
+            <img
+              src={imageSrc}
+              alt="Modal Image"
+              className="w-32 h-32 object-cover bg-transparent"
+              style={{ backgroundColor: 'transparent' }}
+            />
+          </div>
+        )}
+        
+        {/* Close button - same style as LearnCard modal */}
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 text-blue-500 hover:text-gray-900 text-xl font-bold"
         >
           ✖
         </button>
-        <div className="mt-14">{children}</div>
+        
+        {/* Content with conditional margin */}
+        <div className={imageSrc ? "mt-14" : ""}>{children}</div>
       </div>
     </div>
   );
@@ -70,7 +81,7 @@ const SearchBar = () => {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Simple debounced search
+  // Debounced search
   useEffect(() => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
@@ -103,25 +114,33 @@ const SearchBar = () => {
     setError('');
 
     try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(term)}`);
+      // Correct API path based on folder structure
+      const response = await fetch(`/api/search?q=${encodeURIComponent(term)}&limit=10`);
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(`Search failed with status: ${response.status}`);
       }
       
       const data: ApiResponse = await response.json();
 
       if (data.success) {
-        setSearchResults(data.data);
-        setShowDropdown(data.data.length > 0 || true);
+        setSearchResults(data.data || []);
+        setShowDropdown(true);
+        
+        // Clear error if we got results
+        if (data.data && data.data.length > 0) {
+          setError('');
+        } else {
+          setError('No results found');
+        }
       } else {
-        setError(data.error || 'Search failed');
+        setError(data.error || data.message || 'Search failed');
         setSearchResults([]);
         setShowDropdown(true);
       }
     } catch (err) {
       console.error('Search error:', err);
-      setError('Failed to search. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to search. Please try again.');
       setSearchResults([]);
       setShowDropdown(true);
     } finally {
@@ -149,6 +168,8 @@ const SearchBar = () => {
   const handleLessonClick = (lesson: Lesson) => {
     setShowDropdown(false);
     setIsModalOpen(false);
+    setSearchTerm(''); // Clear search after selection
+    // FIXED: Correct path
     router.push(`/users/lessons/${lesson.id}`);
   };
 
@@ -161,7 +182,7 @@ const SearchBar = () => {
   const highlightMatch = (text: string) => {
     if (!searchTerm.trim()) return text;
     
-    const regex = new RegExp(`(${searchTerm.trim()})`, 'gi');
+    const regex = new RegExp(`(${searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     const parts = text.split(regex);
     
     return parts.map((part, i) => 
@@ -169,11 +190,11 @@ const SearchBar = () => {
     );
   };
 
-  const shouldShowDropdownContent = showDropdown && searchTerm.trim() && (searchResults.length > 0 || error);
+  const shouldShowDropdownContent = showDropdown && searchTerm.trim();
 
   return (
     <div ref={containerRef} className="relative w-full mb-8">
-      {/* Search Input - Updated Design */}
+      {/* Search Input */}
       <div className="relative">
         <div className="flex">
           <input
@@ -185,13 +206,17 @@ const SearchBar = () => {
             onFocus={handleInputFocus}
           />
           
-          <button className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-r-full transition-colors duration-200 flex items-center justify-center">
+          <button 
+            className="px-8 py-4 bg-blue-500 hover:bg-blue-600 text-white rounded-r-full transition-colors duration-200 flex items-center justify-center"
+            onClick={() => searchTerm.trim() && performSearch(searchTerm)}
+            disabled={isLoading || !searchTerm.trim()}
+          >
             {isLoading ? (
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
             ) : (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="m21 21-4.35-4.35"></path>
+                <circle cx="11" cy="11" r="8" strokeWidth="2"></circle>
+                <path strokeWidth="2" strokeLinecap="round" d="m21 21-4.35-4.35"></path>
               </svg>
             )}
           </button>
@@ -201,78 +226,86 @@ const SearchBar = () => {
       {/* Search Results Dropdown */}
       {shouldShowDropdownContent && (
         <div className="absolute w-full mt-2 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-y-auto z-50">
-          {error ? (
-            <div className="p-4 text-center text-red-500">
-              <p>{error}</p>
+          {error && searchResults.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <p className="font-medium">{error}</p>
+              <p className="text-sm mt-1">Try different keywords</p>
             </div>
           ) : searchResults.length > 0 ? (
             <div>
               {searchResults.map((category, index) => (
-                <div key={index} className="border-b border-gray-100 last:border-b-0">
+                <div key={category.moduleId || index} className="border-b border-gray-100 last:border-b-0">
                   {/* Category Header */}
                   <button 
                     className="w-full p-3 text-left hover:bg-gray-50 flex items-center space-x-3"
                     onClick={() => handleCategoryClick(category)}
                   >
-                    <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center flex-shrink-0">
                       <span className="text-blue-600 font-medium text-sm">
                         {category.category.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-blue-600">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-blue-600 truncate">
                         {highlightMatch(category.category)}
                       </h3>
                       <p className="text-xs text-gray-500">
-                        {category.lessons.length} lesson{category.lessons.length !== 1 ? 's' : ''}
+                        {category.lessons.length} lesson{category.lessons.length !== 1 ? 's' : ''} found
                       </p>
                     </div>
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                     </svg>
                   </button>
                   
                   {/* Lessons List */}
-                  {category.lessons.map((lesson, lessonIndex) => (
-                    <button
-                      key={lessonIndex}
-                      onClick={() => handleLessonClick(lesson)}
-                      className="w-full px-4 py-2 text-left text-gray-700 hover:bg-blue-50 border-t border-gray-50 flex items-center space-x-3"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                      <span className="flex-1">{highlightMatch(lesson.title)}</span>
-                    </button>
-                  ))}
+                  <div className="bg-gray-50">
+                    {category.lessons.slice(0, 3).map((lesson) => (
+                      <button
+                        key={lesson.id}
+                        onClick={() => handleLessonClick(lesson)}
+                        className="w-full px-4 py-2 text-left text-gray-700 hover:bg-blue-50 border-t border-gray-100 flex items-center space-x-3 transition-colors"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0"></div>
+                        <span className="flex-1 text-sm truncate">{highlightMatch(lesson.title)}</span>
+                      </button>
+                    ))}
+                    {category.lessons.length > 3 && (
+                      <button
+                        onClick={() => handleCategoryClick(category)}
+                        className="w-full px-4 py-2 text-left text-blue-600 hover:bg-blue-50 border-t border-gray-100 text-sm font-medium"
+                      >
+                        View all {category.lessons.length} lessons →
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="p-6 text-center text-gray-500">
-              <p>No results found for "{searchTerm}"</p>
-              <p className="text-sm mt-1">Try different keywords</p>
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal - Now using same design as LearnCard */}
       <Modal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)}
-        imageSrc="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=128&h=128&fit=crop&crop=face"
+        imageSrc="/MainImage/1.png"
       >
         {selectedModule && (
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">{selectedModule.category}</h2>
-            <p className="text-gray-600 mb-6">Choose a Lesson</p>
+            <p className="text-gray-600 mb-6">
+              {selectedModule.lessons.length} Lesson{selectedModule.lessons.length !== 1 ? 's' : ''}
+            </p>
             <div className="space-y-3 max-h-64 overflow-y-auto">
-              {selectedModule.lessons.map((lesson, index) => (
+              {selectedModule.lessons.map((lesson) => (
                 <button
-                  key={index}
+                  key={lesson.id}
                   onClick={() => handleLessonClick(lesson)}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors duration-200"
+                  className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-blue-600 px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center relative"
                 >
-                  {lesson.title}
+                  <span className="text-center">{lesson.title}</span>
                 </button>
               ))}
             </div>
