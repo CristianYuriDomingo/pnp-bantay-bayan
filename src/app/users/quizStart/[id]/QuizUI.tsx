@@ -106,9 +106,9 @@ const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
 };
 
 const LoadingSpinner = () => (
-  <div className="flex justify-center items-center min-h-screen">
+  <div className="fixed inset-0 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mb-4"></div>
+      <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mb-4 mx-auto"></div>
       <p className="text-blue-600 text-lg font-medium">Loading Quiz...</p>
     </div>
   </div>
@@ -359,7 +359,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         setScore(score + 1);
       }
 
-      return feedback; // ✅ Return feedback!
+      return feedback;
     } catch (error) {
       console.error('Error submitting answer:', error);
       const isCorrect = selectedAnswerIndex === 1;
@@ -380,15 +380,13 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         setScore(score + 1);
       }
 
-      return fallbackFeedback; // ✅ Return fallback feedback!
+      return fallbackFeedback;
     }
   };
 
   const submitCompleteQuiz = async () => {
     try {
       const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
-
-      // Debug log removed
 
       const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
         method: 'POST',
@@ -448,7 +446,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
       answer: answerIndex, 
-      correct: feedback?.isCorrect || false // ✅ Use feedback directly
+      correct: feedback?.isCorrect || false
     }]);
   };
 
@@ -639,7 +637,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
                 </div>
               </button>
             ))}
-
           </div>
 
           {/* Feedback */}
