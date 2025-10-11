@@ -1,4 +1,4 @@
-// app/users/components/CombinedCarousel.tsx - FIXED
+// app/users/components/CombinedCarousel.tsx - ENHANCED UI
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -22,7 +22,7 @@ type CombinedCarouselProps = {
   slides: SlideProps[];
   themeColor?: string;
   onModuleComplete?: (moduleId: string) => void;
-  completedModules?: string[]; // This will be ignored now
+  completedModules?: string[];
   finishButtonText?: string;
   completedButtonText?: string;
   continueButtonText?: string;
@@ -42,7 +42,7 @@ type CombinedCarouselProps = {
   onExit?: () => void;
 };
 
-// Speech Bubble Component with enhanced image handling
+// Enhanced Speech Bubble Component
 function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: SpeechBubbleProps) {
   const [currentMessage, setCurrentMessage] = useState("");
   const [messageIndex, setMessageIndex] = useState(0);
@@ -84,9 +84,9 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
         />
       </div>
 
-      <div className="relative bg-white text-gray-800 px-6 py-4 rounded-lg shadow-md border border-gray-200 max-w-xl">
+      <div className="relative bg-white text-gray-800 px-6 py-4 rounded-2xl border-2 border-blue-100 max-w-xl">
         <p className="text-lg font-medium">{currentMessage}</p>
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-white border-l border-b border-gray-200 rotate-45"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 bg-white border-l-2 border-b-2 border-blue-100 rotate-45"></div>
       </div>
     </div>
   );
@@ -97,7 +97,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   slides,
   themeColor = "blue",
   onModuleComplete,
-  // completedModules is now ignored - we use lessonProgress instead
   finishButtonText = "Finish Reading",
   completedButtonText = "✓ Completed",
   continueButtonText = "Continue Reading",
@@ -109,7 +108,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   moduleDescription = "Learn about the dangers of smoking and how to promote a smoke-free environment for a healthier community.",
   iconImage = "/MainImage/1.png",
   timerDuration = 10,
-  timerColor = "red",
+  timerColor = "blue",
   onClose,
   onExit
 }) => {
@@ -122,7 +121,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Use the enhanced progress hook - THIS IS THE KEY FIX
   const { 
     lessonProgress, 
     loading: progressLoading, 
@@ -132,9 +130,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     refetch: refetchProgress
   } = useLessonProgress(lessonId);
 
-  // FIXED: Use lessonProgress from hook instead of completedModules prop
   const isLessonCompleted = () => {
-    // Only check user-specific lesson progress from the hook
     const completed = lessonProgress?.completed || false;
     console.log(`Checking completion for lesson ${lessonId}: ${completed}`);
     return completed;
@@ -172,22 +168,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   };
 
   const getTimerClasses = (color: string) => {
-    switch (color.toLowerCase()) {
-      case 'red':
-        return 'bg-red-500 text-white';
-      case 'blue':
-        return 'bg-blue-500 text-white';
-      case 'green':
-        return 'bg-green-500 text-white';
-      case 'yellow':
-        return 'bg-yellow-500 text-white';
-      case 'purple':
-        return 'bg-purple-500 text-white';
-      case 'orange':
-        return 'bg-orange-500 text-white';
-      default:
-        return 'bg-red-500 text-white';
-    }
+    // Always return blue regardless of the color parameter
+    return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg';
   };
 
   useEffect(() => {
@@ -200,7 +182,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  // Timer effect - FIXED: Check lessonProgress instead of completedModules
   useEffect(() => {
     if (isLessonCompleted()) {
       setCanProceed(true);
@@ -226,7 +207,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     return () => clearInterval(timer);
   }, [currentSlide, timerDuration, isLessonCompleted()]);
 
-  // FIXED: Enhanced completion tracking with better error handling
   const markLessonComplete = async () => {
     if (progressUpdating || isLessonCompleted()) return;
 
@@ -238,13 +218,9 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     
     if (success) {
       console.log('Lesson progress updated successfully');
-      
-      // Force refetch to ensure we have latest data
       await refetchProgress();
       
-      // Enhanced event dispatch for better cross-component communication
       setTimeout(() => {
-        // Dispatch multiple events with delay to ensure API has processed
         window.dispatchEvent(new CustomEvent('lessonCompleted', {
           detail: { lessonId, moduleId, timestamp: Date.now() }
         }));
@@ -253,20 +229,18 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           detail: { timestamp: Date.now() }
         }));
         
-        // Storage event for cross-tab communication
         localStorage.setItem('lessonCompleted', JSON.stringify({
           lessonId,
           moduleId,
           timestamp: Date.now()
         }));
         
-        // Clean up storage after components have had time to read it
         setTimeout(() => {
           localStorage.removeItem('lessonCompleted');
         }, 2000);
         
         console.log(`Enhanced completion events dispatched for lesson ${lessonId}`);
-      }, 1000); // 1 second delay to ensure API completion
+      }, 1000);
       
       if (onModuleComplete) {
         onModuleComplete(moduleId);
@@ -301,15 +275,12 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       await markLessonComplete();
       console.log(`Lesson completion finished for lesson ${lessonId}`);
       
-      // 🎉 NEW: Dispatch events to notify other components
-      // Use localStorage event for cross-tab communication
       localStorage.setItem('lessonCompleted', JSON.stringify({
         lessonId,
         moduleId,
         timestamp: Date.now()
       }));
       
-      // Dispatch custom event for same-page components
       window.dispatchEvent(new CustomEvent('lessonCompleted', {
         detail: { lessonId, moduleId }
       }));
@@ -334,7 +305,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   };
 
-  // Show loading state
   if (progressLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -346,7 +316,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     );
   }
 
-  // Show error state if there's a critical error
   if (progressError && !lessonProgress) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -367,27 +336,12 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-      {onExit && (
-        <div className="fixed top-4 right-4 z-50">
-          <button
-            onClick={onExit}
-            className="bg-white rounded-full p-2 shadow-md text-gray-500 hover:text-gray-700 hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="Exit lesson"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-      )}
-
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 via-white to-blue-50">
       {lessonProgress && (
-        <div className="w-full bg-gray-200 h-1">
+        <div className="w-full bg-gray-200 h-2 shadow-inner">
           <div 
-            className={`h-1 transition-all duration-300 ${
-              lessonProgress.completed ? 'bg-green-500' : 'bg-blue-500'
+            className={`h-2 transition-all duration-300 ${
+              lessonProgress.completed ? 'bg-gradient-to-r from-green-400 to-green-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'
             }`}
             style={{ width: `${lessonProgress.progress}%` }}
           ></div>
@@ -403,73 +357,69 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       )}
 
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full opacity-30 transform translate-x-1/3 -translate-y-1/4"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4"></div>
-        <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-blue-200 rounded-full opacity-20"></div>
-        <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-green-100 rounded-full opacity-20"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200 rounded-full opacity-20 transform translate-x-1/3 -translate-y-1/4 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-200 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4 blur-3xl"></div>
+        <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-blue-300 rounded-full opacity-30 blur-xl"></div>
+        <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-green-200 rounded-full opacity-20 blur-xl"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-4xl mx-auto px-4 pt-6 flex flex-col items-center">
-        <div className="w-full p-4 mb-2">
-          <div className="relative">
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 pt-6 flex flex-col items-center">
+        <div className="w-full flex items-center justify-between mb-4">
+          <div className="flex-1">
             <SpeechBubble messages={speechBubbleMessages} />
           </div>
+          
+          {onExit && (
+            <button
+              onClick={onExit}
+              className="ml-4 text-gray-600 hover:text-gray-800 transition-all focus:outline-none hover:scale-110 flex-shrink-0"
+              aria-label="Exit lesson"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          )}
         </div>
 
-        <div className="relative w-full mb-2 flex items-center justify-center">
-          <div className="absolute h-px bg-gradient-to-r from-transparent via-gray-400 to-transparent w-full"></div>
-          <div className="relative bg-white p-3 rounded-full shadow-sm z-10 border border-gray-200">
-            {iconImageError ? (
-              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-bold">📚</span>
-              </div>
-            ) : (
-              <img
-                src={iconImage}
-                alt="Module Icon"
-                className="h-8 w-8 object-contain"
-                onError={handleIconError}
-                onLoad={handleIconLoad}
-                style={{
-                  display: iconImageLoaded || !iconImageError ? 'block' : 'none'
-                }}
-              />
-            )}
-          </div>
-        </div>
-
-        <div className="w-full text-center mb-4">
-          <div className="flex items-center justify-center space-x-2">
-            <h2 className="text-2xl font-bold text-gray-800">{moduleTitle}</h2>
+        <div className="w-full text-center mb-6">
+          <div className="flex items-center justify-center space-x-3 mb-2">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">{moduleTitle}</h2>
             {isLessonCompleted() && (
-              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+              <span className="bg-gradient-to-r from-green-400 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg animate-pulse">
                 ✓ Completed
               </span>
             )}
           </div>
-          <p className="text-gray-600">{moduleDescription}</p>
+          <p className="text-gray-600 text-lg">{moduleDescription}</p>
         </div>
       </div>
 
-      {/* Rest of the carousel content remains the same... */}
       <div className="flex-grow flex justify-center items-center w-full relative z-10 px-4 mb-6">
         <div className="w-full max-w-6xl"> 
           {!isMobile && (
             <div className="relative flex items-center h-[500px]">
-              <div className="w-full overflow-hidden rounded-2xl shadow-lg relative">
+              <div className="w-full overflow-hidden rounded-3xl relative bg-white">
                 {!canProceed && !isLessonCompleted() && (
-                  <div className={`absolute top-0 left-0 right-0 z-30 ${getTimerClasses(timerColor)} py-2 px-4 text-center font-medium`}>
-                    Please continue reading. You can proceed in {timeRemaining} seconds.
+                  <div className={`absolute top-0 left-0 right-0 z-30 ${getTimerClasses(timerColor)} py-3 px-6 text-center font-semibold text-base rounded-t-3xl`}>
+                    <div className="flex items-center justify-center space-x-2">
+                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Please continue reading. You can proceed in {timeRemaining} seconds.</span>
+                    </div>
                   </div>
                 )}
 
                 {currentSlide > 0 && (
                   <button
                     onClick={prevSlide}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white bg-opacity-80 rounded-full w-12 h-12 flex items-center justify-center focus:outline-none shadow-md hover:bg-gray-50 hover:bg-opacity-90 active:bg-gray-100 hover:shadow-lg active:shadow-md transform transition-all duration-200 active:scale-95 hover:scale-100 text-blue-500 hover:text-blue-600"
+                    className="absolute left-6 top-1/2 -translate-y-1/2 z-20 bg-white bg-opacity-95 backdrop-blur rounded-full w-14 h-14 flex items-center justify-center focus:outline-none hover:scale-110 active:scale-95 transform transition-all duration-200 text-blue-600 hover:text-blue-700 border-2 border-blue-100"
                     aria-label="Previous slide"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M15 18l-6-6 6-6" />
                     </svg>
                   </button>
@@ -479,32 +429,33 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
                   {currentSlides.map((slide, index) => (
                     <div key={index} className="min-w-full flex bg-white h-full">
-                      <div className="w-3/5 relative bg-white">
+                      <div className="w-3/5 relative bg-gradient-to-br from-gray-50 to-gray-100">
                         <div className="w-full h-full relative">
                           <img
                             src={slide.image}
                             alt={slide.title}
                             className="w-full h-full object-cover"
                           />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white opacity-10"></div>
                         </div>
                       </div>
 
-                      <div className="w-2/5 p-12 flex flex-col justify-center">
-                        <h2 className="text-3xl font-bold mb-5 text-gray-800">{slide.title}</h2>
-                        <p className="text-lg text-gray-600 leading-relaxed mb-8">{slide.content}</p>
+                      <div className="w-2/5 p-12 flex flex-col justify-center bg-gradient-to-br from-white to-blue-50">
+                        <h2 className="text-3xl font-bold mb-6 text-gray-800 leading-tight">{slide.title}</h2>
+                        <p className="text-lg text-gray-700 leading-relaxed mb-8">{slide.content}</p>
                         
                         {index === currentSlides.length - 1 && (
                           <button
                             onClick={handleFinish}
                             disabled={progressUpdating || isSubmitting}
                             className={`${isLessonCompleted() 
-                              ? 'bg-green-500 hover:bg-green-600 border-green-700' 
+                              ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700 shadow-green-200' 
                               : (progressUpdating || isSubmitting)
                                 ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
-                                : 'bg-blue-500 hover:bg-blue-600 border-blue-700'
-                            } text-white font-medium py-3 px-6 rounded-lg 
-                            transition-all w-full border-b-4
-                            ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 active:border-b-0 active:mb-1 active:translate-y-1' : ''}`}
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700 shadow-blue-200'
+                            } text-white font-semibold py-4 px-8 rounded-xl 
+                            transition-all w-full border-b-4 shadow-lg
+                            ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 hover:shadow-xl active:border-b-0 active:mb-1 active:translate-y-1' : ''}`}
                           >
                             {(progressUpdating || isSubmitting) 
                               ? 'Saving Progress...' 
@@ -521,28 +472,26 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                 {currentSlide < currentSlides.length - 1 && (
                   <button
                     onClick={canProceed || isLessonCompleted() ? nextSlide : undefined}
-                    className={`absolute right-4 top-1/2 -translate-y-1/2 z-20 rounded-full w-12 h-12 flex items-center justify-center
-                    focus:outline-none shadow-md
+                    className={`absolute right-6 top-1/2 -translate-y-1/2 z-20 rounded-full w-14 h-14 flex items-center justify-center
+                    focus:outline-none shadow-xl border-2
                     transform transition-all duration-200
                     ${canProceed || isLessonCompleted()
-                      ? `bg-white bg-opacity-80
-                        hover:bg-gray-50 hover:bg-opacity-90 active:bg-gray-100
-                        hover:shadow-lg active:shadow-md  
-                        active:scale-95 hover:scale-100
-                        text-blue-500 hover:text-blue-600`
-                      : `bg-gray-300 bg-opacity-80 cursor-not-allowed text-gray-500`
+                      ? `bg-white bg-opacity-95 backdrop-blur border-blue-100
+                        hover:shadow-2xl hover:scale-110 active:scale-95
+                        text-blue-600 hover:text-blue-700`
+                      : `bg-gray-300 bg-opacity-80 cursor-not-allowed text-gray-500 border-gray-400`
                     }`}
                     aria-label="Next slide"
                     disabled={!canProceed && !isLessonCompleted()}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 18l6-6-6-6" />
                     </svg>
                   </button>
                 )}
               </div>
 
-              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 bg-white bg-opacity-90 backdrop-blur px-4 py-2 rounded-full shadow-lg">
                 {currentSlides.map((slide, index) => (
                   <button
                     key={index}
@@ -551,14 +500,14 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                         setCurrentSlide(index);
                       }
                     }}
-                    className={`h-2 rounded-full transition-all ${
+                    className={`h-2.5 rounded-full transition-all ${
                       currentSlide === index
-                        ? 'bg-blue-500 w-6'
+                        ? 'bg-blue-600 w-8 shadow-md'
                         : isLessonCompleted()
-                          ? 'bg-green-500 w-2'
+                          ? 'bg-green-500 w-2.5'
                           : index < currentSlide
-                            ? 'bg-blue-300 w-2'
-                            : 'bg-gray-300 hover:bg-gray-400 w-2 cursor-not-allowed'
+                            ? 'bg-blue-400 w-2.5'
+                            : 'bg-gray-300 hover:bg-gray-400 w-2.5 cursor-not-allowed'
                     }`}
                     aria-label={`Go to slide ${index + 1}`}
                     disabled={index > currentSlide && !isLessonCompleted()}
@@ -570,14 +519,20 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
 
           {isMobile && (
             <div className="w-full px-4">
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+              <div className="bg-white rounded-3xl overflow-hidden">
                 {!canProceed && !isLessonCompleted() && (
-                  <div className={`${getTimerClasses(timerColor)} py-2 px-4 text-center text-sm font-medium`}>
-                    Please continue reading. You can proceed in {timeRemaining} seconds.
+                  <div className={`${getTimerClasses(timerColor)} py-3 px-4 text-center text-sm font-semibold rounded-t-3xl`}>
+                    <div className="flex items-center justify-center space-x-2">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Please continue reading. Proceed in {timeRemaining}s.</span>
+                    </div>
                   </div>
                 )}
 
-                <div className="w-full aspect-square relative bg-white">
+                <div className="w-full aspect-square relative bg-gradient-to-br from-gray-50 to-gray-100">
                   <img
                     src={currentSlides[currentSlide].image}
                     alt={currentSlides[currentSlide].title}
@@ -585,21 +540,21 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   />
                 </div>
 
-                <div className="p-6">
-                  <h2 className="text-xl font-bold mb-3 text-gray-800">{currentSlides[currentSlide].title}</h2>
-                  <p className="text-gray-600 text-base mb-6">{currentSlides[currentSlide].content}</p>
+                <div className="p-6 bg-gradient-to-br from-white to-blue-50">
+                  <h2 className="text-2xl font-bold mb-4 text-gray-800">{currentSlides[currentSlide].title}</h2>
+                  <p className="text-gray-700 text-base mb-6 leading-relaxed">{currentSlides[currentSlide].content}</p>
                   
                   {currentSlide === currentSlides.length - 1 ? (
                     <button
                       onClick={handleFinish}
                       disabled={progressUpdating || isSubmitting}
                       className={`w-full ${isLessonCompleted() 
-                        ? 'bg-green-500 hover:bg-green-600 border-green-700' 
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700' 
                         : (progressUpdating || isSubmitting)
                           ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
-                          : 'bg-blue-500 hover:bg-blue-600 border-blue-700'
-                      } text-white font-bold py-3 px-4 rounded-lg 
-                      mb-4 transition-all border-b-4
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700'
+                      } text-white font-bold py-4 px-4 rounded-xl 
+                      mb-4 transition-all border-b-4 shadow-lg
                       ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-[18px] hover:translate-y-0.5 active:border-b-0 active:mb-5 active:translate-y-1' : ''}`}
                     >
                       {(progressUpdating || isSubmitting) 
@@ -613,10 +568,10 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                       onClick={canProceed || isLessonCompleted() ? nextSlide : undefined}
                       className={`w-full ${
                         canProceed || isLessonCompleted()
-                          ? 'bg-blue-500 hover:bg-blue-600 border-blue-700'
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700'
                           : 'bg-gray-400 border-gray-500 cursor-not-allowed'
-                      } text-white font-bold py-3 px-4 rounded-lg 
-                      mb-4 transition-all border-b-4
+                      } text-white font-bold py-4 px-4 rounded-xl 
+                      mb-4 transition-all border-b-4 shadow-lg
                       ${canProceed || isLessonCompleted() 
                         ? `hover:border-b-2 hover:mb-[18px] hover:translate-y-0.5
                           active:border-b-0 active:mb-5 active:translate-y-1`
@@ -635,32 +590,32 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                   {currentSlide > 0 && (
                     <button
                       onClick={prevSlide}
-                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-all border-b-4 border-gray-300 hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 active:border-b-0 active:mb-1 active:translate-y-1"
+                      className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl transition-all border-b-4 border-gray-300 hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 active:border-b-0 active:mb-1 active:translate-y-1 shadow-md"
                     >
                       {backButtonText}
                     </button>
                   )}
                 </div>
 
-                <div className="px-6 pb-4">
+                <div className="px-6 pb-5">
                   <div className="flex justify-between items-center">
-                    <div className="flex space-x-1 flex-grow">
+                    <div className="flex space-x-2 flex-grow">
                       {currentSlides.map((slide, index) => (
                         <div
                           key={index}
-                          className={`h-2 rounded-full transition-all flex-grow ${
+                          className={`h-2.5 rounded-full transition-all flex-grow ${
                             index === currentSlide
-                              ? 'bg-blue-500'
+                              ? 'bg-blue-600 shadow-md'
                               : isLessonCompleted()
                                 ? 'bg-green-500'
                                 : index < currentSlide
-                                  ? 'bg-blue-300'
+                                  ? 'bg-blue-400'
                                   : 'bg-gray-200'
                           }`}
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-gray-500 ml-2">
+                    <span className="text-sm font-semibold text-gray-600 ml-3 bg-gray-100 px-3 py-1 rounded-full">
                       {currentSlide + 1}/{currentSlides.length}
                     </span>
                   </div>

@@ -196,15 +196,7 @@ export default function DashboardPage() {
         {/* Search Bar Section - Updated margin for symmetry */}
         <SearchBar />
 
-        {/* Learning Modules Section */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-            Available Modules
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Choose a module to start learning
-          </p>
-        </div>
+        
 
         {/* Modules Grid */}
         {loading ? (
