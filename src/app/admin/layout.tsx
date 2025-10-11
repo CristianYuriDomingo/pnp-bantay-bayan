@@ -61,18 +61,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       description: 'Modules & Lessons'
     },
     { 
-      id: 'badges', 
-      label: 'Badge Management', 
-      icon: '🏆', 
-      href: '/admin/badges',
-      description: 'Achievement Badges'
-    },
-    { 
       id: 'quiz', 
       label: 'Quiz Management', 
       icon: '📝', 
       href: '/admin/quiz',
       description: 'Questions & Assessments'
+    },
+    { 
+      id: 'badges', 
+      label: 'Badge Management', 
+      icon: '🏆', 
+      href: '/admin/badges',
+      description: 'Achievement Badges'
     },
     { 
       id: 'interface', 
@@ -82,7 +82,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       description: 'App Settings & UI'
     },
   ];
-
+  
   const isActive = (href: string) => {
     if (href === '/admin/dashboard') {
       return pathname === '/admin' || pathname === '/admin/dashboard';
@@ -91,17 +91,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <div className="w-72 bg-white shadow-lg flex flex-col">
+    <div className="min-h-screen bg-gray-50">
+      {/* Fixed Sidebar */}
+      <div className="fixed left-0 top-0 bottom-0 w-72 bg-white shadow-lg flex flex-col z-50">
         {/* Header */}
-        <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+        <div className="p-6 border-b bg-gradient-to-r from-blue-600 to-blue-700 flex-shrink-0">
           <h1 className="text-xl font-bold text-white">Admin Panel</h1>
           <p className="text-blue-100 text-sm mt-1">Welcome, {session?.user?.name}</p>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
+        {/* Navigation - Scrollable */}
+        <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-2">
             {sidebarItems.map((item) => (
               <Link
@@ -128,8 +128,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </nav>
 
-        {/* User Actions */}
-        <div className="p-4 border-t bg-gray-50">
+        {/* User Actions - Always visible at bottom */}
+        <div className="p-4 border-t bg-gray-50 flex-shrink-0">
           <div className="flex items-center space-x-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
               {session?.user?.name?.charAt(0).toUpperCase()}
@@ -149,10 +149,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content - With left margin to account for fixed sidebar */}
+      <div className="ml-72 flex flex-col min-h-screen">
         {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b px-6 py-4">
+        <div className="bg-white shadow-sm border-b px-6 py-4 sticky top-0 z-40">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-800">
@@ -175,7 +175,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </div>
 
-        {/* Page Content */}
+        {/* Page Content - Scrollable */}
         <div className="flex-1 p-6 overflow-auto">
           {children}
         </div>

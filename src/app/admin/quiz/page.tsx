@@ -534,13 +534,15 @@ const QuizForm = ({
       )}
 
       {/* Category Info */}
-      {(selectedParent || (initialQuiz?.parentId && parentQuizzes.find(p => p.id === initialQuiz.parentId))) && (
+      {(selectedParent || (initialQuiz?.parentId && parentQuizzes.find(p => p.id === initialQuiz?.parentId))) && (
         <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
           <p className="text-sm text-purple-800">
             {selectedParent ? (
-              <>📁 Adding to category: <strong>{selectedParent.title}</strong></>
+              <strong>{selectedParent.title}</strong>
             ) : (
-              <>📁 Current category: <strong>{parentQuizzes.find(p => p.id === initialQuiz?.parentId)?.title}</strong></>
+              <strong>
+                {parentQuizzes.find(p => p.id === initialQuiz?.parentId)?.title}
+              </strong>
             )}
           </p>
         </div>
@@ -1032,10 +1034,10 @@ export default function QuizManagement() {
       const response = await fetch(`/api/admin/quizzes/${quizId}`, {
         method: 'DELETE',
       });
-      
+
       if (response.ok) {
-        setQuizzes(quizzes.filter(quiz => quiz.id !== quizId));
-        setBadges(badges.filter(badge => badge.triggerValue !== quizId));
+        // Re-fetch both quizzes and badges to ensure sync with database
+        await fetchData();
         showToast('Quiz deleted successfully');
       } else {
         showToast('Failed to delete quiz', 'error');
