@@ -12,7 +12,7 @@ export default function DashboardStats() {
         <div className="animate-pulse">
           <div className="h-4 bg-gray-200 rounded w-32 mb-4"></div>
           <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
-          <div className="h-2 bg-gray-200 rounded w-full"></div>
+          <div className="h-3 bg-gray-200 rounded-full w-full"></div>
         </div>
       </div>
     );
@@ -51,16 +51,16 @@ export default function DashboardStats() {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-gray-200 rounded-full h-4">
         <div 
-          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+          className="bg-blue-500 h-4 rounded-full transition-all duration-300"
           style={{ width: `${progressPercentage}%` }}
         ></div>
       </div>
       
-      <p className="text-xs text-gray-500 mt-2">
+      <p className="text-xs text-gray-500 mt-2 font-semibold">
         {progressPercentage}% Complete
       </p>
     </div>
   );
-}
+} 

@@ -199,7 +199,7 @@ const SearchBar = () => {
         <div className="flex">
           <input
             type="text"
-            className="flex-1 px-6 py-4 text-gray-600 bg-gray-50 border-0 rounded-l-full focus:outline-none focus:bg-white focus:shadow-lg transition-all duration-200 placeholder-gray-400"
+            className="flex-1 px-6 py-4 text-gray-600 bg-gray-50 border-2 border-blue-200 rounded-l-full focus:outline-none focus:bg-white focus:shadow-lg transition-all duration-200 placeholder-gray-400"
             placeholder="Search for lessons..."
             value={searchTerm}
             onChange={handleInputChange}
