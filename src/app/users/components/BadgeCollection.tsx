@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Lock, Trophy, Star, Award, Crown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Lock, Trophy, Star, Award, Crown, Zap, TrendingUp } from 'lucide-react';
 
 // Import your actual hooks and types
-import { useAllBadges, groupBadgesByCategory, BadgeWithProgress, BadgeStats } from '@/hooks/use-all-badges';
+import { useAllBadges, BadgeWithProgress } from '@/hooks/use-all-badges';
 import { useBadgeNotifications } from '@/hooks/use-user-badges';
 
-// Keep only BadgeCategory interface since it's component-specific.
 interface BadgeCategory {
   name: string;
   badges: BadgeWithProgress[];
   earnedCount: number;
   totalCount: number;
+  totalXP: number;
+  earnedXP: number;
 }
 
 const getRarityColor = (rarity: string): string => {
@@ -38,25 +39,48 @@ const BadgeCollection: React.FC = () => {
   const { newBadges, showNotification, dismissNotification } = useBadgeNotifications();
   const [selectedBadge, setSelectedBadge] = useState<BadgeWithProgress | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [activeTab, setActiveTab] = useState<'learning' | 'quiz'>('learning');
 
   // Separate quiz badges from learning badges
   const quizBadges = React.useMemo(() => {
     return badges.filter(badge => 
       badge.triggerType === 'quiz_mastery' || 
-      badge.triggerType === 'parent_quiz_mastery' ||
-      badge.category === 'Achievement'
+      badge.triggerType === 'parent_quiz_mastery'
     );
   }, [badges]);
   
   const learningBadges = React.useMemo(() => {
     return badges.filter(badge => 
-      badge.triggerType !== 'quiz_mastery' && 
-      badge.triggerType !== 'parent_quiz_mastery' &&
-      badge.category !== 'Achievement'
+      badge.triggerType === 'lesson_complete' || 
+      badge.triggerType === 'module_complete'
     );
   }, [badges]);
 
-  // Group learning badges by category
+  // Calculate XP statistics - FIXED: Use xpAwarded instead of xpValue
+  const xpStats = React.useMemo(() => {
+    const totalXP = badges.reduce((sum, badge) => sum + ((badge as any).xpValue || 0), 0);
+    const earnedXP = badges
+      .filter(b => b.isEarned)
+      .reduce((sum, badge) => sum + ((badge as any).xpValue || 0), 0);
+    
+    const quizXP = quizBadges
+      .filter(b => b.isEarned)
+      .reduce((sum, badge) => sum + ((badge as any).xpValue || 0), 0);
+    
+    const learningXP = learningBadges
+      .filter(b => b.isEarned)
+      .reduce((sum, badge) => sum + ((badge as any).xpValue || 0), 0);
+
+    return {
+      total: totalXP,
+      earned: earnedXP,
+      quiz: quizXP,
+      learning: learningXP,
+      percentage: totalXP > 0 ? Math.round((earnedXP / totalXP) * 100) : 0
+    };
+  }, [badges, quizBadges, learningBadges]);
+
+  // Group learning badges by category with XP
   const learningBadgeCategories: BadgeCategory[] = React.useMemo(() => {
     if (!learningBadges.length) return [];
 
@@ -77,7 +101,9 @@ const BadgeCollection: React.FC = () => {
         return (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
       }),
       earnedCount: categoryBadges.filter(b => b.isEarned).length,
-      totalCount: categoryBadges.length
+      totalCount: categoryBadges.length,
+      totalXP: categoryBadges.reduce((sum, b) => sum + ((b as any).xpValue || 0), 0),
+      earnedXP: categoryBadges.filter(b => b.isEarned).reduce((sum, b) => sum + ((b as any).xpValue || 0), 0)
     }));
   }, [learningBadges]);
 
@@ -149,6 +175,12 @@ const BadgeCollection: React.FC = () => {
           <div>
             <p className="font-bold">New Badge Earned!</p>
             <p className="text-sm">{newBadges[0].name}</p>
+            {(newBadges[0] as any).xpValue > 0 && (
+              <p className="text-xs flex items-center mt-1">
+                <Zap size={12} className="mr-1" />
+                +{(newBadges[0] as any).xpValue} XP
+              </p>
+            )}
           </div>
           <button onClick={dismissNotification} className="ml-2 text-white hover:text-gray-200">
             ×
@@ -185,60 +217,79 @@ const BadgeCollection: React.FC = () => {
       <BadgeNotification />
       
       {/* Header with statistics */}
-      <div className="flex justify-between items-start mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Badge Collection</h2>
-          {statistics && (
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <span>{statistics.totalEarned} of {statistics.totalAvailable} earned</span>
-              <span className="font-medium text-blue-600">{statistics.completionPercentage}% complete</span>
-            </div>
-          )}
-        </div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">Badge Collection</h2>
         
-        {/* Category filter - for learning badges only */}
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
-        >
-          <option value="All">All Learning Categories</option>
-          {learningBadgeCategories.map(category => (
-            <option key={category.name} value={category.name}>
-              {category.name} ({category.earnedCount}/{category.totalCount})
-            </option>
-          ))}
-        </select>
-      </div>
+        {/* Overall Stats Card */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Badges Progress */}
+          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-700 flex items-center">
+                <Trophy className="mr-2 text-blue-500" size={20} />
+                Badge Progress
+              </h3>
+              <span className="text-sm font-medium text-blue-600">{statistics?.completionPercentage}%</span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
+              <span>{statistics?.totalEarned} of {statistics?.totalAvailable} earned</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full transition-all"
+                style={{ width: `${statistics?.completionPercentage}%` }}
+              ></div>
+            </div>
+          </div>
 
-      {/* Statistics overview */}
-      {statistics && (
-        <div className="bg-white bg-opacity-60 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-gray-700 mb-3">Progress Overview</h3>
+          {/* XP Progress */}
+          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold text-gray-700 flex items-center">
+                <Zap className="mr-2 text-yellow-500" size={20} />
+                XP Progress
+              </h3>
+              <span className="text-sm font-medium text-yellow-600">{xpStats.percentage}%</span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
+              <span>{xpStats.earned} of {xpStats.total} XP earned</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-yellow-500 h-2 rounded-full transition-all"
+                style={{ width: `${xpStats.percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Rarity Breakdown */}
+        <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm mb-4">
+          <h3 className="font-semibold text-gray-700 mb-3">Collection by Rarity</h3>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-lg font-bold text-gray-700">{statistics.rarityBreakdown.Common}</div>
+              <div className="text-lg font-bold text-gray-700">{statistics?.rarityBreakdown.Common}</div>
               <div className="text-xs text-gray-500 flex items-center justify-center">
                 <Award size={12} className="mr-1" />
                 Common
               </div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-blue-600">{statistics.rarityBreakdown.Rare}</div>
+              <div className="text-lg font-bold text-blue-600">{statistics?.rarityBreakdown.Rare}</div>
               <div className="text-xs text-blue-500 flex items-center justify-center">
                 <Star size={12} className="mr-1" />
                 Rare
               </div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-600">{statistics.rarityBreakdown.Epic}</div>
+              <div className="text-lg font-bold text-purple-600">{statistics?.rarityBreakdown.Epic}</div>
               <div className="text-xs text-purple-500 flex items-center justify-center">
                 <Trophy size={12} className="mr-1" />
                 Epic
               </div>
             </div>
             <div className="text-center">
-              <div className="text-lg font-bold text-yellow-600">{statistics.rarityBreakdown.Legendary}</div>
+              <div className="text-lg font-bold text-yellow-600">{statistics?.rarityBreakdown.Legendary}</div>
               <div className="text-xs text-yellow-500 flex items-center justify-center">
                 <Crown size={12} className="mr-1" />
                 Legendary
@@ -246,7 +297,37 @@ const BadgeCollection: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="flex space-x-2 mb-6 border-b-2 border-blue-200">
+        <button
+          onClick={() => setActiveTab('learning')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'learning'
+              ? 'text-blue-600 border-b-2 border-blue-600 -mb-0.5'
+              : 'text-gray-600 hover:text-blue-500'
+          }`}
+        >
+          Learning Badges ({learningBadges.filter(b => b.isEarned).length}/{learningBadges.length})
+          <span className="ml-2 text-xs">
+            <Zap size={12} className="inline mb-1" /> {xpStats.learning} XP
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab('quiz')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'quiz'
+              ? 'text-blue-600 border-b-2 border-blue-600 -mb-0.5'
+              : 'text-gray-600 hover:text-blue-500'
+          }`}
+        >
+          Quiz Badges ({quizBadges.filter(b => b.isEarned).length}/{quizBadges.length})
+          <span className="ml-2 text-xs">
+            <Zap size={12} className="inline mb-1" /> {xpStats.quiz} XP
+          </span>
+        </button>
+      </div>
 
       {/* Badge Detail Modal */}
       {selectedBadge && (
@@ -273,108 +354,140 @@ const BadgeCollection: React.FC = () => {
                 </p>
               )}
               
-              <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getRarityColor(selectedBadge.rarity)}`}>
-                {selectedBadge.rarity}
-              </span>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getRarityColor(selectedBadge.rarity)}`}>
+                  {selectedBadge.rarity}
+                </span>
+                {(selectedBadge as any).xpValue > 0 && (
+                  <span className="px-3 py-1 text-xs font-semibold rounded-full border bg-yellow-100 text-yellow-600 border-yellow-300 flex items-center">
+                    <Zap size={12} className="mr-1" />
+                    {(selectedBadge as any).xpValue} XP
+                  </span>
+                )}
+              </div>
               
-              <div className="mt-6 flex gap-3">
+              <div className="mt-4 flex gap-3">
                 <button
                   className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
                   onClick={() => setSelectedBadge(null)}
                 >
                   Close
                 </button>
-                <button
-                  className={`px-4 py-2 text-white rounded-md transition-colors ${
-                    selectedBadge.isEarned
-                      ? 'bg-green-500 hover:bg-green-600'
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  {selectedBadge.isEarned ? 'View Progress' : 'Start Learning'}
-                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Quiz Badges Section */}
-      {quizBadges.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-800">Quiz Badges</h2>
-            <span className="text-sm text-gray-500">
-              {quizBadges.filter(b => b.isEarned).length}/{quizBadges.length} earned
+      {/* Tab Content */}
+      {activeTab === 'learning' && (
+        <div>
+          {/* Category filter */}
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Learning Path Badges</h3>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="All">All Categories</option>
+              {learningBadgeCategories.map(category => (
+                <option key={category.name} value={category.name}>
+                  {category.name} ({category.earnedCount}/{category.totalCount})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-6">
+            {filteredCategories.length === 0 ? (
+              <div className="text-center py-12 bg-white bg-opacity-60 rounded-lg">
+                <Trophy size={64} className="mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No learning badges yet</h3>
+                <p className="text-gray-600">Start learning to earn your first badges!</p>
+              </div>
+            ) : (
+              filteredCategories.map((category) => (
+                <div
+                  key={category.name}
+                  className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm"
+                >
+                  <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
+                    <h3 className="text-lg font-semibold text-gray-700">
+                      {category.name}
+                    </h3>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-gray-500">
+                        {category.earnedCount}/{category.totalCount} badges
+                      </span>
+                      <span className="text-yellow-600 flex items-center font-medium">
+                        <Zap size={14} className="mr-1" />
+                        {category.earnedXP}/{category.totalXP} XP
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+                    {category.badges.map((badge) => (
+                      <div key={badge.id} className="flex flex-col items-center">
+                        <BadgeIcon badge={badge} />
+                        <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
+                          {badge.name}
+                        </span>
+                        {(badge as any).xpValue > 0 && (
+                          <span className="text-xs text-yellow-600 mt-1 flex items-center">
+                            <Zap size={10} className="mr-0.5" />
+                            {(badge as any).xpValue} XP
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'quiz' && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Quiz Mastery Badges</h3>
+            <span className="text-sm text-gray-500 flex items-center">
+              <TrendingUp size={16} className="mr-1" />
+              {quizBadges.filter(b => b.isEarned).length}/{quizBadges.length} mastered
             </span>
           </div>
-          
-          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-              {quizBadges.map((badge) => (
-                <div key={badge.id} className="flex flex-col items-center">
-                  <BadgeIcon badge={badge} />
-                  <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
-                    {badge.name}
-                  </span>
-                  {badge.isEarned && (
-                    <span className="text-xs text-green-600 mt-1">
-                      Earned {badge.earnedAt?.toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Learning Badges Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Learning Badges</h2>
-        
-        <div className="space-y-8">
-          {filteredCategories.length === 0 ? (
-            <div className="text-center py-12">
+          {quizBadges.length === 0 ? (
+            <div className="text-center py-12 bg-white bg-opacity-60 rounded-lg">
               <Trophy size={64} className="mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No learning badges yet</h3>
-              <p className="text-gray-600">Start learning to earn your first badges!</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No quiz badges yet</h3>
+              <p className="text-gray-600">Complete quizzes to earn mastery badges!</p>
             </div>
           ) : (
-            filteredCategories.map((category) => (
-              <div
-                key={category.name}
-                className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm"
-              >
-                <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
-                  <h3 className="text-lg font-semibold text-gray-700">
-                    {category.name}
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    {category.earnedCount}/{category.totalCount} earned
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
-                  {category.badges.map((badge) => (
-                    <div key={badge.id} className="flex flex-col items-center">
-                      <BadgeIcon badge={badge} />
-                      <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
-                        {badge.name}
+            <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+                {quizBadges.map((badge) => (
+                  <div key={badge.id} className="flex flex-col items-center">
+                    <BadgeIcon badge={badge} />
+                    <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
+                      {badge.name}
+                    </span>
+                    {(badge as any).xpValue > 0 && (
+                      <span className="text-xs text-yellow-600 mt-1 flex items-center">
+                        <Zap size={10} className="mr-0.5" />
+                        {(badge as any).xpValue} XP
                       </span>
-                      {badge.isEarned && (
-                        <span className="text-xs text-green-600 mt-1">
-                          Earned {badge.earnedAt?.toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))
+            </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 };

@@ -395,22 +395,32 @@ const QuizForm = ({
   onSave, 
   initialQuiz,
   parentQuizzes,
-  selectedParent 
+  selectedParent,
+  badges,
+  onManageBadge
 }: { 
   onClose: () => void; 
   onSave: (quiz: Quiz) => void; 
   initialQuiz?: Quiz;
   parentQuizzes: Quiz[];
   selectedParent?: Quiz;
+  badges: Badge[];
+  onManageBadge?: (quiz: Quiz) => void;
 }) => {
+  const [parentId, setParentId] = useState(
+    selectedParent?.id || initialQuiz?.parentId || ''
+  );
   const [title, setTitle] = useState(initialQuiz?.title || '');
   const [timer, setTimer] = useState(initialQuiz?.timer || 30);
-  const [parentId, setParentId] = useState(initialQuiz?.parentId || selectedParent?.id || '');
   const [questions, setQuestions] = useState<Question[]>(initialQuiz?.questions || []);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const existingBadge = initialQuiz ? badges.find(badge => 
+    badge.triggerType === 'quiz_mastery' && badge.triggerValue === initialQuiz.id
+  ) : null;
 
   const handleSaveQuestion = (question: Question) => {
     if (editingIndex !== null) {
@@ -485,15 +495,57 @@ const QuizForm = ({
           <X className="w-5 h-5" />
         </button>
       </div>
-      
-      {selectedParent && (
+
+      {/* Badge Management Section - Only in Edit Mode */}
+      {initialQuiz && !initialQuiz.isParent && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-3">
+                <Award className="w-5 h-5 text-blue-600" />
+                <h4 className="font-semibold text-gray-900">Mastery Badge</h4>
+              </div>
+              {existingBadge ? (
+                <div className="flex items-center space-x-3">
+                  <img src={existingBadge.image} alt="Badge" className="w-14 h-14 rounded-lg border-2 border-blue-300 shadow-sm" />
+                  <div>
+                    <p className="font-medium text-gray-900">{existingBadge.name}</p>
+                    <p className="text-sm text-gray-600 mb-1">{existingBadge.description}</p>
+                    <span className="inline-block text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Epic Badge • 90%+ Score</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600">Create a mastery badge that users earn by achieving 90%+ on this quiz</p>
+              )}
+            </div>
+            <button
+              onClick={() => onManageBadge && onManageBadge(initialQuiz)}
+              className={`ml-4 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center space-x-2 ${
+                existingBadge
+                  ? 'bg-white border border-blue-300 text-blue-700 hover:bg-blue-50'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <Award className="w-4 h-4" />
+              <span>{existingBadge ? 'Edit Badge' : 'Create Badge'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Category Info */}
+      {(selectedParent || (initialQuiz?.parentId && parentQuizzes.find(p => p.id === initialQuiz.parentId))) && (
         <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
           <p className="text-sm text-purple-800">
-            Adding to category: <strong>{selectedParent.title}</strong>
+            {selectedParent ? (
+              <>📁 Adding to category: <strong>{selectedParent.title}</strong></>
+            ) : (
+              <>📁 Current category: <strong>{parentQuizzes.find(p => p.id === initialQuiz?.parentId)?.title}</strong></>
+            )}
           </p>
         </div>
       )}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Quiz Title *</label>
@@ -518,21 +570,21 @@ const QuizForm = ({
           />
         </div>
 
-        {!selectedParent && (
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category (Optional)</label>
-            <select 
-              value={parentId} 
-              onChange={(e) => setParentId(e.target.value)}
-              className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">No category (standalone)</option>
-              {parentQuizzes.filter(p => p.isParent).map(parent => (
-                <option key={parent.id} value={parent.id}>{parent.title}</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Category (Optional)
+          </label>
+          <select 
+            value={parentId} 
+            onChange={(e) => setParentId(e.target.value)}
+            className="w-full border border-gray-300 px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">No category (standalone)</option>
+            {parentQuizzes.filter(p => p.isParent).map(parent => (
+              <option key={parent.id} value={parent.id}>{parent.title}</option>
+            ))}
+          </select>
+        </div>
       </div>
       
       <div className="mb-6">
@@ -1075,6 +1127,7 @@ export default function QuizManagement() {
     setShowSubQuizBadgeModal(false);
     setShowParentQuizBadgeModal(false);
     setSelectedQuizForBadge(null);
+    fetchData();
   };
 
   const parentQuizzes = quizzes.filter(quiz => quiz.isParent);
@@ -1131,6 +1184,8 @@ export default function QuizManagement() {
             initialQuiz={editingQuiz || undefined}
             parentQuizzes={quizzes}
             selectedParent={selectedParent || undefined}
+            badges={badges}
+            onManageBadge={handleManageSubQuizBadge}
           />
         )}
 
@@ -1189,7 +1244,6 @@ export default function QuizManagement() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Categories with quizzes */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {quizHierarchy.map((quiz) => (
                 <QuizCard 
@@ -1205,7 +1259,6 @@ export default function QuizManagement() {
               ))}
             </div>
 
-            {/* Standalone quizzes */}
             {standaloneSubQuizzes.length > 0 && (
               <div className="mt-8">
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
@@ -1234,7 +1287,6 @@ export default function QuizManagement() {
               </div>
             )}
 
-            {/* Info Panel */}
             <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center space-x-2">
                 <Award className="w-5 h-5 text-blue-600" />

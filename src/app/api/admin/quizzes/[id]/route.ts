@@ -1,4 +1,4 @@
-// app/api/admin/quizzes/[id]/route.ts - Updated for parent-child quiz support
+// app/api/admin/quizzes/[id]/route.ts - Updated for parent-child quiz support with badge cleanup
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
@@ -127,24 +127,6 @@ export async function PUT(
       }
     }
 
-    // Validate subjectDomain if provided
-    // const validSubjectDomains = [
-    //   'cybersecurity',
-    //   'crime_prevention',
-    //   'emergency_preparedness',
-    //   'financial_security',
-    //   'personal_safety',
-    //   'digital_literacy',
-    //   'risk_assessment'
-    // ];
-
-    // if (subjectDomain && !validSubjectDomains.includes(subjectDomain)) {
-    //   return NextResponse.json(
-    //     { error: `Invalid subject domain. Must be one of: ${validSubjectDomains.join(', ')}` },
-    //     { status: 400 }
-    //   );
-    // }
-
     // Handle parent quiz updates
     if (isParent || existingQuiz.isParent) {
       // Parent quizzes don't have questions - they're organizational containers
@@ -155,8 +137,6 @@ export async function PUT(
           timer: timer || 30,
           isParent: true,
           parentId: null, // Parent quizzes can't have parents
-          // subjectDomain: subjectDomain || null,
-          // skillArea: skillArea ? skillArea.trim() : null,
         },
         include: {
           children: {
@@ -194,8 +174,6 @@ export async function PUT(
         timer: timer || 30,
         parentId: parentId || null,
         isParent: false,
-        // subjectDomain: subjectDomain || null,
-        // skillArea: skillArea ? skillArea.trim() : null,
         questions: {
           deleteMany: {}, // Delete all existing questions
           create: questions.map((q: any) => ({
@@ -235,7 +213,7 @@ export async function PUT(
   }
 }
 
-// DELETE - Delete a quiz (with parent-child cascade handling)
+// DELETE - Delete a quiz (with parent-child cascade handling AND badge cleanup)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -269,8 +247,14 @@ export async function DELETE(
 
     // Use transaction to handle quiz deletion and related data
     await prisma.$transaction(async (prisma) => {
+      // Collect all quiz IDs that need badge cleanup
+      const quizIdsToCleanup = [params.id];
+      
       // If deleting a parent quiz, handle children
       if (existingQuiz.isParent && existingQuiz.children.length > 0) {
+        // Add all child quiz IDs to cleanup list
+        quizIdsToCleanup.push(...existingQuiz.children.map(child => child.id));
+        
         // Convert children to standalone quizzes (remove parent reference)
         await prisma.quiz.updateMany({
           where: { parentId: params.id },
@@ -279,6 +263,29 @@ export async function DELETE(
         
         console.log(`Converted ${existingQuiz.children.length} sub-quizzes to standalone quizzes`);
       }
+
+      // Delete all badges associated with this quiz (and its children if parent)
+      // This handles both quiz_mastery and parent_quiz_mastery badges
+      const deletedBadges = await prisma.badge.deleteMany({
+        where: {
+          OR: [
+            {
+              // Delete quiz mastery badges for this quiz and all its children
+              triggerType: 'quiz_mastery',
+              triggerValue: {
+                in: quizIdsToCleanup
+              }
+            },
+            {
+              // Delete parent quiz mastery badge if this is a parent quiz
+              triggerType: 'parent_quiz_mastery',
+              triggerValue: params.id
+            }
+          ]
+        }
+      });
+
+      console.log(`Deleted ${deletedBadges.count} badge(s) associated with quiz(es)`);
 
       // Delete the quiz (questions will be cascade deleted due to schema relationship)
       await prisma.quiz.delete({
@@ -289,10 +296,14 @@ export async function DELETE(
     });
 
     const message = existingQuiz.isParent 
-      ? `Parent quiz deleted successfully. ${existingQuiz.children.length} sub-quizzes converted to standalone quizzes.`
-      : 'Quiz deleted successfully. Associated mastery badges may need cleanup.';
+      ? `Parent quiz and associated badges deleted successfully. ${existingQuiz.children.length} sub-quizzes converted to standalone quizzes.`
+      : 'Quiz and associated badges deleted successfully.';
 
-    return NextResponse.json({ message });
+    return NextResponse.json({ 
+      message,
+      deletedQuizType: existingQuiz.isParent ? 'parent' : 'regular',
+      affectedSubQuizzes: existingQuiz.children.length
+    });
   } catch (error) {
     console.error('Error deleting quiz:', error);
     return NextResponse.json(

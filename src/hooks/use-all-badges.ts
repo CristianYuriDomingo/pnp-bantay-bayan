@@ -17,6 +17,7 @@ export interface BadgeWithProgress {
   isEarned: boolean;
   createdAt: Date;
   updatedAt: Date;
+  xpValue: number;
 }
 
 export interface BadgeStats {

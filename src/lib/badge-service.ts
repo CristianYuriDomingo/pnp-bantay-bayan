@@ -224,13 +224,26 @@ export class BadgeService {
    */
   private static async awardBadgeToUser(userId: string, badgeId: string): Promise<any | null> {
     try {
+      // Fetch badge to get xpValue
+      const badge = await prisma.badge.findUnique({
+        where: { id: badgeId },
+        select: { id: true, xpValue: true, name: true }
+      });
+
+      if (!badge) {
+        console.error(`Badge ${badgeId} not found`);
+        return null;
+      }
+
       const userBadge = await prisma.userBadge.create({
         data: {
           userId: userId,
-          badgeId: badgeId
+          badgeId: badgeId,
+          xpAwarded: badge.xpValue // ✅ NOW SETTING XP!
         }
       });
 
+      console.log(`💎 Awarded ${badge.xpValue} XP for badge "${badge.name}"`);
       return userBadge;
     } catch (error) {
       console.error(`Failed to award badge ${badgeId} to user ${userId}:`, error);

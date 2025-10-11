@@ -1,9 +1,9 @@
-// app/api/users/progress/lesson/[lessonId]/route.ts - FIXED with Badge Integration
+// app/api/users/progress/lesson/[lessonId]/route.ts - COMPLETE FIXED VERSION
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'
-import { BadgeService } from '@/lib/badge-service' // 🆕 ADDED: Import BadgeService
+import { BadgeService } from '@/lib/badge-service'
 
 function addCacheHeaders(response: Response): Response {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -112,16 +112,32 @@ export async function POST(
 ) {
   try {
     const user = await getApiUser(request)
-    
+   
     if (!user) {
       return addCacheHeaders(createAuthErrorResponse('Authentication required', 401))
+    }
+
+    // ✅ FIX: Fetch complete user data including level and totalXP
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        level: true,
+        totalXP: true,
+      }
+    })
+
+    if (!fullUser) {
+      return addCacheHeaders(createAuthErrorResponse('User not found', 404))
     }
 
     const { lessonId } = params
     const body = await request.json()
     const { timeSpent = 0, progress = 100 } = body
 
-    console.log(`📚 User ${user.email} (ID: ${user.id}) completing lesson ${lessonId}`)
+    console.log(`📚 User ${fullUser.email} (ID: ${fullUser.id}) completing lesson ${lessonId}`)
 
     // Verify lesson exists and get module info
     const lesson = await prisma.lesson.findUnique({
@@ -145,7 +161,7 @@ export async function POST(
     const existingProgress = await prisma.userProgress.findUnique({
       where: {
         userId_moduleId_lessonId: {
-          userId: user.id,
+          userId: fullUser.id,
           moduleId: lesson.moduleId,
           lessonId: lessonId
         }
@@ -156,7 +172,7 @@ export async function POST(
 
     // Use the safe upsert function with retry logic
     const upsertResult = await safeUpsertProgress(
-      user.id,
+      fullUser.id,
       lesson.moduleId,
       lessonId,
       timeSpent,
@@ -164,7 +180,7 @@ export async function POST(
     );
 
     if (!upsertResult.success || !upsertResult.data) {
-      console.error(`❌ Failed to update progress for user ${user.email}:`, upsertResult.error);
+      console.error(`❌ Failed to update progress for user ${fullUser.email}:`, upsertResult.error);
       return addCacheHeaders(createAuthErrorResponse(
         `Failed to update lesson progress: ${upsertResult.error}`, 
         500
@@ -173,17 +189,11 @@ export async function POST(
 
     const lessonProgress = upsertResult.data;
 
-    // Verify the created/updated record belongs to this user
-    if (lessonProgress.userId !== user.id) {
-      console.error(`🚨 CRITICAL: Progress record user mismatch! Expected: ${user.id}, Got: ${lessonProgress.userId}`);
-      return addCacheHeaders(createAuthErrorResponse('Data integrity error', 500));
-    }
-
     // Calculate module progress - ONLY for this user with additional verification
     const allLessonsInModule = lesson.module.lessons.map(l => l.id)
     const completedLessonsInModule = await prisma.userProgress.count({
       where: {
-        userId: user.id, // 🔒 CRITICAL: Only this user's progress
+        userId: fullUser.id,
         moduleId: lesson.moduleId,
         lessonId: {
           in: allLessonsInModule
@@ -192,36 +202,10 @@ export async function POST(
       }
     })
 
-    // Double-check by fetching the actual records to verify they all belong to this user
-    const completedProgressRecords = await prisma.userProgress.findMany({
-      where: {
-        userId: user.id,
-        moduleId: lesson.moduleId,
-        lessonId: {
-          in: allLessonsInModule
-        },
-        completed: true
-      },
-      select: { userId: true, lessonId: true }
-    });
-
-    // Verify all records belong to this user
-    const invalidRecords = completedProgressRecords.filter(record => record.userId !== user.id);
-    if (invalidRecords.length > 0) {
-      console.error(`🚨 CRITICAL: Found ${invalidRecords.length} progress records with wrong userId`);
-      return addCacheHeaders(createAuthErrorResponse('Data integrity error in progress calculation', 500));
-    }
-
-    console.log(`📈 User ${user.email} has completed ${completedLessonsInModule}/${allLessonsInModule.length} lessons in module ${lesson.moduleId}`)
-
     const moduleProgressPercentage = Math.round((completedLessonsInModule / allLessonsInModule.length) * 100)
     const isModuleCompleted = completedLessonsInModule === allLessonsInModule.length
 
-    if (isModuleCompleted) {
-      console.log(`🎉 User ${user.email} completed entire module ${lesson.moduleId}!`)
-    }
-
-    // 🆕 NEW: Award badges for lesson completion (only if not already completed)
+    // Badge awarding (only if not already completed)
     let badgeResult: {
       success: boolean;
       newBadges: any[];
@@ -233,39 +217,57 @@ export async function POST(
     };
 
     if (!isAlreadyCompleted) {
-      console.log(`🏆 Checking badges for user ${user.email} on lesson ${lessonId}`);
-      
+      console.log(`🏆 Checking badges for user ${fullUser.email} on lesson ${lessonId}`);
+     
       try {
         badgeResult = await BadgeService.awardBadgesForLessonCompletion(
-          user.id,
+          fullUser.id,
           lessonId,
           lesson.moduleId
         );
 
         if (badgeResult.success && badgeResult.newBadges.length > 0) {
-          console.log(`🎊 SUCCESS: User ${user.email} earned ${badgeResult.newBadges.length} new badges!`);
-        } else if (badgeResult.errors.length > 0) {
-          console.warn(`⚠️ Badge awarding had errors for user ${user.email}:`, badgeResult.errors);
-        } else {
-          console.log(`ℹ️ No new badges awarded for user ${user.email} on lesson ${lessonId}`);
+          console.log(`🎊 SUCCESS: User ${fullUser.email} earned ${badgeResult.newBadges.length} new badges!`);
         }
       } catch (error) {
-        console.error(`❌ Badge awarding failed for user ${user.email}:`, error);
+        console.error(`❌ Badge awarding failed for user ${fullUser.email}:`, error);
         badgeResult = {
           success: false,
           newBadges: [],
           errors: [error instanceof Error ? error.message : 'Unknown badge error']
         };
       }
-    } else {
-      console.log(`⏭️ Lesson ${lessonId} already completed for user ${user.email}, skipping badge check`);
     }
 
-    // 🆕 NEW: Enhanced response with badge information
+    // ✅ UPDATE USER XP AND LEVEL
+    let totalXPGained = 0;
+    let newLevel = fullUser.level;
+    let newTotalXP = fullUser.totalXP;
+
+    if (badgeResult.newBadges.length > 0) {
+      totalXPGained = badgeResult.newBadges.reduce((sum, badge) => sum + (badge.xpValue || 0), 0);
+      
+      if (totalXPGained > 0) {
+        newTotalXP = fullUser.totalXP + totalXPGained;
+        newLevel = Math.floor(newTotalXP / 100) + 1;
+
+        await prisma.user.update({
+          where: { id: fullUser.id },
+          data: {
+            totalXP: newTotalXP,
+            level: newLevel
+          }
+        });
+
+        console.log(`💎 User ${fullUser.email} gained ${totalXPGained} XP! New total: ${newTotalXP} XP (Level ${newLevel})`);
+      }
+    }
+
+    // Enhanced response with XP information
     const response = createSuccessResponse({
       lessonProgress: {
         ...lessonProgress,
-        userId: user.id // Explicitly include userId for verification
+        userId: fullUser.id
       },
       moduleProgress: {
         moduleId: lesson.moduleId,
@@ -273,15 +275,21 @@ export async function POST(
         completed: isModuleCompleted,
         completedLessons: completedLessonsInModule,
         totalLessons: allLessonsInModule.length,
-        userId: user.id // 🔒 Include user ID for verification
+        userId: fullUser.id
       },
       badges: {
         success: badgeResult.success,
         newBadges: badgeResult.newBadges,
         badgeCount: badgeResult.newBadges.length,
         errors: badgeResult.errors
+      },
+      xp: {
+        gained: totalXPGained,
+        newTotal: newTotalXP,
+        newLevel: newLevel,
+        leveledUp: newLevel > fullUser.level
       }
-    }, `Lesson progress updated successfully for ${user.email}${badgeResult.newBadges.length > 0 ? ` - ${badgeResult.newBadges.length} new badges earned!` : ''}`)
+    }, `Lesson progress updated successfully for ${fullUser.email}${badgeResult.newBadges.length > 0 ? ` - ${badgeResult.newBadges.length} new badges earned!` : ''}${totalXPGained > 0 ? ` +${totalXPGained} XP!` : ''}`)
 
     return addCacheHeaders(response)
 
@@ -323,7 +331,7 @@ export async function GET(
     const progress = await prisma.userProgress.findUnique({
       where: {
         userId_moduleId_lessonId: {
-          userId: user.id, // 🔒 CRITICAL: Only this user's progress
+          userId: user.id,
           moduleId: lesson.moduleId,
           lessonId: lessonId
         }

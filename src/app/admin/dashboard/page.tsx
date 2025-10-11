@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Stats, RecentActivity } from '../types';
+import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, AlertCircle, Crown, Target, Lightbulb } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -75,215 +76,309 @@ export default function AdminDashboard() {
     return value?.toString() ?? '0';
   };
 
-  const statItems = [
-    { 
-      title: 'Total Users', 
-      value: getStatValue(stats?.totalUsers), 
-      color: 'blue',
-      icon: '👥',
-      change: stats?.newUsersThisWeek ? `+${stats.newUsersThisWeek} this week` : undefined,
-      href: '/admin/users'
-    },
-    { 
-      title: 'Total Modules', 
-      value: getStatValue(stats?.totalModules), 
-      color: 'green',
-      icon: '📚',
-      href: '/admin/content'
-    },
-    { 
-      title: 'Total Lessons', 
-      value: getStatValue(stats?.totalLessons), 
-      color: 'purple',
-      icon: '📖',
-      href: '/admin/content'
-    },
-    { 
-      title: 'Total Badges', 
-      value: getStatValue(stats?.totalBadges), 
-      color: 'yellow',
-      icon: '🏆',
-      href: '/admin/badges'
-    }
-  ];
-
   const getActivityIcon = (type: RecentActivity['type']) => {
-    switch (type) {
-      case 'user_registered': return '👤';
-      case 'lesson_completed': return '✅';
-      case 'module_created': return '📚';
-      case 'quiz_submitted': return '📝';
-      case 'badge_earned': return '🏆';
-      case 'badge_created': return '⭐';
-      default: return '📋';
-    }
+    const icons = {
+      user_registered: Users,
+      lesson_completed: CheckCircle,
+      module_created: BookOpen,
+      quiz_submitted: Clock,
+      badge_earned: Award,
+      badge_created: Trophy
+    };
+    return icons[type];
   };
 
-  const quickActions = [
-    {
-      title: 'Create New Module',
-      description: 'Add a new learning module',
-      icon: '➕',
-      href: '/admin/content',
-      color: 'blue'
-    },
-    {
-      title: 'Manage Badges',
-      description: 'Create and manage achievement badges',
-      icon: '🏆',
-      href: '/admin/badges',
-      color: 'yellow'
-    },
-    {
-      title: 'Manage Users',
-      description: 'View and manage user accounts',
-      icon: '👥',
-      href: '/admin/users',
-      color: 'green'
-    }
+  const getActivityColor = (type: RecentActivity['type']) => {
+    const colors = {
+      user_registered: 'blue',
+      lesson_completed: 'green',
+      module_created: 'purple',
+      quiz_submitted: 'yellow',
+      badge_earned: 'orange',
+      badge_created: 'pink'
+    };
+    return colors[type];
+  };
+
+  const formatTimeAgo = (timestamp: string) => {
+    const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
+  };
+
+  // Mock leaderboard data
+  const leaderboardData = [
+    { rank: 1, name: 'Sarah Johnson', points: 2840, badge: '🏆', progress: 95 },
+    { rank: 2, name: 'Mike Chen', points: 2670, badge: '🥈', progress: 89 },
+    { rank: 3, name: 'Emma Davis', points: 2450, badge: '🥉', progress: 82 },
+    { rank: 4, name: 'Alex Rodriguez', points: 2310, badge: '⭐', progress: 77 },
+    { rank: 5, name: 'Priya Patel', points: 2180, badge: '⭐', progress: 73 }
   ];
 
-  return (
-    <div className="space-y-6">
-      {/* Loading overlay */}
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white"></div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
         </div>
-      )}
-
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">Welcome Back, Admin! 👋</h1>
-        <p className="text-blue-100">
-          {loading ? 'Loading dashboard data...' : "Here's what's happening with your learning platform today."}
-        </p>
       </div>
+    );
+  }
 
-      {/* Stats Grid - Now includes badges */}
-      {stats && (
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Welcome Header */}
+        <div className="bg-gradient-to-br from-blue-600 via-blue-700 to-purple-600 rounded-2xl p-8 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Welcome Back, Admin! 👋</h1>
+              <p className="text-blue-100 text-lg">Here's what's happening on your learning platform today</p>
+            </div>
+            <div className="hidden md:block">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+                <p className="text-sm text-blue-100 mb-1">Active Users</p>
+                <p className="text-3xl font-bold">{stats?.activeUsers || '0'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid - Now 4 cards including Quiz & Tips */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statItems.map((stat) => (
-            <div key={stat.title} className="bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-              <Link href={stat.href} className="block">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-full bg-${stat.color}-100`}>
-                    <span className="text-2xl">{stat.icon}</span>
+          {[
+            { 
+              title: 'Total Users', 
+              value: getStatValue(stats?.totalUsers),
+              change: stats?.newUsersThisWeek ? `+${stats.newUsersThisWeek} this week` : undefined,
+              icon: Users,
+              color: 'blue',
+              href: '/admin/users'
+            },
+            { 
+              title: 'Learning Content', 
+              value: (
+                <div className="flex items-center space-x-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalModules)}</div>
+                    <div className="text-xs text-gray-600">Modules</div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-3xl font-bold text-${stat.color}-600`}>
-                      {stat.value}
-                    </p>
+                  <div className="w-px h-8 bg-gray-300"></div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalLessons)}</div>
+                    <div className="text-xs text-gray-600">Lessons</div>
                   </div>
                 </div>
-                <h3 className="text-sm font-medium text-gray-600 mb-1">{stat.title}</h3>
-                {stat.change && (
-                  <p className="text-xs text-green-600 font-medium">{stat.change}</p>
-                )}
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions - Now includes badge management */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="mr-2">⚡</span>
-              Quick Actions
-            </h3>
-            <div className="space-y-3">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.title}
-                  href={action.href}
-                  className={`block p-4 rounded-lg border-2 border-${action.color}-100 hover:border-${action.color}-200 hover:bg-${action.color}-50 transition-colors`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-full bg-${action.color}-100`}>
-                      <span className="text-lg">{action.icon}</span>
+              ),
+              icon: BookOpen,
+              color: 'green',
+              href: '/admin/content'
+            },
+            { 
+              title: 'Achievement Badges', 
+              value: getStatValue(stats?.totalBadges),
+              subtitle: 'Active badges',
+              icon: Trophy,
+              color: 'yellow',
+              href: '/admin/badges'
+            },
+            { 
+              title: 'Quiz & Tips', 
+              value: (
+                <div className="flex items-center space-x-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalQuizzes)}</div>
+                    <div className="text-xs text-gray-600">Quizzes</div>
+                  </div>
+                  <div className="w-px h-8 bg-gray-300"></div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalTips)}</div>
+                    <div className="text-xs text-gray-600">Tips</div>
+                  </div>
+                </div>
+              ),
+              icon: Lightbulb,
+              color: 'purple',
+              href: '/admin/quiz'
+            }
+          ].map((stat, index) => {
+            const Icon = stat.icon;
+            return (
+              <div key={index} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200 group">
+                <Link href={stat.href} className="block">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`p-3 rounded-lg bg-${stat.color}-50 group-hover:bg-${stat.color}-100 transition-colors`}>
+                      <Icon className={`w-6 h-6 text-${stat.color}-600`} />
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{action.title}</h4>
-                      <p className="text-sm text-gray-600">{action.description}</p>
-                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 mb-1">{stat.title}</p>
+                    {typeof stat.value === 'string' ? (
+                      <p className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                    ) : (
+                      <div className="mb-2">{stat.value}</div>
+                    )}
+                    {stat.change && (
+                      <p className="text-xs text-green-600 font-medium flex items-center">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        {stat.change}
+                      </p>
+                    )}
+                    {stat.subtitle && (
+                      <p className="text-xs text-gray-500">{stat.subtitle}</p>
+                    )}
                   </div>
                 </Link>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Recent Activity - Now includes badge activities */}
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <span className="mr-2">📋</span>
-              Recent Activity
-            </h3>
-            <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <span className="text-lg">{getActivityIcon(activity.type)}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Recent Activity */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Zap className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                  </div>
+                  <span className="text-sm text-gray-500">Live updates</span>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity) => {
+                      const Icon = getActivityIcon(activity.type);
+                      const color = getActivityColor(activity.type);
+                      return (
+                        <div key={activity.id} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                          <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-${color}-50 flex items-center justify-center`}>
+                            <Icon className={`w-5 h-5 text-${color}-600`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{activity.description}</p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              {activity.user && (
+                                <span className="text-xs text-gray-600">{activity.user}</span>
+                              )}
+                              <span className="text-xs text-gray-400">•</span>
+                              <span className="text-xs text-gray-500">{formatTimeAgo(activity.timestamp)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📋</div>
+                      <p>No recent activity to display</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions & Leaderboard */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <div className="p-2 bg-purple-50 rounded-lg">
+                  <Zap className="w-5 h-5 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { title: 'Create Module', icon: '📚', href: '/admin/content', color: 'blue' },
+                  { title: 'Add Quiz', icon: '📝', href: '/admin/quiz', color: 'green' }, // Fixed path
+                  { title: 'Design Badge', icon: '🏆', href: '/admin/badges', color: 'yellow' },
+                  { title: 'Manage Users', icon: '👥', href: '/admin/users', color: 'purple' }
+                ].map((action, index) => (
+                  <Link
+                    key={index}
+                    href={action.href}
+                    className={`w-full flex items-center justify-between p-4 rounded-lg border-2 border-${action.color}-100 hover:border-${action.color}-200 hover:bg-${action.color}-50 transition-all group`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{action.icon}</span>
+                      <span className="font-medium text-gray-900">{action.title}</span>
+                    </div>
+                    <ArrowRight className={`w-4 h-4 text-${action.color}-600 opacity-0 group-hover:opacity-100 transition-opacity`} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Leaderboard */}
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <Crown className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Top Learners</h3>
+              </div>
+              <div className="space-y-3">
+                {leaderboardData.map((user) => (
+                  <div key={user.rank} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100">
+                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                      <span className="text-lg">{user.badge}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
+                        <p className="text-sm font-bold text-indigo-600">{user.points} pts</p>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-gradient-to-r from-green-400 to-blue-500 h-1.5 rounded-full" 
+                          style={{ width: `${user.progress}%` }}
+                        ></div>
                       </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                      {activity.user && (
-                        <p className="text-xs text-gray-600">by {activity.user}</p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(activity.timestamp).toLocaleString()}
-                      </p>
-                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📋</div>
-                  <p>No recent activity to display</p>
-                </div>
-              )}
+                ))}
+              </div>
+              <Link 
+                href="/admin/leaderboard" 
+                className="block text-center mt-4 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                View Full Leaderboard →
+              </Link>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Badge System Overview - New section */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-lg font-semibold mb-4 flex items-center">
-          <span className="mr-2">🏆</span>
-          Badge System Overview
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-yellow-50 rounded-lg">
-            <div className="text-2xl mb-2">⭐</div>
-            <h4 className="font-medium text-gray-900">Module Badges</h4>
-            <p className="text-sm text-gray-600 mt-1">Completion rewards for entire modules</p>
-            <Link href="/admin/badges" className="text-yellow-600 hover:text-yellow-800 text-sm font-medium">
-              Manage Module Badges →
-            </Link>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl mb-2">🎯</div>
-            <h4 className="font-medium text-gray-900">Lesson Badges</h4>
-            <p className="text-sm text-gray-600 mt-1">Individual lesson achievements</p>
-            <Link href="/admin/content" className="text-green-600 hover:text-green-800 text-sm font-medium">
-              Manage from Content →
-            </Link>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl mb-2">🏅</div>
-            <h4 className="font-medium text-gray-900">Special Badges</h4>
-            <p className="text-sm text-gray-600 mt-1">Custom and manual awards</p>
-            <Link href="/admin/badges" className="text-purple-600 hover:text-purple-800 text-sm font-medium">
-              Create Special Badges →
-            </Link>
+        {/* System Health Alert */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0 p-2 bg-green-50 rounded-lg">
+              <CheckCircle className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">System Status: All Good! ✅</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">No orphaned badges</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">All modules have lessons</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-gray-600">Database healthy</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

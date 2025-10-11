@@ -48,6 +48,7 @@ export interface Stats {
   totalLessons: number;
   totalTips: number;
   totalBadges: number; // Added badge count
+  totalQuizzes: number; // ADD THIS LINE - Quiz count
   activeUsers: number;
   completedLessons: number;
   averageScore: number;
