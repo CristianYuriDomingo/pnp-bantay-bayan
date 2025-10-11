@@ -58,6 +58,13 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       alt: 'Quiz'
     },
     { 
+    name: 'Leaderboard',
+    href: '/users/leaderboard', 
+    icon: '/DashboardImage/quiz.png', 
+    alt: 'Leaderboard',
+    type: 'lucide'
+  },
+    { 
       name: 'Profile', 
       href: '/users/profile', 
       icon: '/DashboardImage/profile.png',
