@@ -88,13 +88,18 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
   const [first, second, third] = topThree
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm mb-6">
+    <div className="bg-blue-50 rounded-2xl p-6 shadow-sm mb-6 border-2 border-blue-200">
       <div className="flex items-end justify-center gap-4 md:gap-8">
         {/* Second Place */}
         {second && (
-          <div className={`flex flex-col items-center ${currentUserId === second.userId ? 'opacity-100' : ''}`}>
-            <div className="mb-2">
+          <div className={`flex flex-col items-center ${currentUserId === second.userId ? 'ring-2 ring-blue-500 rounded-2xl p-3 bg-white' : ''}`}>
+            <div className="mb-2 relative">
               <UserAvatar image={second.image} name={second.displayName} size={56} />
+              {currentUserId === second.userId && (
+                <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  YOU
+                </div>
+              )}
             </div>
             <RankBadge rank={2} size="md" />
             <div className="mt-2 text-center">
@@ -112,9 +117,14 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
 
         {/* First Place */}
         {first && (
-          <div className={`flex flex-col items-center ${currentUserId === first.userId ? 'opacity-100' : ''}`}>
-            <div className="mb-2">
+          <div className={`flex flex-col items-center ${currentUserId === first.userId ? 'ring-2 ring-blue-500 rounded-2xl p-3 bg-white' : ''}`}>
+            <div className="mb-2 relative">
               <UserAvatar image={first.image} name={first.displayName} size={68} />
+              {currentUserId === first.userId && (
+                <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  YOU
+                </div>
+              )}
             </div>
             <RankBadge rank={1} size="lg" />
             <div className="mt-2 text-center">
@@ -132,9 +142,14 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
 
         {/* Third Place */}
         {third && (
-          <div className={`flex flex-col items-center ${currentUserId === third.userId ? 'opacity-100' : ''}`}>
-            <div className="mb-2">
+          <div className={`flex flex-col items-center ${currentUserId === third.userId ? 'ring-2 ring-blue-500 rounded-2xl p-3 bg-white' : ''}`}>
+            <div className="mb-2 relative">
               <UserAvatar image={third.image} name={third.displayName} size={56} />
+              {currentUserId === third.userId && (
+                <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-sm">
+                  YOU
+                </div>
+              )}
             </div>
             <RankBadge rank={3} size="md" />
             <div className="mt-2 text-center">
@@ -216,59 +231,59 @@ const UserRankCard: React.FC = () => {
   }
 
   return (
-    <div className="bg-blue-500 rounded-2xl p-5 shadow-sm mb-4 text-white">
+    <div className="bg-blue-50 rounded-2xl p-5 shadow-sm mb-4 border-2 border-blue-200">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <RankBadge rank={rankInfo.rank} size="lg" />
           <div>
-            <p className="text-xs font-medium text-blue-100">Your Rank</p>
-            <p className="text-2xl font-semibold">#{rankInfo.rank}</p>
+            <p className="text-xs font-medium text-gray-500">Your Rank</p>
+            <p className="text-2xl font-semibold text-gray-800">#{rankInfo.rank}</p>
           </div>
         </div>
-        <div className="text-right bg-blue-600 rounded-xl px-3 py-2">
-          <p className="text-xs font-medium text-blue-200">Level</p>
-          <p className="text-xl font-semibold">{rankInfo.level}</p>
+        <div className="text-right bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl px-4 py-2 shadow-sm">
+          <p className="text-xs font-medium text-blue-100">Level</p>
+          <p className="text-xl font-semibold text-white">{rankInfo.level}</p>
         </div>
       </div>
 
       <div className="space-y-3">
         {/* XP Progress */}
-        <div className="bg-blue-600 rounded-xl p-3">
+        <div className="bg-white rounded-xl p-3 border border-blue-200">
           <div className="flex justify-between text-xs mb-2 font-medium">
-            <span>XP Progress</span>
-            <span className="text-yellow-300">{rankInfo.totalXP} XP</span>
+            <span className="text-gray-700">XP Progress</span>
+            <span className="text-blue-600 font-semibold">{rankInfo.totalXP} XP</span>
           </div>
-          <div className="w-full bg-blue-700 rounded-full h-3">
+          <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
             <div 
-              className="bg-yellow-400 h-full rounded-full transition-all"
+              className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all shadow-sm"
               style={{ width: `${rankInfo.percentToNextLevel}%` }}
             ></div>
           </div>
-          <p className="text-xs text-blue-200 mt-1 font-medium">
+          <p className="text-xs text-gray-600 mt-1 font-medium">
             {rankInfo.xpToNextLevel} XP to Level {rankInfo.level + 1}
           </p>
         </div>
 
         {/* Climb to next rank */}
         {rankInfo.xpBehindNext !== null && (
-          <div className="bg-blue-600 rounded-xl p-3">
-            <p className="text-xs font-semibold mb-1 flex items-center">
-              <TrendingUp size={14} className="mr-1" />
+          <div className="bg-white rounded-xl p-3 border border-blue-200">
+            <p className="text-xs font-semibold mb-1 flex items-center text-gray-700">
+              <TrendingUp size={14} className="mr-1 text-blue-500" />
               Catch the next player!
             </p>
-            <p className="text-xs font-medium">
-              Need <span className="text-yellow-300">{rankInfo.xpBehindNext} more XP</span>
+            <p className="text-xs font-medium text-gray-600">
+              Need <span className="text-blue-600 font-semibold">{rankInfo.xpBehindNext} more XP</span>
             </p>
           </div>
         )}
 
         {/* Badge stats */}
-        <div className="flex items-center justify-between bg-blue-600 rounded-xl p-3">
-          <span className="flex items-center text-sm font-medium">
-            <Trophy size={16} className="mr-2 text-yellow-300" />
+        <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-blue-200">
+          <span className="flex items-center text-sm font-medium text-gray-700">
+            <Trophy size={16} className="mr-2 text-blue-500" />
             Badges
           </span>
-          <span className="font-semibold text-base">{rankInfo.earnedBadges}/{rankInfo.totalBadges}</span>
+          <span className="font-semibold text-base text-gray-800">{rankInfo.earnedBadges}/{rankInfo.totalBadges}</span>
         </div>
       </div>
     </div>
@@ -409,13 +424,13 @@ export default function LeaderboardPage() {
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-6">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gradient-to-r from-blue-600 to-blue-400">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rank</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Player</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Level</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">XP</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Badges</th>
+                  <th className="px-4 py-4 text-left text-sm font-bold text-white uppercase tracking-wide">Rank</th>
+                  <th className="px-4 py-4 text-left text-sm font-bold text-white uppercase tracking-wide">Player</th>
+                  <th className="px-4 py-4 text-center text-sm font-bold text-white uppercase tracking-wide">Level</th>
+                  <th className="px-4 py-4 text-center text-sm font-bold text-white uppercase tracking-wide">XP</th>
+                  <th className="px-4 py-4 text-center text-sm font-bold text-white uppercase tracking-wide">Badges</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -425,7 +440,7 @@ export default function LeaderboardPage() {
                     <tr 
                       key={entry.userId}
                       className={`hover:bg-blue-50 transition-colors ${
-                        isCurrentUser ? 'bg-blue-50' : ''
+                        isCurrentUser ? 'bg-blue-50 border-l-4 border-blue-500' : ''
                       }`}
                     >
                       <td className="px-4 py-4">
@@ -433,13 +448,18 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <UserAvatar image={entry.image} name={entry.displayName} size={40} />
+                          <div className="relative">
+                            <UserAvatar image={entry.image} name={entry.displayName} size={40} />
+                            {isCurrentUser && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full border-2 border-white"></div>
+                            )}
+                          </div>
                           <div>
                             <p className="font-medium text-gray-800">
                               {entry.displayName}
                               {isCurrentUser && (
-                                <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-medium">
-                                  You
+                                <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold">
+                                  YOU
                                 </span>
                               )}
                             </p>
@@ -447,18 +467,24 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="inline-flex items-center justify-center w-9 h-9 bg-purple-100 text-purple-700 rounded-full font-semibold text-sm">
+                        <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full font-semibold text-sm ${
+                          isCurrentUser ? 'bg-blue-500 text-white' : 'bg-purple-100 text-purple-700'
+                        }`}>
                           {entry.level}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1 text-blue-600 font-semibold">
+                        <div className={`flex items-center justify-center gap-1 font-semibold ${
+                          isCurrentUser ? 'text-blue-600' : 'text-blue-600'
+                        }`}>
                           <Zap size={14} fill="currentColor" />
                           {entry.totalXP}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className="text-gray-700 font-medium">
+                        <span className={`font-medium ${
+                          isCurrentUser ? 'text-blue-700 font-semibold' : 'text-gray-700'
+                        }`}>
                           {entry.earnedBadges}/{entry.totalBadges}
                         </span>
                       </td>
@@ -501,13 +527,19 @@ export default function LeaderboardPage() {
 
         {/* Show current user if not in visible range */}
         {currentUserEntry && !leaderboard.find(e => e.userId === user?.id) && (
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <p className="text-sm text-blue-800 font-semibold mb-3">Your Position</p>
-            <div className="bg-white rounded-xl p-4">
+          <div className="bg-blue-50 border-2 border-blue-500 rounded-2xl p-4">
+            <p className="text-sm text-blue-800 font-semibold mb-3 flex items-center">
+              <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full mr-2">YOU</span>
+              Your Position
+            </p>
+            <div className="bg-white rounded-xl p-4 border-l-4 border-blue-500">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <RankBadge rank={currentUserEntry.rank} size="md" />
-                  <UserAvatar image={currentUserEntry.image} name={currentUserEntry.displayName} size={48} />
+                  <div className="relative">
+                    <UserAvatar image={currentUserEntry.image} name={currentUserEntry.displayName} size={48} />
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full border-2 border-white"></div>
+                  </div>
                   <div>
                     <p className="font-semibold text-gray-800">{currentUserEntry.displayName}</p>
                     <p className="text-sm text-gray-600 font-medium">Rank #{currentUserEntry.rank}</p>

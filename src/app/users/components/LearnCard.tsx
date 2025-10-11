@@ -412,4 +412,4 @@ const LearnCard: React.FC<LearnCardProps> = ({
   );
 };
 
-export default LearnCard;
+export default LearnCard;  

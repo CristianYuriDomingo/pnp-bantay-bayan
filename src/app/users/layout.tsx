@@ -60,7 +60,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     { 
     name: 'Leaderboard',
     href: '/users/leaderboard', 
-    icon: '/DashboardImage/quiz.png', 
+    icon: '/DashboardImage/leaderboard.png', 
     alt: 'Leaderboard',
     type: 'lucide'
   },
