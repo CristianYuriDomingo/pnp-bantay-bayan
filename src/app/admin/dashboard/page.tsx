@@ -5,9 +5,21 @@ import Link from 'next/link';
 import { Stats, RecentActivity } from '../types';
 import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, AlertCircle, Crown, Target, Lightbulb } from 'lucide-react';
 
+// Add interface for leaderboard data
+interface LeaderboardUser {
+  userId: string;
+  displayName: string;
+  image: string | null;
+  totalXP: number;
+  level: number;
+  rank: number;
+  earnedBadges: number;
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,6 +35,17 @@ export default function AdminDashboard() {
       if (!statsResponse.ok) throw new Error('Failed to fetch stats');
       const statsData = await statsResponse.json();
       setStats(statsData);
+
+      // Fetch leaderboard data (top 5)
+      try {
+        const leaderboardResponse = await fetch('/api/leaderboard?limit=5&page=1');
+        if (leaderboardResponse.ok) {
+          const leaderboardResult = await leaderboardResponse.json();
+          setLeaderboardData(leaderboardResult.leaderboard || []);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      }
 
       // Fetch activity
       try {
@@ -108,14 +131,19 @@ export default function AdminDashboard() {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
-  // Mock leaderboard data
-  const leaderboardData = [
-    { rank: 1, name: 'Sarah Johnson', points: 2840, badge: '🏆', progress: 95 },
-    { rank: 2, name: 'Mike Chen', points: 2670, badge: '🥈', progress: 89 },
-    { rank: 3, name: 'Emma Davis', points: 2450, badge: '🥉', progress: 82 },
-    { rank: 4, name: 'Alex Rodriguez', points: 2310, badge: '⭐', progress: 77 },
-    { rank: 5, name: 'Priya Patel', points: 2180, badge: '⭐', progress: 73 }
-  ];
+  // Function to get badge emoji based on rank
+  const getRankBadge = (rank: number) => {
+    if (rank === 1) return '🏆';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '⭐';
+  };
+
+  // Calculate progress percentage (based on level)
+  const getProgressPercentage = (level: number) => {
+    // Assume max level is 50 for progress bar calculation
+    return Math.min((level / 50) * 100, 100);
+  };
 
   if (loading) {
     return (
@@ -300,7 +328,7 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 {[
                   { title: 'Create Module', icon: '📚', href: '/admin/content', color: 'blue' },
-                  { title: 'Add Quiz', icon: '📝', href: '/admin/quiz', color: 'green' }, // Fixed path
+                  { title: 'Add Quiz', icon: '📝', href: '/admin/quiz', color: 'green' },
                   { title: 'Design Badge', icon: '🏆', href: '/admin/badges', color: 'yellow' },
                   { title: 'Manage Users', icon: '👥', href: '/admin/users', color: 'purple' }
                 ].map((action, index) => (
@@ -319,32 +347,39 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Leaderboard */}
+            {/* Dynamic Leaderboard */}
             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <Crown className="w-5 h-5 text-indigo-600" />
                 <h3 className="text-lg font-semibold text-gray-900">Top Learners</h3>
               </div>
               <div className="space-y-3">
-                {leaderboardData.map((user) => (
-                  <div key={user.rank} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100">
-                    <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
-                      <span className="text-lg">{user.badge}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{user.name}</p>
-                        <p className="text-sm font-bold text-indigo-600">{user.points} pts</p>
+                {leaderboardData.length > 0 ? (
+                  leaderboardData.map((user) => (
+                    <div key={user.userId} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-100">
+                      <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center">
+                        <span className="text-lg">{getRankBadge(user.rank)}</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div 
-                          className="bg-gradient-to-r from-green-400 to-blue-500 h-1.5 rounded-full" 
-                          style={{ width: `${user.progress}%` }}
-                        ></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium text-gray-900 truncate">{user.displayName}</p>
+                          <p className="text-sm font-bold text-indigo-600">{user.totalXP} pts</p>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="bg-gradient-to-r from-green-400 to-blue-500 h-1.5 rounded-full" 
+                            style={{ width: `${getProgressPercentage(user.level)}%` }}
+                          ></div>
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">👥</div>
+                    <p className="text-sm">No leaderboard data yet</p>
                   </div>
-                ))}
+                )}
               </div>
               <Link 
                 href="/admin/leaderboard" 

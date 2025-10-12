@@ -185,7 +185,7 @@ const LeaderboardInfoCard: React.FC = () => {
           {/* Character image */}
           <div className="w-20 h-20 relative mr-4 flex-shrink-0">
             <Image
-              src="/MainImage/PibiTeach.png"
+              src="/MainImage/leaderboard.png"
               alt="Leaderboard mascot"
               fill
               sizes="80px"

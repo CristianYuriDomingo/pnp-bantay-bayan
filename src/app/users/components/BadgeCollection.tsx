@@ -120,8 +120,8 @@ const BadgeCollection: React.FC = () => {
         style={{ width: size, height: size }}
         onClick={() => setSelectedBadge(badge)}
       >
-        <div className={`w-full h-full rounded-lg border-2 overflow-hidden ${
-          isEarned ? 'border-green-300 shadow-md' : 'border-gray-200'
+        <div className={`w-full h-full rounded-lg overflow-hidden ${
+          isEarned ? 'shadow-md' : ''
         }`}>
           <img
             src={badge.image}
@@ -147,10 +147,6 @@ const BadgeCollection: React.FC = () => {
             <Lock size={size / 3} className="text-gray-600" />
           </div>
         )}
-
-        <div className="absolute -top-1 -right-1">
-          {getRarityIcon(badge.rarity)}
-        </div>
 
         {isEarned && (
           <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
@@ -431,9 +427,12 @@ const BadgeCollection: React.FC = () => {
                     {category.badges.map((badge) => (
                       <div key={badge.id} className="flex flex-col items-center">
                         <BadgeIcon badge={badge} />
-                        <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
-                          {badge.name}
-                        </span>
+                        <div className="flex items-center justify-center mt-2 gap-1">
+                          {getRarityIcon(badge.rarity)}
+                          <span className="text-center text-xs text-gray-700 max-w-[80px] leading-tight">
+                            {badge.name}
+                          </span>
+                        </div>
                         {(badge as any).xpValue > 0 && (
                           <span className="text-xs text-yellow-600 mt-1 flex items-center">
                             <Zap size={10} className="mr-0.5" />
@@ -472,9 +471,12 @@ const BadgeCollection: React.FC = () => {
                 {quizBadges.map((badge) => (
                   <div key={badge.id} className="flex flex-col items-center">
                     <BadgeIcon badge={badge} />
-                    <span className="text-center text-xs text-gray-700 mt-2 max-w-[80px] leading-tight">
-                      {badge.name}
-                    </span>
+                    <div className="flex items-center justify-center mt-2 gap-1">
+                      {getRarityIcon(badge.rarity)}
+                      <span className="text-center text-xs text-gray-700 max-w-[80px] leading-tight">
+                        {badge.name}
+                      </span>
+                    </div>
                     {(badge as any).xpValue > 0 && (
                       <span className="text-xs text-yellow-600 mt-1 flex items-center">
                         <Zap size={10} className="mr-0.5" />

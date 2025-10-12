@@ -40,29 +40,39 @@ model Session {
 }
 
 model User {
-  id               String         @id @default(cuid())
-  name             String?
-  email            String         @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  role             String         @default("user")
-  status           String         @default("active")
-  totalXP          Int            @default(0)
-  level            Int            @default(1)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  accounts         Account[]
-  sessions         Session[]
-  quizAttempts     QuizAttempt[]
-  quizMasteries    QuizMastery[]
-  badgeEarned      UserBadge[]
-  progress         UserProgress[]
+  id                   String         @id @default(cuid())
+  name                 String?
+  email                String         @unique
+  emailVerified        DateTime?
+  image                String?
+  password             String?
+  role                 String         @default("user")
+  status               String         @default("active")
+  totalXP              Int            @default(0)
+  level                Int            @default(1)
+  // NEW: PNP Rank System Fields
+  currentRank          String         @default("Pat")
+  leaderboardPosition  Int?
+  rankAchievedAt       DateTime       @default(now())
+  highestRankEver      String         @default("Pat")
+  rankHistory          Json?
+  lastActiveDate       DateTime       @default(now())
+  // End of new fields
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  resetToken           String?
+  resetTokenExpiry     DateTime?
+  accounts             Account[]
+  sessions             Session[]
+  quizAttempts         QuizAttempt[]
+  quizMasteries        QuizMastery[]
+  badgeEarned          UserBadge[]
+  progress             UserProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
+  @@index([currentRank])
+  @@index([leaderboardPosition])
 }
 
 model VerificationToken {
