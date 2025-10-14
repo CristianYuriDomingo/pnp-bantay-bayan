@@ -114,7 +114,6 @@ const LoadingSpinner = () => (
   </div>
 );
 
-// Updated QuizComplete component with mastery display and badge showcase
 const QuizComplete = ({ 
   score, 
   totalQuestions, 
@@ -171,7 +170,6 @@ const QuizComplete = ({
             <p className="text-gray-600">{quizTitle}</p>
           </div>
 
-          {/* Score Display */}
           <div className="bg-blue-50 rounded-xl p-6 mb-6">
             <div className="text-3xl font-bold text-blue-600 mb-2">
               {score}/{totalQuestions}
@@ -180,14 +178,12 @@ const QuizComplete = ({
               {percentage}% Score
             </div>
             
-            {/* Mastery Level Display */}
             {masteryData?.masteryLevel && (
               <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getMasteryColor(masteryData.masteryLevel)}`}>
                 {masteryData.masteryLevel} Mastery ({Math.round(masteryData.masteryScore)}%)
               </div>
             )}
             
-            {/* New Best Score Indicator */}
             {masteryData?.isNewBestScore && (
               <div className="mt-2 text-green-600 text-sm font-medium">
                 🎊 New Best Score!
@@ -195,14 +191,12 @@ const QuizComplete = ({
             )}
           </div>
 
-          {/* Earned Badges Display */}
           {masteryData?.earnedBadges && masteryData.earnedBadges.length > 0 && (
             <div className="mb-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3">Badges Earned!</h3>
               <div className="flex justify-center space-x-3 mb-4">
                 {masteryData.earnedBadges.map((badge: any) => (
                   <div key={badge.id} className="text-center">
-                    {/* Removed colored background, just show the image */}
                     <div className="w-16 h-16 flex items-center justify-center mb-2">
                       {badge.image ? (
                         <img 
@@ -221,14 +215,12 @@ const QuizComplete = ({
             </div>
           )}
 
-          {/* Success Message */}
           {masteryData?.message && (
             <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-green-800 text-sm font-medium">{masteryData.message}</p>
             </div>
           )}
 
-          {/* Performance Stats */}
           {masteryData && (
             <div className="mb-6 text-sm text-gray-600 space-y-1">
               <div>Time Efficiency: {Math.round(masteryData.timeEfficiency)}%</div>
@@ -279,6 +271,12 @@ interface AnswerFeedback {
   options: string[];
 }
 
+interface UserAnswer {
+  questionId: string;
+  answer: number | null;
+  correct: boolean;
+}
+
 export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
   const [showInstructions, setShowInstructions] = useState(false);
@@ -290,7 +288,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [answerFeedback, setAnswerFeedback] = useState<AnswerFeedback | null>(null);
-  const [userAnswers, setUserAnswers] = useState<any[]>([]);
+  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [isQuizComplete, setIsQuizComplete] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
@@ -307,7 +305,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setShowInstructions(true);
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      // Fallback data for development
       setQuizData({
         id: quizId,
         title: "Sample Quiz",
@@ -363,7 +360,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     } catch (error) {
       console.error('Error submitting answer:', error);
       const isCorrect = selectedAnswerIndex === 1;
-      const fallbackFeedback = {
+      const fallbackFeedback: AnswerFeedback = {
         questionId,
         selectedAnswer: selectedAnswerIndex,
         correctAnswer: 1,
@@ -458,7 +455,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setAnswerFeedback(null);
       setTimeLeft(quizData.timer);
     } else {
-      // Quiz completed - submit to database
       setIsQuizComplete(true);
       submitCompleteQuiz();
     }
@@ -543,8 +539,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const isLastQuestion = currentQuestion === quizData.questions.length - 1;
 
   return (
-    <div className="min-h-screen">
-      {/* Header with better margins and alignment */}
+    <div className="min-h-screen flex flex-col">
+      {/* Header */}
       <div className="p-4 sm:p-6 mx-8 sm:mx-12 lg:mx-16">
         <div className="flex justify-between items-center text-gray-800 mb-4">
           <div className="flex items-center space-x-4 sm:space-x-6">
@@ -574,7 +570,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           </div>
         </div>
         
-        {/* Progress Bar with better spacing */}
+        {/* Progress Bar */}
         <div className="bg-white/50 backdrop-blur-sm rounded-full h-3 sm:h-4 border border-blue-200 shadow-sm">
           <div 
             className="bg-gradient-to-r from-blue-500 to-blue-600 h-full rounded-full transition-all duration-500 shadow-sm" 
@@ -583,8 +579,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         </div>
       </div>
 
-      {/* Main Content with better margins */}
-      <div className="px-4 sm:px-8 pb-6 mx-8 sm:mx-12 lg:mx-16">
+      {/* Main Content */}
+      <div className="flex-grow px-4 sm:px-8 mx-8 sm:mx-12 lg:mx-16 pb-32">
         <div className="max-w-3xl mx-auto">
           {/* Timer */}
           <div className="text-center mb-6 sm:mb-8">
@@ -594,7 +590,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             <p className="text-gray-600 text-base sm:text-lg mt-1">Time Remaining</p>
           </div>
 
-          {/* Question Image - Made bigger */}
+          {/* Question Image */}
           {currentQuestionData.image && (
             <div className="mb-6 sm:mb-8 flex justify-center">
               <div className="bg-white/80 backdrop-blur-md rounded-xl p-4 sm:p-6 border border-blue-200 shadow-lg">
@@ -604,7 +600,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
                   className="max-w-full max-h-48 sm:max-h-60 object-contain rounded-lg"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.parentElement!.style.display = 'none';
+                    if (target.parentElement) {
+                      target.parentElement.style.display = 'none';
+                    }
                   }}
                 />
               </div>
@@ -618,7 +616,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             </h2>
           </div>
 
-          {/* Answer Options - Better margins matching the progress bar */}
+          {/* Answer Options */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-4">
             {currentQuestionData.options.map((option: string, index: number) => (
               <button
@@ -638,45 +636,76 @@ export default function QuizUI({ quizId }: QuizUIProps) {
               </button>
             ))}
           </div>
-
-          {/* Feedback */}
-          {showFeedback && answerFeedback && (
-            <div className="mb-6 sm:mb-8 max-w-lg mx-auto px-2 sm:px-4">
-              <div className={`text-center py-3 sm:py-4 px-4 rounded-lg font-medium backdrop-blur-md border shadow-md ${
-                answerFeedback.isCorrect 
-                  ? "bg-green-100/80 text-green-800 border-green-200" 
-                  : "bg-red-100/80 text-red-800 border-red-200"
-              }`}>
-                <div className="text-base sm:text-lg mb-1">
-                  {answerFeedback.isCorrect 
-                    ? "🎉 Excellent!" 
-                    : `❌ ${selectedAnswer !== null ? "Not quite right" : "Time's up!"}`}
-                </div>
-                {!answerFeedback.isCorrect && (
-                  <div className="text-sm">
-                    Correct answer: <strong>{answerFeedback.correctAnswerText}</strong>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Next Button - Moved more to the right */}
-          <div className="flex justify-end px-2 sm:px-8">
-            <button
-              onClick={handleNextQuestion}
-              className={`px-8 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl transition-all duration-300 ${
-                !showFeedback 
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300' 
-                  : 'bg-blue-500 text-white hover:bg-blue-600 cursor-pointer shadow-lg hover:scale-105 transform border border-blue-600'
-              }`}
-              disabled={!showFeedback}
-            >
-              {isLastQuestion ? "Finish Quiz" : "Next Question"}
-            </button>
-          </div>
         </div>
       </div>
+
+      {/* Fixed Footer with Feedback */}
+      {showFeedback && answerFeedback && (
+        <div className={`fixed bottom-0 left-0 right-0 z-40 border-t-4 shadow-2xl ${
+          answerFeedback.isCorrect 
+            ? "bg-green-50 border-green-500" 
+            : "bg-red-50 border-red-500"
+        }`}>
+          <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
+            <div className="flex items-center justify-between gap-4">
+              {/* Left Side - Icon and Feedback */}
+              <div className="flex items-center gap-4 flex-1">
+                {/* Icon Circle */}
+                <div className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${
+                  answerFeedback.isCorrect 
+                    ? "bg-green-500" 
+                    : "bg-red-500"
+                }`}>
+                  {answerFeedback.isCorrect ? (
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Feedback Text */}
+                <div className="flex-1">
+                  <div className={`text-xl sm:text-2xl font-bold mb-1 ${
+                    answerFeedback.isCorrect ? "text-green-800" : "text-red-800"
+                  }`}>
+                    {answerFeedback.isCorrect 
+                      ? "Excellent!" 
+                      : selectedAnswer !== null ? "Incorrect" : "Time's Up!"}
+                  </div>
+                  {!answerFeedback.isCorrect && (
+                    <div className="text-sm sm:text-base text-gray-700">
+                      Correct answer: <strong className="text-gray-900">{answerFeedback.correctAnswerText}</strong>
+                    </div>
+                  )}
+                  {answerFeedback.explanation && (
+                    <div className="text-sm text-gray-600 mt-1">
+                      {answerFeedback.explanation}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Side - Next Button */}
+              <div className="flex-shrink-0">
+                <button
+                  onClick={handleNextQuestion}
+                  className={`px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-bold rounded-xl transition-all duration-200 shadow-lg ${
+                    answerFeedback.isCorrect 
+                      ? "bg-green-500 hover:bg-green-600 text-white" 
+                      : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
+                >
+                  {isLastQuestion ? "Finish" : "Continue"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Overlay Modals */}
       {showInstructions && (
