@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - UPDATED with symmetrical margins
+// app/users/dashboard/page.tsx - UPDATED with PNP Rank Badge
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -10,7 +10,9 @@ import DashboardStats from '../components/DashboardStats';
 import RecommendedNext from '../components/RecommendedNext';
 import RecentActivity from '../components/RecentActivity';
 import { fetchUserModules, handleModuleClick, UserModule } from '../lib/api';
-import { useRightColumn } from '../layout'; // Import the hook
+import { useRightColumn } from '../layout';
+import { useUserRank } from '@/hooks/use-rank';
+import { PNPRankBadge } from '../components/rank-badge';
 import Image from 'next/image';
 
 // LearnCard2 component (inline since you don't want new files)
@@ -60,12 +62,16 @@ const LearnCard2 = () => {
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { setRightColumnContent } = useRightColumn(); // Use the hook
+  const { setRightColumnContent } = useRightColumn();
+  const { rankData, rankInfo, loading: rankLoading } = useUserRank();
   
   // State for modules data
   const [modules, setModules] = useState<UserModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for welcome header visibility (resets on navigation)
+  const [showWelcomeHeader, setShowWelcomeHeader] = useState(true);
 
   // Set right column content when component mounts
   useEffect(() => {
@@ -183,20 +189,58 @@ export default function DashboardPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-20 py-6">
-        {/* Welcome Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-            Welcome back, {session?.user?.email?.split('@')[0]}!
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Continue your learning journey
-          </p>
-        </div>
+        {/* Welcome Header with PNP Rank Badge - Closable */}
+        {showWelcomeHeader && (
+          <div className="mb-6 relative">
+            {/* Close Button */}
+            <button
+              onClick={() => setShowWelcomeHeader(false)}
+              className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
+              aria-label="Close welcome message"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
 
-        {/* Search Bar Section - Updated margin for symmetry */}
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    Welcome back, {session?.user?.email?.split('@')[0]}!
+                  </h1>
+                  {/* PNP Rank Badge */}
+                  {rankData && rankInfo && !rankLoading && (
+                    <>
+                      <PNPRankBadge 
+                        rank={rankData.currentRank} 
+                        size="sm" 
+                        showIcon={true}
+                        showName={false}
+                      />
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {rankInfo.name}
+                      </span>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Continue your learning journey
+                  </p>
+                  {rankData && (
+                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                      Position #{rankData.leaderboardPosition}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Search Bar Section */}
         <SearchBar />
-
-        
 
         {/* Modules Grid */}
         {loading ? (
@@ -225,11 +269,11 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {modules.map((module) => {
-              console.log('Module data:', module); // Debug log
+              console.log('Module data:', module);
               return (
                 <LearnCard
                   key={module.id}
-                  moduleId={module.id} // Added moduleId prop
+                  moduleId={module.id}
                   imageSrc={module.imageSrc}
                   title={module.title}
                   lessons={module.lessons}
