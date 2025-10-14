@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 import { createSuccessResponse, createAuthErrorResponse, getApiUser } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { LeaderboardResponse, LeaderboardPaginationLimit } from '@/types/leaderboard'
+import { PNPRank } from '@/types/rank'
+import { getRankByPosition } from '@/lib/rank-config'
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
@@ -69,6 +71,8 @@ export async function GET(request: NextRequest) {
         image: true,
         totalXP: true,
         level: true,
+        currentRank: true,
+        leaderboardPosition: true,
         createdAt: true,
         badgeEarned: {
           select: {
@@ -85,24 +89,64 @@ export async function GET(request: NextRequest) {
     // Count total badges available (for stats)
     const totalBadgesCount = await prisma.badge.count()
 
-    // Transform to leaderboard entries with ranks
-    const leaderboard = allUsers.map((user, index) => ({
-      userId: user.id,
-      name: user.name,
-      displayName: user.name || 'Anonymous User',
-      image: user.image,
-      totalXP: user.totalXP,
-      level: user.level,
-      rank: index + 1,
-      createdAt: user.createdAt,
-      totalBadges: totalBadgesCount,
-      earnedBadges: user.badgeEarned.length
+    // Calculate total users for rank calculation
+    const totalUsers = allUsers.length
+
+    // Transform to leaderboard entries with ranks AND update database
+    const leaderboard = await Promise.all(allUsers.map(async (user, index) => {
+      const position = index + 1
+      // Calculate the correct rank based on position
+      const calculatedRank = getRankByPosition(position, totalUsers)
+      
+      // Use stored rank or calculated rank
+      let pnpRank = user.currentRank as PNPRank
+      
+      // Update database if rank is missing or position changed
+      if (!user.currentRank || user.leaderboardPosition !== position) {
+        pnpRank = calculatedRank
+        
+        // Update user's rank in database (fire and forget for performance)
+        prisma.user.update({
+          where: { id: user.id },
+          data: {
+            currentRank: calculatedRank,
+            leaderboardPosition: position,
+            rankAchievedAt: user.currentRank !== calculatedRank ? new Date() : undefined,
+            highestRankEver: user.currentRank ? 
+              (getRankOrder(calculatedRank) > getRankOrder(user.currentRank as PNPRank) ? calculatedRank : user.currentRank) 
+              : calculatedRank
+          }
+        }).catch(err => console.error(`Failed to update rank for ${user.email}:`, err))
+        
+        console.log(`🔄 Updated ${user.email}: Position #${position} → Rank ${calculatedRank}`)
+      }
+      
+      return {
+        userId: user.id,
+        name: user.name,
+        displayName: user.name || 'Anonymous User',
+        image: user.image,
+        totalXP: user.totalXP,
+        level: user.level,
+        rank: position,
+        pnpRank, // Add PNP rank
+        createdAt: user.createdAt,
+        totalBadges: totalBadgesCount,
+        earnedBadges: user.badgeEarned.length
+      }
     }))
 
     // Find current user's entry
     const currentUserEntry = currentUser 
       ? leaderboard.find(entry => entry.userId === currentUser.id) || null
       : null
+
+    // Calculate rank distribution
+    const rankDistribution: Record<string, number> = {}
+    leaderboard.forEach(entry => {
+      const rank = entry.pnpRank || 'Pat'
+      rankDistribution[rank] = (rankDistribution[rank] || 0) + 1
+    })
 
     // Calculate statistics
     const totalXP = leaderboard.reduce((sum, user) => sum + user.totalXP, 0)
@@ -113,6 +157,7 @@ export async function GET(request: NextRequest) {
       averageLevel: leaderboard.length > 0 
         ? Math.round(leaderboard.reduce((sum, u) => sum + u.level, 0) / leaderboard.length) 
         : 1,
+      rankDistribution,
       lastUpdated: new Date()
     }
 
@@ -150,6 +195,29 @@ export async function GET(request: NextRequest) {
     console.error('❌ Error fetching leaderboard:', error)
     return createAuthErrorResponse('Failed to fetch leaderboard', 500)
   }
+}
+
+// Helper function to get rank order for comparison
+function getRankOrder(rank: PNPRank): number {
+  const rankOrder: Record<PNPRank, number> = {
+    'Pat': 1,
+    'PCpl': 2,
+    'PSSg': 3,
+    'PMSg': 4,
+    'PSMS': 5,
+    'PCMS': 6,
+    'PEMS': 7,
+    'PLT': 8,
+    'PCPT': 9,
+    'PMAJ': 10,
+    'PLTCOL': 11,
+    'PCOL': 12,
+    'PBGEN': 13,
+    'PMGEN': 14,
+    'PLTGEN': 15,
+    'PGEN': 16
+  }
+  return rankOrder[rank] || 1
 }
 
 // Endpoint to invalidate cache (for admin use or after major events)

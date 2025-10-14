@@ -1,4 +1,6 @@
 // types/leaderboard.ts
+import { PNPRank } from './rank'
+
 export interface LeaderboardEntry {
   userId: string;
   name: string | null;
@@ -6,7 +8,8 @@ export interface LeaderboardEntry {
   image: string | null;
   totalXP: number;
   level: number;
-  rank: number;
+  rank: number; // Position number (1, 2, 3, etc.)
+  pnpRank: PNPRank; // NEW: PNP Rank (Pat, PCpl, etc.)
   createdAt: Date;
   
   // Badge stats
@@ -24,6 +27,8 @@ export interface LeaderboardStats {
   averageXP: number;
   averageLevel: number;
   lastUpdated: Date;
+  // NEW: Rank distribution
+  rankDistribution: Record<PNPRank, number>;
 }
 
 export interface LeaderboardResponse {
@@ -39,7 +44,8 @@ export interface LeaderboardResponse {
 }
 
 export interface UserRankInfo {
-  rank: number;
+  rank: number; // Position number
+  pnpRank: PNPRank; // NEW: PNP Rank
   totalXP: number;
   level: number;
   xpToNextLevel: number;
@@ -48,6 +54,10 @@ export interface UserRankInfo {
   // Position changes
   usersAhead: number;
   xpBehindNext: number | null; // null if rank #1
+  
+  // NEW: Rank progression
+  nextPNPRank: PNPRank | null;
+  xpToNextRank: number | null;
   
   // Progress
   totalBadges: number;

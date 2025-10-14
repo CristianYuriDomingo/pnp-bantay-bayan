@@ -1,0 +1,72 @@
+// app/api/leaderboard/init-ranks/route.ts
+// Call this endpoint once to initialize all ranks: GET /api/leaderboard/init-ranks
+
+import { NextRequest } from 'next/server'
+import { createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
+import { prisma } from '@/lib/prisma'
+import { getRankByPosition } from '@/lib/rank-config'
+
+export async function GET(request: NextRequest) {
+  try {
+    console.log('🚀 Initializing ranks for all users...')
+
+    // Fetch all users sorted by XP
+    const allUsers = await prisma.user.findMany({
+      where: {
+        status: 'active'
+      },
+      select: {
+        id: true,
+        email: true,
+        totalXP: true,
+        currentRank: true,
+        createdAt: true
+      },
+      orderBy: [
+        { totalXP: 'desc' },
+        { createdAt: 'asc' }
+      ]
+    })
+
+    const totalUsers = allUsers.length
+    let updatedCount = 0
+
+    console.log(`📊 Found ${totalUsers} active users`)
+
+    // Update all users with their ranks
+    for (let i = 0; i < allUsers.length; i++) {
+      const user = allUsers[i]
+      const position = i + 1
+      const calculatedRank = getRankByPosition(position, totalUsers)
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          currentRank: calculatedRank,
+          leaderboardPosition: position,
+          rankAchievedAt: new Date(),
+          highestRankEver: calculatedRank,
+          lastActiveDate: new Date()
+        }
+      })
+
+      updatedCount++
+      console.log(`✅ ${i + 1}/${totalUsers}: ${user.email} → Position #${position}, Rank ${calculatedRank}`)
+    }
+
+    console.log(`\n🎉 Rank initialization complete!`)
+    console.log(`   - Total users: ${totalUsers}`)
+    console.log(`   - Ranks updated: ${updatedCount}`)
+
+    return createSuccessResponse({
+      success: true,
+      totalUsers,
+      updatedCount,
+      message: 'All ranks initialized successfully'
+    })
+
+  } catch (error) {
+    console.error('❌ Error initializing ranks:', error)
+    return createAuthErrorResponse('Failed to initialize ranks', 500)
+  }
+}

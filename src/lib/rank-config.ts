@@ -1,4 +1,3 @@
-//lib/rank-config.ts
 import { PNPRank, RankInfo } from '@/types/rank'
 
 // Complete rank information
@@ -9,9 +8,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'General',
     category: 'Officer',
     order: 16,
-    color: 'text-red-700',
-    bgColor: 'bg-red-100',
-    icon: '⭐⭐⭐⭐'
+    color: 'text-blue-900',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PGEN.png'
   },
   'PLTGEN': {
     code: 'PLTGEN',
@@ -19,9 +18,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Lt. General',
     category: 'Officer',
     order: 15,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    icon: '⭐⭐⭐'
+    color: 'text-blue-800',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PLTGEN.png'
   },
   'PMGEN': {
     code: 'PMGEN',
@@ -29,9 +28,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Maj. General',
     category: 'Officer',
     order: 14,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-    icon: '⭐⭐'
+    color: 'text-blue-700',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PMGEN.png'
   },
   'PBGEN': {
     code: 'PBGEN',
@@ -39,9 +38,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Brig. General',
     category: 'Officer',
     order: 13,
-    color: 'text-orange-500',
-    bgColor: 'bg-orange-50',
-    icon: '⭐'
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PBGEN.png'
   },
   'PCOL': {
     code: 'PCOL',
@@ -49,9 +48,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Colonel',
     category: 'Officer',
     order: 12,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    icon: '🦅'
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PCOL.png'
   },
   'PLTCOL': {
     code: 'PLTCOL',
@@ -59,9 +58,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Lt. Colonel',
     category: 'Officer',
     order: 11,
-    color: 'text-purple-500',
-    bgColor: 'bg-purple-50',
-    icon: '🦅'
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PLTCOL.png'
   },
   'PMAJ': {
     code: 'PMAJ',
@@ -69,9 +68,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Major',
     category: 'Officer',
     order: 10,
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-50',
-    icon: '💎'
+    color: 'text-blue-500',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PMAJ.png'
   },
   'PCPT': {
     code: 'PCPT',
@@ -79,9 +78,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Captain',
     category: 'Officer',
     order: 9,
-    color: 'text-indigo-500',
-    bgColor: 'bg-indigo-50',
-    icon: '💎'
+    color: 'text-blue-400',
+    bgColor: 'bg-blue-50',
+    icon: '/ranks/PCPT.png'
   },
   'PLT': {
     code: 'PLT',
@@ -89,9 +88,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Lieutenant',
     category: 'Officer',
     order: 8,
-    color: 'text-blue-600',
+    color: 'text-blue-400',
     bgColor: 'bg-blue-50',
-    icon: '💎'
+    icon: '/ranks/PLT.png'
   },
   'PEMS': {
     code: 'PEMS',
@@ -99,9 +98,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Exec MS',
     category: 'Enlisted',
     order: 7,
-    color: 'text-teal-700',
-    bgColor: 'bg-teal-50',
-    icon: '▰▰▰'
+    color: 'text-slate-700',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PEMS.png'
   },
   'PCMS': {
     code: 'PCMS',
@@ -109,9 +108,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Chief MS',
     category: 'Enlisted',
     order: 6,
-    color: 'text-teal-600',
-    bgColor: 'bg-teal-50',
-    icon: '▰▰▰'
+    color: 'text-slate-600',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PCMS.png'
   },
   'PSMS': {
     code: 'PSMS',
@@ -119,9 +118,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Senior MS',
     category: 'Enlisted',
     order: 5,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50',
-    icon: '▰▰'
+    color: 'text-slate-600',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PSMS.png'
   },
   'PMSg': {
     code: 'PMSg',
@@ -129,9 +128,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Master Sgt',
     category: 'Enlisted',
     order: 4,
-    color: 'text-green-500',
-    bgColor: 'bg-green-50',
-    icon: '▰▰'
+    color: 'text-slate-500',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PMSg.png'
   },
   'PSSg': {
     code: 'PSSg',
@@ -139,9 +138,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Staff Sgt',
     category: 'Enlisted',
     order: 3,
-    color: 'text-lime-600',
-    bgColor: 'bg-lime-50',
-    icon: '▰'
+    color: 'text-slate-500',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PSSg.png'
   },
   'PCpl': {
     code: 'PCpl',
@@ -149,9 +148,9 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Corporal',
     category: 'Enlisted',
     order: 2,
-    color: 'text-gray-600',
-    bgColor: 'bg-gray-50',
-    icon: '▱'
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/PCpl.png'
   },
   'Pat': {
     code: 'Pat',
@@ -159,30 +158,30 @@ export const RANK_INFO: Record<PNPRank, RankInfo> = {
     shortName: 'Patrolman',
     category: 'Enlisted',
     order: 1,
-    color: 'text-gray-500',
-    bgColor: 'bg-gray-50',
-    icon: '○'
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-50',
+    icon: '/ranks/Pat.png'
   }
 }
 
 // Rank calculation thresholds (percentile-based)
 export const RANK_THRESHOLDS = [
-  { rank: 'PGEN' as PNPRank, maxPosition: 1, percentile: 0 },           // #1 only
-  { rank: 'PLTGEN' as PNPRank, maxPosition: null, percentile: 0.5 },    // Top 0.5%
-  { rank: 'PMGEN' as PNPRank, maxPosition: null, percentile: 1 },       // Top 1%
-  { rank: 'PBGEN' as PNPRank, maxPosition: null, percentile: 2 },       // Top 2%
-  { rank: 'PCOL' as PNPRank, maxPosition: null, percentile: 5 },        // Top 5%
-  { rank: 'PLTCOL' as PNPRank, maxPosition: null, percentile: 10 },     // Top 10%
-  { rank: 'PMAJ' as PNPRank, maxPosition: null, percentile: 15 },       // Top 15%
-  { rank: 'PCPT' as PNPRank, maxPosition: null, percentile: 20 },       // Top 20%
-  { rank: 'PLT' as PNPRank, maxPosition: null, percentile: 25 },        // Top 25%
-  { rank: 'PEMS' as PNPRank, maxPosition: null, percentile: 35 },       // Top 35%
-  { rank: 'PCMS' as PNPRank, maxPosition: null, percentile: 45 },       // Top 45%
-  { rank: 'PSMS' as PNPRank, maxPosition: null, percentile: 55 },       // Top 55%
-  { rank: 'PMSg' as PNPRank, maxPosition: null, percentile: 70 },       // Top 70%
-  { rank: 'PSSg' as PNPRank, maxPosition: null, percentile: 85 },       // Top 85%
-  { rank: 'PCpl' as PNPRank, maxPosition: null, percentile: 95 },       // Top 95%
-  { rank: 'Pat' as PNPRank, maxPosition: null, percentile: 100 },       // Everyone else
+  { rank: 'PGEN' as PNPRank, maxPosition: 1, percentile: 0 },
+  { rank: 'PLTGEN' as PNPRank, maxPosition: null, percentile: 0.5 },
+  { rank: 'PMGEN' as PNPRank, maxPosition: null, percentile: 1 },
+  { rank: 'PBGEN' as PNPRank, maxPosition: null, percentile: 2 },
+  { rank: 'PCOL' as PNPRank, maxPosition: null, percentile: 5 },
+  { rank: 'PLTCOL' as PNPRank, maxPosition: null, percentile: 10 },
+  { rank: 'PMAJ' as PNPRank, maxPosition: null, percentile: 15 },
+  { rank: 'PCPT' as PNPRank, maxPosition: null, percentile: 20 },
+  { rank: 'PLT' as PNPRank, maxPosition: null, percentile: 25 },
+  { rank: 'PEMS' as PNPRank, maxPosition: null, percentile: 35 },
+  { rank: 'PCMS' as PNPRank, maxPosition: null, percentile: 45 },
+  { rank: 'PSMS' as PNPRank, maxPosition: null, percentile: 55 },
+  { rank: 'PMSg' as PNPRank, maxPosition: null, percentile: 70 },
+  { rank: 'PSSg' as PNPRank, maxPosition: null, percentile: 85 },
+  { rank: 'PCpl' as PNPRank, maxPosition: null, percentile: 95 },
+  { rank: 'Pat' as PNPRank, maxPosition: null, percentile: 100 },
 ]
 
 // Helper functions
@@ -191,13 +190,10 @@ export function getRankInfo(rank: PNPRank): RankInfo {
 }
 
 export function getRankByPosition(position: number, totalUsers: number): PNPRank {
-  // Special case: #1 is always General
   if (position === 1) return 'PGEN'
   
-  // Calculate percentile
   const percentile = (position / totalUsers) * 100
   
-  // Find appropriate rank
   for (const threshold of RANK_THRESHOLDS) {
     if (threshold.maxPosition !== null && position <= threshold.maxPosition) {
       return threshold.rank
@@ -207,20 +203,19 @@ export function getRankByPosition(position: number, totalUsers: number): PNPRank
     }
   }
   
-  return 'Pat' // Default fallback
+  return 'Pat'
 }
 
 export function getNextRank(currentRank: PNPRank): PNPRank | null {
   const currentOrder = RANK_INFO[currentRank].order
   
-  // Find next higher rank
   for (const [rank, info] of Object.entries(RANK_INFO)) {
     if (info.order === currentOrder + 1) {
       return rank as PNPRank
     }
   }
   
-  return null // Already at top rank
+  return null
 }
 
 export function compareRanks(rank1: PNPRank, rank2: PNPRank): number {
