@@ -141,6 +141,25 @@ const QuizComplete = ({
     }
   };
 
+  // Function to get the result image based on mastery level or score
+  const getResultImage = () => {
+    if (masteryData?.masteryLevel === 'Perfect') {
+      return '/QuizImage/ResultPerfect.png'; // Trophy/Perfect score image
+    } else if (masteryData?.masteryLevel === 'Gold') {
+      return '/QuizImage/ResultGold.png'; // Gold medal image
+    } else if (masteryData?.masteryLevel === 'Silver') {
+      return '/QuizImage/ResultSilver.png'; // Silver medal image
+    } else if (masteryData?.masteryLevel === 'Bronze') {
+      return '/QuizImage/ResultBronze.png'; // Bronze medal image
+    } else if (percentage >= 80) {
+      return '/QuizImage/ResultGreat.png'; // Great job image
+    } else if (percentage >= 60) {
+      return '/QuizImage/ResultGood.png'; // Good job image
+    } else {
+      return '/QuizImage/ResultTryAgain.png'; // Keep studying image
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="max-w-lg w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
@@ -158,13 +177,30 @@ const QuizComplete = ({
 
         <div className="text-center">
           <div className="mb-6">
-            <div className="text-6xl mb-4">
-              {masteryData?.masteryLevel === 'Perfect' ? '🏆' : 
-               masteryData?.masteryLevel === 'Gold' ? '🥇' :
-               masteryData?.masteryLevel === 'Silver' ? '🥈' :
-               masteryData?.masteryLevel === 'Bronze' ? '🥉' :
-               percentage >= 80 ? '🎉' : 
-               percentage >= 60 ? '👍' : '📚'}
+            {/* Result Image Instead of Emoji */}
+            <div className="flex justify-center mb-4">
+              <img 
+                src={getResultImage()} 
+                alt="Quiz Result" 
+                className="w-24 h-24 object-contain"
+                onError={(e) => {
+                  // Fallback to emoji if image fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  if (target.nextElementSibling) {
+                    (target.nextElementSibling as HTMLElement).style.display = 'block';
+                  }
+                }}
+              />
+              {/* Fallback emoji (hidden by default) */}
+              <span className="text-6xl hidden">
+                {masteryData?.masteryLevel === 'Perfect' ? '🏆' : 
+                 masteryData?.masteryLevel === 'Gold' ? '🥇' :
+                 masteryData?.masteryLevel === 'Silver' ? '🥈' :
+                 masteryData?.masteryLevel === 'Bronze' ? '🥉' :
+                 percentage >= 80 ? '🎉' : 
+                 percentage >= 60 ? '👍' : '📚'}
+              </span>
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
             <p className="text-gray-600">{quizTitle}</p>

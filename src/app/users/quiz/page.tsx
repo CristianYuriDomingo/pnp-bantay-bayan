@@ -1,10 +1,11 @@
-// FILE: app/users/quiz/page.tsx - Fixed to ONLY show parent quizzes
+// FILE: app/users/quiz/page.tsx - Complete File
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import QuizTitle from '../components/QuizTitle';
 import QuizHistoryDashboard from '../components/QuizHistoryDashboard';
+import QuizCard from '../components/QuizCard';
 import { useRightColumn } from '../layout';
 
 interface Quiz {
@@ -46,7 +47,18 @@ interface QuizHistory {
   masteryOverview: QuizMastery[];
 }
 
-// Simple and Clean Sub-quiz Modal Component - Optimized for UI/UX
+// Helper function to get mastery image path
+const getMasteryImage = (level: string | null) => {
+  switch (level) {
+    case 'Perfect': return '/QuizImage/perfect.png';
+    case 'Gold': return '/QuizImage/gold.png';
+    case 'Silver': return '/QuizImage/silver.png';
+    case 'Bronze': return '/QuizImage/bronze.png';
+    default: return null;
+  }
+};
+
+// Simplified Sub-quiz Modal Component
 const SubQuizModal = ({ 
   parentQuiz, 
   masteryMap, 
@@ -58,113 +70,151 @@ const SubQuizModal = ({
   onClose: () => void;
   onQuizSelect: (quizId: string) => void;
 }) => {
+  const [hoveredQuizId, setHoveredQuizId] = useState<string | null>(null);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-40">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
       <div 
-        className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative px-6 py-5 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900 text-center pr-8">
-            {parentQuiz.title}
-          </h2>
-          <p className="text-sm text-gray-500 text-center mt-1">
-            {parentQuiz.children?.length || 0} quizzes available
-          </p>
-          
-          {/* Close button */}
+        <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 px-6 py-5">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
             aria-label="Close"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M18 6L6 18M6 6l12 12"/>
             </svg>
           </button>
+          
+          <h2 className="text-xl font-bold text-white text-center pr-6">
+            {parentQuiz.title}
+          </h2>
+          <p className="text-blue-100 text-center mt-1 text-sm">
+            Select a quiz to begin
+          </p>
+          
+          {/* Quiz Stats */}
+          <div className="flex items-center justify-center gap-4 mt-3 text-white text-sm">
+            <div className="flex items-center gap-1">
+              <span className="font-semibold">{parentQuiz.children?.length || 0}</span>
+              <span className="text-blue-100">quizzes</span>
+            </div>
+            {parentQuiz.children && parentQuiz.children.length > 0 && (
+              <>
+                <span className="text-blue-200">•</span>
+                <div className="flex items-center gap-1">
+                  <span className="font-semibold">
+                    {parentQuiz.children.filter(subQuiz => 
+                      masteryMap.get(subQuiz.id)?.attemptCount && masteryMap.get(subQuiz.id)!.attemptCount > 0
+                    ).length}
+                  </span>
+                  <span className="text-blue-100">completed</span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-4 max-h-96 overflow-y-auto">
+        <div className="p-5 max-h-[calc(85vh-100px)] overflow-y-auto">
           {parentQuiz.children && parentQuiz.children.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {parentQuiz.children.map((subQuiz, index) => {
                 const mastery = masteryMap.get(subQuiz.id);
                 const isAttempted = mastery && mastery.attemptCount > 0;
-                const bestScore = mastery?.bestPercentage ? Math.round(mastery.bestPercentage) : null;
+                const questionCount = subQuiz.questions?.length || 0;
+                const masteryImage = mastery?.masteryLevel ? getMasteryImage(mastery.masteryLevel) : null;
                 
                 return (
                   <div
                     key={subQuiz.id}
                     onClick={() => onQuizSelect(subQuiz.id)}
-                    className="group p-4 rounded-xl border border-gray-100 hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition-all duration-200"
+                    className="group relative bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md border border-blue-200"
+                    onMouseEnter={() => setHoveredQuizId(subQuiz.id)}
+                    onMouseLeave={() => setHoveredQuizId(null)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-medium text-blue-600">
-                              {index + 1}
-                            </span>
-                          </div>
-                          
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-medium text-gray-900 group-hover:text-blue-700 truncate">
-                              {subQuiz.title}
-                            </h3>
-                            
-                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-                              <span>{subQuiz.questions?.length || 0} questions</span>
-                              <span>{subQuiz.timer}s each</span>
-                              {bestScore && (
-                                <span className="text-green-600 font-medium">
-                                  Best: {bestScore}%
-                                </span>
+                    <div className="flex items-center gap-4">
+                      {/* Left: Number Circle with Mastery Badge Overlay */}
+                      <div className="flex-shrink-0 relative">
+                        <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
+                          {index + 1}
+                        </div>
+                        
+                        {/* Mastery Badge Overlay */}
+                        {isAttempted && masteryImage && (
+                          <div className="absolute -top-1 -left-1">
+                            <div 
+                              className="relative"
+                              onMouseEnter={() => setHoveredQuizId(subQuiz.id)}
+                              onMouseLeave={() => setHoveredQuizId(null)}
+                            >
+                              <Image
+                                src={masteryImage}
+                                alt={mastery.masteryLevel || ''}
+                                width={24}
+                                height={24}
+                                className="object-contain drop-shadow-lg"
+                              />
+                              
+                              {/* Tooltip */}
+                              {hoveredQuizId === subQuiz.id && (
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap pointer-events-none z-10">
+                                  {mastery.masteryLevel}
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                                </div>
                               )}
                             </div>
                           </div>
-                        </div>
-                      </div>
-                      
-                      {/* Status indicator */}
-                      <div className="ml-3 flex-shrink-0">
-                        {isAttempted ? (
-                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                              <path d="M20 6L9 17l-5-5"/>
-                            </svg>
-                          </div>
-                        ) : (
-                          <div className="w-5 h-5 border-2 border-gray-300 rounded-full group-hover:border-blue-400"></div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Mastery badge */}
-                    {mastery?.masteryLevel && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          {getMasteryIcon(mastery.masteryLevel)} {mastery.masteryLevel}
-                        </span>
+                      {/* Center: Quiz Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900 text-base line-clamp-1">
+                            {subQuiz.title}
+                          </h3>
+                          {isAttempted && (
+                            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                              Best: {Math.round(mastery.bestPercentage)}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {questionCount} questions
+                        </p>
                       </div>
-                    )}
+
+                      {/* Right: Timer Badge */}
+                      <div className="flex-shrink-0">
+                        <div className="flex flex-col items-center gap-1">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-xs font-semibold text-gray-700">{subQuiz.timer}s</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14,2 14,8 20,8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
-                  <polyline points="10,9 9,9 8,9"/>
+            <div className="text-center py-16">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
-              <p className="text-gray-500 text-sm">No quizzes available yet</p>
+              <p className="text-gray-500 text-base font-medium">No quizzes available</p>
+              <p className="text-gray-400 text-sm mt-1">Check back later</p>
             </div>
           )}
         </div>
@@ -173,62 +223,7 @@ const SubQuizModal = ({
   );
 };
 
-// Helper function for mastery icons
-const getMasteryIcon = (level: string | null) => {
-  switch (level) {
-    case 'Perfect': return '🏆';
-    case 'Gold': return '🥇';
-    case 'Silver': return '🥈';
-    case 'Bronze': return '🥉';
-    default: return '📝';
-  }
-};
-
-// QuizCard component (unchanged)
-const QuizCard = ({ history }: { history: QuizHistory | null }) => {
-  return (
-    <div className="p-6">
-      <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
-        <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-4 text-center tracking-wide">
-          YOUR QUIZ HISTORY
-        </h2>
-
-        <div className="flex items-center">
-          <div className="w-20 h-20 relative mr-4 flex-shrink-0">
-            <Image
-              src="/QuizImage/PibiQuiz.png"
-              alt="Quiz mascot"
-              fill
-              sizes="80px"
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 leading-tight">
-              Track Your Progress. <br />
-              Earn Achievements.
-            </h3>
-
-            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-              {history ? (
-                <>
-                  You've taken {history.statistics.totalQuizzesAttempted} quizzes with an average score of {Math.round(history.statistics.averageScore)}%. 
-                  Keep practicing to earn badges and improve your knowledge!
-                </>
-              ) : (
-                "View your quiz results and see how many modules you've completed. Keep practicing to earn badges and improve your knowledge!"
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Parent Quiz Title Component (unchanged)
+// Parent Quiz Title Component
 const ParentQuizTitle = ({ 
   parentQuiz,
   masteryMap,
@@ -245,12 +240,6 @@ const ParentQuizTitle = ({
     onParentQuizClick(parentQuiz);
   };
 
-  // Calculate aggregate stats for parent quiz
-  const subQuizCount = parentQuiz.children?.length || 0;
-  const completedSubQuizzes = parentQuiz.children?.filter(subQuiz => 
-    masteryMap.get(subQuiz.id)?.attemptCount && masteryMap.get(subQuiz.id)!.attemptCount > 0
-  ).length || 0;
-
   const fallbackBackground = {
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   };
@@ -263,7 +252,6 @@ const ParentQuizTitle = ({
         onClick={handleClick}
         style={imageError ? fallbackBackground : {}}
       >
-        {/* Image with error handling */}
         {!imageError && (
           <img
             src="/QuizImage/PoliceTape.png"
@@ -275,14 +263,12 @@ const ParentQuizTitle = ({
           />
         )}
         
-        {/* Loading placeholder */}
         {!imageLoaded && !imageError && (
           <div className="w-full h-48 bg-gray-300 rounded-2xl border-4 border-[#d4d4d4] flex items-center justify-center">
             <div className="text-gray-500">Loading...</div>
           </div>
         )}
         
-        {/* Error placeholder */}
         {imageError && (
           <div className="w-full h-48 rounded-2xl border-4 border-[#d4d4d4] flex items-center justify-center">
             <div className="text-white text-center">
@@ -292,7 +278,6 @@ const ParentQuizTitle = ({
           </div>
         )}
         
-        {/* Text Overlay */}
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <h2
             className="text-white font-extrabold uppercase text-center drop-shadow-md"
@@ -308,19 +293,6 @@ const ParentQuizTitle = ({
           </h2>
         </div>
         
-        {/* Sub-quiz count overlay */}
-        <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
-          {subQuizCount} quizzes
-        </div>
-
-        {/* Progress indicator */}
-        {completedSubQuizzes > 0 && (
-          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-            {completedSubQuizzes}/{subQuizCount} completed
-          </div>
-        )}
-
-        {/* Category badge if subject domain exists */}
         {parentQuiz.subjectDomain && (
           <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
             {parentQuiz.subjectDomain.replace('_', ' ')}
@@ -331,7 +303,7 @@ const ParentQuizTitle = ({
   );
 };
 
-// MAIN COMPONENT - FIXED TO ONLY SHOW PARENT QUIZZES
+// MAIN COMPONENT
 export default function Quiz() {
   const [parentQuizzes, setParentQuizzes] = useState<Quiz[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizHistory | null>(null);
@@ -342,7 +314,6 @@ export default function Quiz() {
   const [selectedParentQuiz, setSelectedParentQuiz] = useState<Quiz | null>(null);
   const { setRightColumnContent } = useRightColumn();
 
-  // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
@@ -350,7 +321,6 @@ export default function Quiz() {
           <QuizCard history={quizHistory} />
         </div>
         
-        {/* Quiz History Dashboard */}
         {quizHistory && quizHistory.masteryOverview.length > 0 && (
           <div className="p-4">
             <QuizHistoryDashboard />
@@ -379,8 +349,6 @@ export default function Quiz() {
       }
       const data = await response.json();
       
-      // FIXED: Only show parent quizzes (isParent: true)
-      // This completely excludes all sub-quizzes from the main view
       const parentQuizzesOnly = data.filter((quiz: Quiz) => quiz.isParent);
       
       console.log('All quizzes from API:', data);
@@ -401,7 +369,6 @@ export default function Quiz() {
         const data = await response.json();
         setQuizHistory(data);
         
-        // Create mastery map for easy lookup
         const masteryMap = new Map<string, QuizMastery>();
         data.masteryOverview.forEach((mastery: QuizMastery) => {
           masteryMap.set(mastery.quizId, mastery);
@@ -418,7 +385,7 @@ export default function Quiz() {
   };
 
   const handleSubQuizSelect = (quizId: string) => {
-    setSelectedParentQuiz(null); // Close modal
+    setSelectedParentQuiz(null);
     window.location.href = `/users/quizStart/${quizId}`;
   };
 
@@ -490,7 +457,6 @@ export default function Quiz() {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Display Parent Quizzes Only */}
               {displayedParentQuizzes.map((parentQuiz) => (
                 <ParentQuizTitle
                   key={parentQuiz.id}
@@ -528,7 +494,6 @@ export default function Quiz() {
         </div>
       </div>
 
-      {/* Sub-Quiz Modal - Only shows when parent quiz is clicked */}
       {selectedParentQuiz && (
         <SubQuizModal
           parentQuiz={selectedParentQuiz}
