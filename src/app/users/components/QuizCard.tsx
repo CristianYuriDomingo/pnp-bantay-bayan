@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -40,14 +39,14 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 relative">
       {/* Header Section */}
       <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5 mb-4">
         <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-4 text-center tracking-wide">
           HOW QUIZ SCORING WORKS
         </h2>
 
-        <div className="flex items-center mb-4">
+        <div className="flex items-center">
           <div className="w-20 h-20 relative mr-4 flex-shrink-0">
             <Image
               src="/QuizImage/PibiQuiz.png"
@@ -75,7 +74,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
       {/* Expandable Sections */}
       <div className="space-y-2">
         {/* Mastery Score Section */}
-        <div className="border-2 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition-all duration-200">
+        <div className="border border-blue-300 dark:border-blue-600 rounded-xl overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition-all duration-200">
           <button
             onClick={() => toggleSection('mastery')}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-200">
@@ -92,7 +91,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
               <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Mastery Score Formula</span>
             </div>
             <svg
-              className={`w-4 h-4 text-blue-600 dark:text-blue-400 transition-transform ${
+              className={`w-4 h-4 text-gray-600 dark:text-gray-400 transition-transform ${
                 expandedSection === 'mastery' ? 'rotate-180' : ''
               }`}
               fill="none"
@@ -129,7 +128,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
         </div>
 
         {/* Mastery Levels Section */}
-        <div className="border-2 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition-all duration-200">
+        <div className="border border-blue-300 dark:border-blue-600 rounded-xl overflow-hidden bg-white dark:bg-gray-800 hover:shadow-lg transition-all duration-200">
           <button
             onClick={() => toggleSection('levels')}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-200">
@@ -146,7 +145,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
               <span className="font-semibold text-gray-900 dark:text-white text-sm">Mastery Levels</span>
             </div>
             <svg
-              className={`w-5 h-5 text-blue-600 dark:text-blue-400 transition-transform duration-300 ${
+              className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ${
                 expandedSection === 'levels' ? 'rotate-180' : ''
               }`}
               fill="none"
@@ -159,58 +158,58 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
           
           {expandedSection === 'levels' && (
             <div className="p-4 pt-4 border-t border-blue-200 dark:border-blue-700">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg p-2 flex flex-col items-center justify-center text-xs">
-                  <div className="w-8 h-8 relative mb-1">
+              <div className="flex justify-center gap-3">
+                <div className="bg-gradient-to-r from-blue-100 to-blue-200 text-black rounded-lg p-2 flex flex-col items-center justify-center text-xs h-20 w-20">
+                  <div className="w-6 h-6 relative mb-1">
                     <Image
                       src="/QuizImage/perfect-badge.png"
                       alt="Perfect"
                       fill
-                      sizes="32px"
+                      sizes="24px"
                       className="object-contain"
                     />
                   </div>
-                  <span className="font-bold">Perfect</span>
-                  <span className="text-[10px]">100% Accuracy</span>
+                  <span className="font-bold text-[10px]">Perfect</span>
+                  <span className="text-[9px]">100%</span>
                 </div>
-                <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white rounded-lg p-2 flex flex-col items-center justify-center text-xs">
-                  <div className="w-8 h-8 relative mb-1">
+                <div className="bg-gradient-to-r from-blue-100 to-blue-200 text-black rounded-lg p-2 flex flex-col items-center justify-center text-xs h-20 w-20">
+                  <div className="w-6 h-6 relative mb-1">
                     <Image
                       src="/QuizImage/gold-badge.png"
                       alt="Gold"
                       fill
-                      sizes="32px"
+                      sizes="24px"
                       className="object-contain"
                     />
                   </div>
-                  <span className="font-bold">Gold</span>
-                  <span className="text-[10px]">90%+ Mastery</span>
+                  <span className="font-bold text-[10px]">Gold</span>
+                  <span className="text-[9px]">90%+</span>
                 </div>
-                <div className="bg-gradient-to-r from-gray-300 to-gray-400 text-white rounded-lg p-2 flex flex-col items-center justify-center text-xs">
-                  <div className="w-8 h-8 relative mb-1">
+                <div className="bg-gradient-to-r from-blue-100 to-blue-200 text-black rounded-lg p-2 flex flex-col items-center justify-center text-xs h-20 w-20">
+                  <div className="w-6 h-6 relative mb-1">
                     <Image
                       src="/QuizImage/silver-badge.png"
                       alt="Silver"
                       fill
-                      sizes="32px"
+                      sizes="24px"
                       className="object-contain"
                     />
                   </div>
-                  <span className="font-bold">Silver</span>
-                  <span className="text-[10px]">75%+ Mastery</span>
+                  <span className="font-bold text-[10px]">Silver</span>
+                  <span className="text-[9px]">75%+</span>
                 </div>
-                <div className="bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-lg p-2 flex flex-col items-center justify-center text-xs">
-                  <div className="w-8 h-8 relative mb-1">
+                <div className="bg-gradient-to-r from-blue-100 to-blue-200 text-black rounded-lg p-2 flex flex-col items-center justify-center text-xs h-20 w-20">
+                  <div className="w-6 h-6 relative mb-1">
                     <Image
                       src="/QuizImage/bronze-badge.png"
                       alt="Bronze"
                       fill
-                      sizes="32px"
+                      sizes="24px"
                       className="object-contain"
                     />
                   </div>
-                  <span className="font-bold">Bronze</span>
-                  <span className="text-[10px]">60%+ Mastery</span>
+                  <span className="font-bold text-[10px]">Bronze</span>
+                  <span className="text-[9px]">60%+</span>
                 </div>
               </div>
             </div>
@@ -218,7 +217,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
         </div>
 
         {/* Badge System Section */}
-        <div className="border-2 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900 hover:shadow-lg transition-all duration-200">
+        <div className="border border-blue-300 dark:border-blue-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900 hover:shadow-lg transition-all duration-200">
           <button
             onClick={() => toggleSection('badges')}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50 dark:hover:bg-gray-800 transition-all duration-200"
@@ -236,7 +235,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
               <span className="font-semibold text-gray-900 dark:text-white text-sm">Badge System</span>
             </div>
             <svg
-              className={`w-5 h-5 text-blue-600 dark:text-blue-400 transition-transform duration-300 ${
+              className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ${
                 expandedSection === 'badges' ? 'rotate-180' : ''
               }`}
               fill="none"
@@ -270,7 +269,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
         </div>
 
         {/* Pro Tips Section */}
-        <div className="border-2 border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900 hover:shadow-lg transition-all duration-200">
+        <div className="border border-blue-300 dark:border-blue-600 rounded-xl overflow-hidden bg-white dark:bg-gray-900 hover:shadow-lg transition-all duration-200">
           <button
             onClick={() => toggleSection('tips')}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50 dark:hover:bg-gray-800 transition-all duration-200"
@@ -288,7 +287,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
               <span className="font-semibold text-gray-900 dark:text-white text-sm">Pro Tips</span>
             </div>
             <svg
-              className={`w-5 h-5 text-blue-600 dark:text-blue-400 transition-transform duration-300 ${
+              className={`w-5 h-5 text-gray-600 dark:text-gray-400 transition-transform duration-300 ${
                 expandedSection === 'tips' ? 'rotate-180' : ''
               }`}
               fill="none"

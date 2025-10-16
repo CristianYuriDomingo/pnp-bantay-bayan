@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - UPDATED with PNP Rank Badge
+// app/users/dashboard/page.tsx - Updated without Welcome Header
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -9,75 +9,25 @@ import SearchBar from '../components/SearchBar';
 import DashboardStats from '../components/DashboardStats';
 import RecommendedNext from '../components/RecommendedNext';
 import RecentActivity from '../components/RecentActivity';
+import LearnCard2 from '../components/LearnCard2';
 import { fetchUserModules, handleModuleClick, UserModule } from '../lib/api';
 import { useRightColumn } from '../layout';
-import { useUserRank } from '@/hooks/use-rank';
-import { PNPRankBadge } from '../components/rank-badge';
-import Image from 'next/image';
-
-// LearnCard2 component (inline since you don't want new files)
-const LearnCard2 = () => {
-  return (
-    <div className="p-6">
-      {/* Inner card with rounded corners and border */}
-      <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
-        {/* Header */}
-        <h2 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase mb-4 text-center tracking-wide">
-          WHAT ARE LEARNING MODULES?
-        </h2>
-
-        {/* Main content */}
-        <div className="flex items-center">
-          {/* Character image */}
-          <div className="w-20 h-20 relative mr-4 flex-shrink-0">
-            <Image
-              src="/MainImage/PibiTeach.png"
-              alt="Learning mascot"
-              fill
-              sizes="80px"
-              className="object-contain"
-              priority
-            />
-          </div>
-
-          {/* Text Content */}
-          <div className="flex-1">
-            {/* Bold statement */}
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 leading-tight">
-              Read lesson. Finish. <br />
-              Earn Badge.
-            </h3>
-
-            {/* Description */}
-            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-              Earn Badge through lessons, different lessons will give you different badges.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { setRightColumnContent } = useRightColumn();
-  const { rankData, rankInfo, loading: rankLoading } = useUserRank();
   
   // State for modules data
   const [modules, setModules] = useState<UserModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // State for welcome header visibility (resets on navigation)
-  const [showWelcomeHeader, setShowWelcomeHeader] = useState(true);
 
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-        {/* Learning Modules Explanation Card */}
+        {/* Learning Modules Explanation Card with Rank Info */}
         <div className="border-b border-gray-100 dark:border-gray-700">
           <LearnCard2 />
         </div>
@@ -189,56 +139,6 @@ export default function DashboardPage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-20 py-6">
-        {/* Welcome Header with PNP Rank Badge - Closable */}
-        {showWelcomeHeader && (
-          <div className="mb-6 relative">
-            {/* Close Button */}
-            <button
-              onClick={() => setShowWelcomeHeader(false)}
-              className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
-              aria-label="Close welcome message"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    Welcome back, {session?.user?.email?.split('@')[0]}!
-                  </h1>
-                  {/* PNP Rank Badge */}
-                  {rankData && rankInfo && !rankLoading && (
-                    <>
-                      <PNPRankBadge 
-                        rank={rankData.currentRank} 
-                        size="sm" 
-                        showIcon={true}
-                        showName={false}
-                      />
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {rankInfo.name}
-                      </span>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Continue your learning journey
-                  </p>
-                  {rankData && (
-                    <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                      Position #{rankData.leaderboardPosition}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Search Bar Section */}
         <SearchBar />
 

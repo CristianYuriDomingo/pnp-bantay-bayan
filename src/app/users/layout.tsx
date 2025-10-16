@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCurrentUser } from '@/hooks/use-current-user'; // ✅ NEW: Using user context
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { Loader2 } from 'lucide-react';
 
 interface UsersLayoutProps {
@@ -25,7 +25,6 @@ const RightColumnContext = createContext<{
 export const useRightColumn = () => useContext(RightColumnContext);
 
 export default function UsersLayout({ children }: UsersLayoutProps) {
-  // ✅ NEW: Using the user context system
   const { user, isLoading } = useCurrentUser();
   const pathname = usePathname();
   const [isDropdownVisible, setDropdownVisible] = useState(true);
@@ -34,7 +33,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   // Check if current page should render without sidebar
   const isLessonPage = pathname.includes('/lessons/');
   const isQuizStartPage = pathname.includes('/quizStart/');
-  // Add quiz start pages to full page layout
   const isFullPageLayout = isLessonPage || isQuizStartPage;
 
   const handleSignOut = async () => {
@@ -78,7 +76,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     },
   ];
 
-  // ✅ NEW: Show loading state while user context loads
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -90,7 +87,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     );
   }
 
-  // ✅ NEW: Redirect to sign in if not authenticated
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -108,7 +104,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     );
   }
 
-  // If it's a lesson page or quiz start page, render without sidebar
   if (isFullPageLayout) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -117,7 +112,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     );
   }
 
-  // Default dashboard layout with responsive sidebar (includes regular quiz page)
   return (
     <RightColumnContext.Provider value={{ rightColumnContent, setRightColumnContent }}>
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
@@ -171,7 +165,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                               ? 'text-gray-900 dark:text-white bg-blue-100 dark:bg-gray-700 border border-blue-300 dark:border-gray-600'
                               : 'text-gray-900 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-700'
                             }`}
-                          title={item.name} // Tooltip for small screens
+                          title={item.name}
                         >
                           <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
                             <Image
@@ -199,7 +193,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   {/* Divider */}
                   <hr className="border-t-2 border-gray-200 dark:border-gray-700 my-4" />
                   
-                  {/* Remember Alert - Positioned above Sign Out like in the image */}
+                  {/* Remember Alert - Positioned above Sign Out */}
                   {isDropdownVisible && (
                     <li className="hidden md:block mb-4">
                       <div
@@ -289,8 +283,8 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   </div>
                 </div>
                 
-                {/* Right column - 30% with no background */}
-                <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit max-h-screen flex flex-col gap-4 overflow-y-auto">
+                {/* Right column - 30% - UPDATED: Removed max-h-screen and overflow-y-auto */}
+                <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit flex flex-col gap-4">
                   {/* Dynamic content from pages or default placeholder */}
                   {rightColumnContent || (
                     <div className="p-4 bg-gray-50/80 dark:bg-gray-700/80 rounded-lg backdrop-blur-sm">
