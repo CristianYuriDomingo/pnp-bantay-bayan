@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import QuizTitle from '../components/QuizTitle';
-import QuizHistoryDashboard from '../components/QuizHistoryDashboard';
+import MasteryAchievements from '../components/QuizMasteryAchievements';
 import QuizCard from '../components/QuizCard';
 import { useRightColumn } from '../layout';
 
@@ -321,9 +321,9 @@ export default function Quiz() {
           <QuizCard history={quizHistory} />
         </div>
         
-        {quizHistory && quizHistory.masteryOverview.length > 0 && (
+        {quizHistory && quizHistory.statistics && (
           <div className="p-4">
-            <QuizHistoryDashboard />
+            <MasteryAchievements masteryStats={quizHistory.statistics.masteryStats} />
           </div>
         )}
       </div>
