@@ -82,10 +82,10 @@ const SubQuizModal = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 px-6 py-5">
+        <div className="relative bg-blue-500 px-6 py-6">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
+            className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-colors text-white"
             aria-label="Close"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -93,37 +93,31 @@ const SubQuizModal = ({
             </svg>
           </button>
           
-          <h2 className="text-xl font-bold text-white text-center pr-6">
+          <h2 className="text-2xl font-bold text-white text-center pr-6 mb-2">
             {parentQuiz.title}
           </h2>
-          <p className="text-blue-100 text-center mt-1 text-sm">
+          <p className="text-white text-center text-lg font-medium">
             Select a quiz to begin
           </p>
           
           {/* Quiz Stats */}
-          <div className="flex items-center justify-center gap-4 mt-3 text-white text-sm">
-            <div className="flex items-center gap-1">
-              <span className="font-semibold">{parentQuiz.children?.length || 0}</span>
-              <span className="text-blue-100">quizzes</span>
-            </div>
+          <div className="flex items-center justify-center gap-3 mt-4 text-white/90 text-sm">
+            <span className="font-medium">{parentQuiz.children?.length || 0} quizzes</span>
             {parentQuiz.children && parentQuiz.children.length > 0 && (
               <>
-                <span className="text-blue-200">•</span>
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold">
-                    {parentQuiz.children.filter(subQuiz => 
-                      masteryMap.get(subQuiz.id)?.attemptCount && masteryMap.get(subQuiz.id)!.attemptCount > 0
-                    ).length}
-                  </span>
-                  <span className="text-blue-100">completed</span>
-                </div>
+                <span>•</span>
+                <span className="font-medium">
+                  {parentQuiz.children.filter(subQuiz => 
+                    masteryMap.get(subQuiz.id)?.attemptCount && masteryMap.get(subQuiz.id)!.attemptCount > 0
+                  ).length} completed
+                </span>
               </>
             )}
           </div>
         </div>
 
         {/* Content */}
-        <div className="p-5 max-h-[calc(85vh-100px)] overflow-y-auto">
+        <div className="p-5 max-h-[calc(85vh-140px)] overflow-y-auto bg-gray-50">
           {parentQuiz.children && parentQuiz.children.length > 0 ? (
             <div className="space-y-3">
               {parentQuiz.children.map((subQuiz, index) => {
@@ -136,14 +130,14 @@ const SubQuizModal = ({
                   <div
                     key={subQuiz.id}
                     onClick={() => onQuizSelect(subQuiz.id)}
-                    className="group relative bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-4 cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md border border-blue-200"
+                    className="group relative bg-white rounded-xl p-4 cursor-pointer transition-all duration-200 border-2 border-gray-200 hover:border-blue-400 shadow-sm hover:shadow-md"
                     onMouseEnter={() => setHoveredQuizId(subQuiz.id)}
                     onMouseLeave={() => setHoveredQuizId(null)}
                   >
                     <div className="flex items-center gap-4">
                       {/* Left: Number Circle with Mastery Badge Overlay */}
                       <div className="flex-shrink-0 relative">
-                        <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-md">
+                        <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
                           {index + 1}
                         </div>
                         
@@ -182,12 +176,12 @@ const SubQuizModal = ({
                             {subQuiz.title}
                           </h3>
                           {isAttempted && (
-                            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+                            <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded whitespace-nowrap">
                               Best: {Math.round(mastery.bestPercentage)}%
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-500">
                           {questionCount} questions
                         </p>
                       </div>
@@ -195,10 +189,10 @@ const SubQuizModal = ({
                       {/* Right: Timer Badge */}
                       <div className="flex-shrink-0">
                         <div className="flex flex-col items-center gap-1">
-                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          <span className="text-xs font-semibold text-gray-700">{subQuiz.timer}s</span>
+                          <span className="text-xs font-medium text-gray-600">{subQuiz.timer}s</span>
                         </div>
                       </div>
                     </div>
