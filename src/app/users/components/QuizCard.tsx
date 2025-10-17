@@ -152,7 +152,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                 <div className="bg-blue-50 dark:bg-gray-700 px-4 py-3 flex items-center gap-3">
                   <div className="w-5 h-5 relative flex-shrink-0">
                     <Image
-                      src="/QuizImage/target-icon.png"
+                      src="/QuizImage/QuizCard/MasteryScoreFormula.png"
                       alt="Target"
                       fill
                       sizes="20px"
@@ -189,7 +189,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                 <div className="bg-blue-50 dark:bg-gray-700 px-4 py-3 flex items-center gap-3">
                   <div className="w-5 h-5 relative flex-shrink-0">
                     <Image
-                      src="/QuizImage/trophy-icon.png"
+                      src="/QuizImage/QuizCard/MasteryLevels.png"
                       alt="Trophy"
                       fill
                       sizes="20px"
@@ -204,7 +204,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                     <div className="bg-gradient-to-b from-purple-100 to-purple-200 rounded-lg p-2 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 relative mb-1">
                         <Image
-                          src="/QuizImage/perfect-badge.png"
+                          src="/QuizImage/mastery/perfect-badge.png"
                           alt="Perfect"
                           fill
                           sizes="32px"
@@ -217,7 +217,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                     <div className="bg-gradient-to-b from-yellow-100 to-yellow-200 rounded-lg p-2 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 relative mb-1">
                         <Image
-                          src="/QuizImage/gold-badge.png"
+                          src="/QuizImage/mastery/gold-badge.png"
                           alt="Gold"
                           fill
                           sizes="32px"
@@ -230,7 +230,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                     <div className="bg-gradient-to-b from-gray-200 to-gray-300 rounded-lg p-2 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 relative mb-1">
                         <Image
-                          src="/QuizImage/silver-badge.png"
+                          src="/QuizImage/mastery/silver-badge.png"
                           alt="Silver"
                           fill
                           sizes="32px"
@@ -243,7 +243,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                     <div className="bg-gradient-to-b from-orange-100 to-orange-200 rounded-lg p-2 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 relative mb-1">
                         <Image
-                          src="/QuizImage/bronze-badge.png"
+                          src="/QuizImage/mastery/bronze-badge.png"
                           alt="Bronze"
                           fill
                           sizes="32px"
@@ -262,7 +262,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                 <div className="bg-blue-50 dark:bg-gray-700 px-4 py-3 flex items-center gap-3">
                   <div className="w-5 h-5 relative flex-shrink-0">
                     <Image
-                      src="/QuizImage/gift-icon.png"
+                      src="/QuizImage/QuizCard/BadgeSystem.png"
                       alt="Gift"
                       fill
                       sizes="20px"
@@ -297,7 +297,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                 <div className="bg-blue-50 dark:bg-gray-700 px-4 py-3 flex items-center gap-3">
                   <div className="w-5 h-5 relative flex-shrink-0">
                     <Image
-                      src="/QuizImage/lightbulb-icon.png"
+                      src="/QuizImage/QuizCard/ProTips.png"
                       alt="Lightbulb"
                       fill
                       sizes="20px"

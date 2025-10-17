@@ -1,4 +1,3 @@
-// FILE: app/users/quiz/page.tsx - Complete File
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,6 +5,7 @@ import Image from 'next/image';
 import QuizTitle from '../components/QuizTitle';
 import MasteryAchievements from '../components/QuizMasteryAchievements';
 import QuizCard from '../components/QuizCard';
+import QuizHistoryTabs from '../components/QuizHistoryTabs';
 import { useRightColumn } from '../layout';
 
 interface Quiz {
@@ -31,6 +31,35 @@ interface QuizMastery {
   attemptCount: number;
 }
 
+interface MasteryOverview {
+  quizId: string;
+  quizTitle: string;
+  questionCount: number;
+  masteryLevel: string | null;
+  bestScore: number;
+  bestPercentage: number;
+  bestMasteryScore: number;
+  attemptCount: number;
+  firstAttemptAt: string;
+  bestAttemptAt: string;
+  lastAttemptAt: string;
+}
+
+interface AttemptHistory {
+  id: string;
+  quizId: string;
+  quizTitle: string;
+  score: number;
+  totalQuestions: number;
+  percentage: number;
+  timeSpent: number;
+  timeAllowed: number;
+  timeEfficiency: number;
+  masteryScore: number;
+  masteryLevel: string | null;
+  createdAt: string;
+}
+
 interface QuizHistory {
   statistics: {
     totalAttempts: number;
@@ -44,10 +73,10 @@ interface QuizHistory {
       total: number;
     };
   };
-  masteryOverview: QuizMastery[];
+  masteryOverview: MasteryOverview[];
+  attemptHistory: AttemptHistory[];
 }
 
-// Helper function to get mastery image path
 const getMasteryImage = (level: string | null) => {
   switch (level) {
     case 'Perfect': return '/QuizImage/perfect.png';
@@ -58,7 +87,6 @@ const getMasteryImage = (level: string | null) => {
   }
 };
 
-// Simplified Sub-quiz Modal Component
 const SubQuizModal = ({ 
   parentQuiz, 
   masteryMap, 
@@ -217,7 +245,6 @@ const SubQuizModal = ({
   );
 };
 
-// Parent Quiz Title Component
 const ParentQuizTitle = ({ 
   parentQuiz,
   masteryMap,
@@ -297,7 +324,6 @@ const ParentQuizTitle = ({
   );
 };
 
-// MAIN COMPONENT
 export default function Quiz() {
   const [parentQuizzes, setParentQuizzes] = useState<Quiz[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizHistory | null>(null);
@@ -310,15 +336,26 @@ export default function Quiz() {
 
   useEffect(() => {
     const rightColumnContent = (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-        <div className="border-b border-gray-100 dark:border-gray-700">
-          <QuizCard history={quizHistory} />
-        </div>
-        
-        {quizHistory && quizHistory.statistics && (
-          <div className="p-4">
-            <MasteryAchievements masteryStats={quizHistory.statistics.masteryStats} />
+      <div className="space-y-6">
+        {/* Quiz Statistics Card */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+          <div className="border-b border-gray-100 dark:border-gray-700">
+            <QuizCard history={quizHistory} />
           </div>
+          
+          {quizHistory && quizHistory.statistics && (
+            <div className="p-4">
+              <MasteryAchievements masteryStats={quizHistory.statistics.masteryStats} />
+            </div>
+          )}
+        </div>
+
+        {/* Quiz History Tabs */}
+        {quizHistory && (
+          <QuizHistoryTabs
+            masteryOverview={quizHistory.masteryOverview}
+            attemptHistory={quizHistory.attemptHistory}
+          />
         )}
       </div>
     );
