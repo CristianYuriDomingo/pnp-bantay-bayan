@@ -1,4 +1,4 @@
-// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete Updated Version)
+// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete Updated Version with Shuffled Options)
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -141,22 +141,21 @@ const QuizComplete = ({
     }
   };
 
-  // Function to get the result image based on mastery level or score
   const getResultImage = () => {
     if (masteryData?.masteryLevel === 'Perfect') {
-      return '/QuizImage/ResultPerfect.png'; // Trophy/Perfect score image
+      return '/QuizImage/ResultPerfect.png';
     } else if (masteryData?.masteryLevel === 'Gold') {
-      return '/QuizImage/ResultGold.png'; // Gold medal image
+      return '/QuizImage/ResultGold.png';
     } else if (masteryData?.masteryLevel === 'Silver') {
-      return '/QuizImage/ResultSilver.png'; // Silver medal image
+      return '/QuizImage/ResultSilver.png';
     } else if (masteryData?.masteryLevel === 'Bronze') {
-      return '/QuizImage/ResultBronze.png'; // Bronze medal image
+      return '/QuizImage/ResultBronze.png';
     } else if (percentage >= 80) {
-      return '/QuizImage/ResultGreat.png'; // Great job image
+      return '/QuizImage/ResultGreat.png';
     } else if (percentage >= 60) {
-      return '/QuizImage/ResultGood.png'; // Good job image
+      return '/QuizImage/ResultGood.png';
     } else {
-      return '/QuizImage/ResultTryAgain.png'; // Keep studying image
+      return '/QuizImage/ResultTryAgain.png';
     }
   };
 
@@ -177,14 +176,12 @@ const QuizComplete = ({
 
         <div className="text-center">
           <div className="mb-6">
-            {/* Result Image Instead of Emoji */}
             <div className="flex justify-center mb-4">
               <img 
                 src={getResultImage()} 
                 alt="Quiz Result" 
                 className="w-24 h-24 object-contain"
                 onError={(e) => {
-                  // Fallback to emoji if image fails to load
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
                   if (target.nextElementSibling) {
@@ -192,7 +189,6 @@ const QuizComplete = ({
                   }
                 }}
               />
-              {/* Fallback emoji (hidden by default) */}
               <span className="text-6xl hidden">
                 {masteryData?.masteryLevel === 'Perfect' ? '🏆' : 
                  masteryData?.masteryLevel === 'Gold' ? '🥇' :
@@ -288,12 +284,15 @@ interface QuizUIProps {
   quizId: string;
 }
 
-interface QuestionData {
+interface ShuffledQuestion {
   id: string;
   question: string;
   lesson: string;
   image?: string;
   options: string[];
+  shuffledOptions: string[];
+  correctAnswerIndex: number;
+  originalCorrectAnswerIndex: number;
 }
 
 interface AnswerFeedback {
@@ -313,11 +312,38 @@ interface UserAnswer {
   correct: boolean;
 }
 
+// Helper function to shuffle an array
+const shuffleArray = <T,>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Helper function to prepare questions with shuffled options
+const prepareQuestionsWithShuffledOptions = (questions: any[]): ShuffledQuestion[] => {
+  return questions.map(question => {
+    const originalCorrectAnswerIndex = 0; // Assuming the correct answer is always at index 0 from API
+    const shuffledOptions = shuffleArray(question.options);
+    const correctAnswerIndex = shuffledOptions.indexOf(question.options[originalCorrectAnswerIndex]);
+
+    return {
+      ...question,
+      shuffledOptions,
+      correctAnswerIndex,
+      originalCorrectAnswerIndex
+    };
+  });
+};
+
 export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
   const [showInstructions, setShowInstructions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quizData, setQuizData] = useState<any>(null);
+  const [shuffledQuestions, setShuffledQuestions] = useState<ShuffledQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -337,11 +363,13 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       if (!response.ok) throw new Error('Failed to fetch quiz');
       const data = await response.json();
       setQuizData(data);
+      const prepared = prepareQuestionsWithShuffledOptions(data.questions);
+      setShuffledQuestions(prepared);
       setTimeLeft(data.timer);
       setShowInstructions(true);
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      setQuizData({
+      const fallbackData = {
         id: quizId,
         title: "Sample Quiz",
         timer: 30,
@@ -352,14 +380,17 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             lesson: "Cyber Security",
             image: "/LearnImage/CyberSecurity/21.png",
             options: [
-              "Only lowercase letters",
               "A mix of letters, numbers, and symbols",
+              "Only lowercase letters",
               "Your name and birthdate",
               "The same password for all accounts"
             ]
           }
         ]
-      });
+      };
+      setQuizData(fallbackData);
+      const prepared = prepareQuestionsWithShuffledOptions(fallbackData.questions);
+      setShuffledQuestions(prepared);
       setShowInstructions(true);
     } finally {
       setIsLoading(false);
@@ -370,8 +401,12 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     fetchQuizData();
   }, [quizId]);
 
-  const submitAnswer = async (questionId: string, selectedAnswerIndex: number) => {
+  const submitAnswer = async (questionId: string, selectedAnswerIndex: number, currentQuestionData: ShuffledQuestion) => {
     try {
+      // Convert the shuffled answer index back to the original index for the backend
+      const originalAnswerIndex = selectedAnswerIndex === -1 ? -1 : 
+        currentQuestionData.options.indexOf(currentQuestionData.shuffledOptions[selectedAnswerIndex]);
+
       const response = await fetch(`/api/users/quizzes/${quizId}/submit`, {
         method: 'POST',
         headers: {
@@ -379,32 +414,44 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         },
         body: JSON.stringify({
           questionId,
-          selectedAnswer: selectedAnswerIndex,
+          selectedAnswer: originalAnswerIndex,
         }),
       });
 
       if (!response.ok) throw new Error('Failed to submit answer');
       
       const feedback = await response.json();
-      setAnswerFeedback(feedback);
 
-      if (feedback.isCorrect) {
+      // Convert the feedback's correct answer index to shuffled index
+      const shuffledCorrectAnswerIndex = feedback.correctAnswer === -1 ? -1 :
+        currentQuestionData.shuffledOptions.indexOf(currentQuestionData.options[feedback.correctAnswer]);
+
+      const modifiedFeedback = {
+        ...feedback,
+        correctAnswer: shuffledCorrectAnswerIndex,
+        explanation: feedback.isCorrect ? feedback.explanation : undefined,
+        options: currentQuestionData.shuffledOptions
+      };
+
+      setAnswerFeedback(modifiedFeedback);
+
+      if (modifiedFeedback.isCorrect) {
         setScore(score + 1);
       }
 
-      return feedback;
+      return modifiedFeedback;
     } catch (error) {
       console.error('Error submitting answer:', error);
-      const isCorrect = selectedAnswerIndex === 1;
-      const fallbackFeedback: AnswerFeedback = {
+      const isCorrect = selectedAnswerIndex === currentQuestionData.correctAnswerIndex;
+      const fallbackFeedback = {
         questionId,
         selectedAnswer: selectedAnswerIndex,
-        correctAnswer: 1,
-        correctAnswerText: quizData.questions[currentQuestion].options[1],
+        correctAnswer: currentQuestionData.correctAnswerIndex,
+        correctAnswerText: currentQuestionData.shuffledOptions[currentQuestionData.correctAnswerIndex],
         isCorrect,
-        explanation: isCorrect ? "Great job!" : "The correct answer provides better security.",
-        question: quizData.questions[currentQuestion].question,
-        options: quizData.questions[currentQuestion].options
+        explanation: isCorrect ? "Great job!" : undefined,
+        question: currentQuestionData.question,
+        options: currentQuestionData.shuffledOptions
       };
 
       setAnswerFeedback(fallbackFeedback);
@@ -427,10 +474,16 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          answers: userAnswers.map(ua => ua.answer),
+          answers: userAnswers.map((ua, index) => {
+            if (ua.answer === null) return -1;
+            // Convert shuffled answer index back to original index
+            return shuffledQuestions[index].options.indexOf(
+              shuffledQuestions[index].shuffledOptions[ua.answer]
+            );
+          }),
           timeSpent: totalTimeSpent,
           score: score,
-          totalQuestions: quizData.questions.length,
+          totalQuestions: shuffledQuestions.length,
         }),
       });
 
@@ -458,8 +511,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
   const handleTimeUp = async () => {
     setShowFeedback(true);
-    const currentQuestionData = quizData.questions[currentQuestion];
-    await submitAnswer(currentQuestionData.id, -1);
+    const currentQuestionData = shuffledQuestions[currentQuestion];
+    await submitAnswer(currentQuestionData.id, -1, currentQuestionData);
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
       answer: null, 
@@ -473,8 +526,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setSelectedAnswer(answerIndex);
     setShowFeedback(true);
 
-    const currentQuestionData = quizData.questions[currentQuestion];
-    const feedback = await submitAnswer(currentQuestionData.id, answerIndex);
+    const currentQuestionData = shuffledQuestions[currentQuestion];
+    const feedback = await submitAnswer(currentQuestionData.id, answerIndex, currentQuestionData);
 
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
@@ -484,7 +537,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   };
 
   const handleNextQuestion = () => {
-    if (currentQuestion < quizData.questions.length - 1) {
+    if (currentQuestion < shuffledQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
       setShowFeedback(false);
@@ -503,6 +556,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   };
 
   const handleRetakeQuiz = () => {
+    const prepared = prepareQuestionsWithShuffledOptions(quizData.questions);
+    setShuffledQuestions(prepared);
     setCurrentQuestion(0);
     setScore(0);
     setSelectedAnswer(null);
@@ -554,7 +609,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     return <LoadingSpinner />;
   }
 
-  if (!quizData) {
+  if (!quizData || shuffledQuestions.length === 0) {
     return (
       <div className="min-h-screen flex justify-center items-center p-4">
         <div className="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
@@ -570,9 +625,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     );
   }
 
-  const currentQuestionData = quizData.questions[currentQuestion];
-  const progressWidth = ((currentQuestion + 1) / quizData.questions.length) * 100;
-  const isLastQuestion = currentQuestion === quizData.questions.length - 1;
+  const currentQuestionData = shuffledQuestions[currentQuestion];
+  const progressWidth = ((currentQuestion + 1) / shuffledQuestions.length) * 100;
+  const isLastQuestion = currentQuestion === shuffledQuestions.length - 1;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -581,7 +636,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         <div className="flex justify-between items-center text-gray-800 mb-4">
           <div className="flex items-center space-x-4 sm:space-x-6">
             <div className="bg-white/80 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-blue-200 shadow-sm">
-              <span className="font-medium text-sm sm:text-base">Score: {score}/{quizData.questions.length}</span>
+              <span className="font-medium text-sm sm:text-base">Score: {score}/{shuffledQuestions.length}</span>
             </div>
             <div className="hidden sm:block">
               <span className="text-base sm:text-lg font-medium text-blue-700">{quizData.title}</span>
@@ -591,7 +646,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           <div className="flex items-center space-x-4 sm:space-x-6">
             <div className="bg-white/80 backdrop-blur-md px-4 sm:px-5 py-2 sm:py-2.5 rounded-full border border-blue-200 shadow-sm">
               <span className="font-medium text-sm sm:text-base">
-                {currentQuestion + 1}/{quizData.questions.length}
+                {currentQuestion + 1}/{shuffledQuestions.length}
               </span>
             </div>
             <button 
@@ -652,9 +707,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
             </h2>
           </div>
 
-          {/* Answer Options */}
+          {/* Answer Options - Using Shuffled Options */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-4">
-            {currentQuestionData.options.map((option: string, index: number) => (
+            {currentQuestionData.shuffledOptions.map((option: string, index: number) => (
               <button
                 key={index}
                 onClick={() => handleAnswerSelect(index)}
@@ -684,7 +739,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         }`}>
           <div className="max-w-6xl mx-auto px-4 sm:px-8 py-6">
             <div className="flex items-center justify-between gap-4">
-              {/* Left Side - Icon and Feedback */}
+              {/* Left Side - Icon, Image and Feedback */}
               <div className="flex items-center gap-4 flex-1">
                 {/* Icon Circle */}
                 <div className={`flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${
@@ -703,6 +758,19 @@ export default function QuizUI({ quizId }: QuizUIProps) {
                   )}
                 </div>
 
+                {/* Feedback Image */}
+                <div className="flex-shrink-0 hidden sm:block">
+                  <img 
+                    src={answerFeedback.isCorrect ? '/QuizImage/FeedbackCorrect.png' : '/QuizImage/FeedbackIncorrect.png'}
+                    alt="Feedback"
+                    className="h-20 sm:h-24 w-auto object-contain"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                </div>
+
                 {/* Feedback Text */}
                 <div className="flex-1">
                   <div className={`text-xl sm:text-2xl font-bold mb-1 ${
@@ -712,9 +780,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
                       ? "Excellent!" 
                       : selectedAnswer !== null ? "Incorrect" : "Time's Up!"}
                   </div>
-                  {!answerFeedback.isCorrect && (
+                  {!answerFeedback.isCorrect && selectedAnswer === null && (
                     <div className="text-sm sm:text-base text-gray-700">
-                      Correct answer: <strong className="text-gray-900">{answerFeedback.correctAnswerText}</strong>
+                      Time's up! Let's move on to the next question.
                     </div>
                   )}
                   {answerFeedback.explanation && (
@@ -755,7 +823,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       {isQuizComplete && (
         <QuizComplete 
           score={score}
-          totalQuestions={quizData.questions.length}
+          totalQuestions={shuffledQuestions.length}
           quizTitle={quizData.title}
           masteryData={masteryData}
           onRetakeQuiz={handleRetakeQuiz}
