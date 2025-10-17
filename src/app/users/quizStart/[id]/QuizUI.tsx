@@ -141,16 +141,21 @@ const QuizComplete = ({
     }
   };
 
-  const getResultImage = () => {
+const getResultImage = () => {
+    console.log('Getting result image. Mastery Level:', masteryData?.masteryLevel);
+    
+    // Check mastery level first (note: paths are case-sensitive on some servers)
     if (masteryData?.masteryLevel === 'Perfect') {
-      return '/QuizImage/ResultPerfect.png';
+      return '/QuizImage/mastery/perfect-badge.png';
     } else if (masteryData?.masteryLevel === 'Gold') {
-      return '/QuizImage/ResultGold.png';
+      return '/QuizImage/mastery/gold-badge.png';
     } else if (masteryData?.masteryLevel === 'Silver') {
-      return '/QuizImage/ResultSilver.png';
+      return '/QuizImage/mastery/silver-badge.png';
     } else if (masteryData?.masteryLevel === 'Bronze') {
-      return '/QuizImage/ResultBronze.png';
-    } else if (percentage >= 80) {
+      return '/QuizImage/mastery/bronze-badge.png';
+    } 
+    // Fallback to score-based images
+    else if (percentage >= 80) {
       return '/QuizImage/ResultGreat.png';
     } else if (percentage >= 60) {
       return '/QuizImage/ResultGood.png';
@@ -184,19 +189,8 @@ const QuizComplete = ({
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.style.display = 'none';
-                  if (target.nextElementSibling) {
-                    (target.nextElementSibling as HTMLElement).style.display = 'block';
-                  }
                 }}
               />
-              <span className="text-6xl hidden">
-                {masteryData?.masteryLevel === 'Perfect' ? '🏆' : 
-                 masteryData?.masteryLevel === 'Gold' ? '🥇' :
-                 masteryData?.masteryLevel === 'Silver' ? '🥈' :
-                 masteryData?.masteryLevel === 'Bronze' ? '🥉' :
-                 percentage >= 80 ? '🎉' : 
-                 percentage >= 60 ? '👍' : '📚'}
-              </span>
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
             <p className="text-gray-600">{quizTitle}</p>

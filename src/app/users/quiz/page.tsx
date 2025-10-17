@@ -79,10 +79,10 @@ interface QuizHistory {
 
 const getMasteryImage = (level: string | null) => {
   switch (level) {
-    case 'Perfect': return '/QuizImage/perfect.png';
-    case 'Gold': return '/QuizImage/gold.png';
-    case 'Silver': return '/QuizImage/silver.png';
-    case 'Bronze': return '/QuizImage/bronze.png';
+    case 'Perfect': return '/QuizImage/mastery/perfect-badge.png';
+    case 'Gold': return '/QuizImage/mastery/gold-badge.png';
+    case 'Silver': return '/QuizImage/mastery/silver-badge.png';
+    case 'Bronze': return '/QuizImage/mastery/bronze-badge.png';
     default: return null;
   }
 };
