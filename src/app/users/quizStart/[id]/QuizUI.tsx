@@ -1,4 +1,4 @@
-// FILE: app/users/quizStart/[id]/QuizUI.tsx (Fixed Version with Mastery Image)
+// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete with Themed Exit Confirmation)
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -40,6 +40,69 @@ const Confetti = () => {
           }
         }
       `}</style>
+    </div>
+  );
+};
+
+// Exit Confirmation Modal - THEMED VERSION
+const ExitConfirmation = ({ onConfirm, onCancel }: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  const [isConfirmActive, setIsConfirmActive] = useState(false);
+  const [isCancelActive, setIsCancelActive] = useState(false);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="max-w-md w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-red-100">
+        <div className="flex justify-center mb-5">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-red-200 to-red-100 rounded-lg blur opacity-30"></div>
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center relative">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-3">
+          Exit <span className="text-red-600">Quiz?</span>
+        </h2>
+
+        <p className="text-gray-700 text-center text-base mb-6">
+          Are you sure you want to leave? Your progress will be <strong className="text-red-600">lost</strong> and this quiz attempt will not be saved.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            className={`flex-1 relative px-6 py-3 text-base font-bold text-gray-700 bg-gray-200 rounded-xl transition-all duration-150 ease-out ${
+              isCancelActive ? 'translate-y-1 shadow-none' : 'shadow-[0_4px_0_0_#9ca3af]'
+            }`}
+            onMouseDown={() => setIsCancelActive(true)}
+            onMouseUp={() => {
+              setIsCancelActive(false);
+              onCancel();
+            }}
+            onMouseLeave={() => setIsCancelActive(false)}
+          >
+            Continue Quiz
+          </button>
+          <button
+            className={`flex-1 relative px-6 py-3 text-base font-bold text-white bg-red-500 rounded-xl transition-all duration-150 ease-out ${
+              isConfirmActive ? 'translate-y-1 shadow-none' : 'shadow-[0_4px_0_0_#dc2626]'
+            }`}
+            onMouseDown={() => setIsConfirmActive(true)}
+            onMouseUp={() => {
+              setIsConfirmActive(false);
+              onConfirm();
+            }}
+            onMouseLeave={() => setIsConfirmActive(false)}
+          >
+            Exit Quiz
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -463,6 +526,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [masteryData, setMasteryData] = useState<any>(null);
   const [isLoadingMastery, setIsLoadingMastery] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
+  const [hasSeenInstructions, setHasSeenInstructions] = useState(false);
 
   const fetchQuizData = async () => {
     try {
@@ -505,8 +570,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
-  useEffect(() => {
-    fetchQuizData();
+  useEffect(() => {fetchQuizData();
   }, [quizId]);
 
   const submitAnswer = async (questionId: string, selectedAnswerIndex: number, currentQuestionData: ShuffledQuestion) => {
@@ -664,6 +728,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setShowInstructions(false);
     setQuizStarted(true);
     setQuizStartTime(Date.now());
+    setHasSeenInstructions(true);
   };
 
   const handleRetakeQuiz = () => {
@@ -676,16 +741,33 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setAnswerFeedback(null);
     setUserAnswers([]);
     setIsQuizComplete(false);
-    setQuizStarted(false);
     setTimeLeft(quizData.timer);
-    setQuizStartTime(0);
+    setQuizStartTime(Date.now());
     setMasteryData(null);
     setIsLoadingMastery(false);
-    setShowInstructions(true);
+    
+    // Skip instructions on retake - start immediately
+    setShowInstructions(false);
+    setQuizStarted(true);
   };
 
-  const handleCloseQuiz = () => {
+  const handleCloseAttempt = () => {
+    // If quiz hasn't started or is complete, close immediately
+    if (!quizStarted || isQuizComplete) {
+      router.push('/users/quiz');
+    } else {
+      // If quiz is in progress, show confirmation
+      setShowExitConfirmation(true);
+    }
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitConfirmation(false);
     router.push('/users/quiz');
+  };
+
+  const handleCancelExit = () => {
+    setShowExitConfirmation(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -727,7 +809,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         <div className="text-center bg-white rounded-2xl p-8 shadow-xl border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Quiz not found</h2>
           <button 
-            onClick={handleCloseQuiz}
+            onClick={() => router.push('/users/quiz')}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md"
           >
             Go Back
@@ -762,7 +844,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
               </span>
             </div>
             <button 
-              onClick={handleCloseQuiz}
+              onClick={handleCloseAttempt}
               className="bg-white/80 hover:bg-white backdrop-blur-md p-2.5 sm:p-3 rounded-full transition-colors border border-blue-200 shadow-sm" 
               aria-label="Close quiz"
             >
@@ -924,11 +1006,18 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       )}
 
       {/* Overlay Modals */}
-      {showInstructions && (
+      {showInstructions && !hasSeenInstructions && (
         <QuizInstructions 
           topic={quizData.title}
           onStartQuiz={handleStartQuiz}
-          onClose={handleCloseQuiz}
+          onClose={() => router.push('/users/quiz')}
+        />
+      )}
+
+      {showExitConfirmation && (
+        <ExitConfirmation
+          onConfirm={handleConfirmExit}
+          onCancel={handleCancelExit}
         />
       )}
 
@@ -943,7 +1032,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           quizTitle={quizData.title}
           masteryData={masteryData}
           onRetakeQuiz={handleRetakeQuiz}
-          onClose={handleCloseQuiz}
+          onClose={() => router.push('/users/quiz')}
         />
       )}
     </div>
