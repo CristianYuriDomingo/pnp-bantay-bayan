@@ -141,7 +141,7 @@ const QuizComplete = ({
     }
   };
 
-const getResultImage = () => {
+  const getResultImage = () => {
     console.log('Getting result image. Mastery Level:', masteryData?.masteryLevel);
     
     // Check mastery level first (note: paths are case-sensitive on some servers)
@@ -349,6 +349,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [quizStarted, setQuizStarted] = useState(false);
   const [quizStartTime, setQuizStartTime] = useState<number>(0);
   const [masteryData, setMasteryData] = useState<any>(null);
+  const [isLoadingMastery, setIsLoadingMastery] = useState(false);
 
   const fetchQuizData = async () => {
     try {
@@ -460,6 +461,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
   const submitCompleteQuiz = async () => {
     try {
+      setIsLoadingMastery(true);
       const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
 
       const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
@@ -486,9 +488,15 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         setMasteryData(completionData);
       } else {
         console.warn('Failed to save quiz completion to database');
+        // Set empty mastery data to still show the completion screen
+        setMasteryData({});
       }
     } catch (error) {
       console.error('Error submitting complete quiz:', error);
+      // Set empty mastery data to still show the completion screen
+      setMasteryData({});
+    } finally {
+      setIsLoadingMastery(false);
     }
   };
 
@@ -530,7 +538,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }]);
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (currentQuestion < shuffledQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
       setSelectedAnswer(null);
@@ -539,7 +547,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setTimeLeft(quizData.timer);
     } else {
       setIsQuizComplete(true);
-      submitCompleteQuiz();
+      setIsLoadingMastery(true);
+      await submitCompleteQuiz();
     }
   };
 
@@ -563,6 +572,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setTimeLeft(quizData.timer);
     setQuizStartTime(0);
     setMasteryData(null);
+    setIsLoadingMastery(false);
     setShowInstructions(true);
   };
 
@@ -814,7 +824,11 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         />
       )}
 
-      {isQuizComplete && (
+      {isQuizComplete && isLoadingMastery && (
+        <LoadingSpinner />
+      )}
+
+      {isQuizComplete && !isLoadingMastery && masteryData !== null && (
         <QuizComplete 
           score={score}
           totalQuestions={shuffledQuestions.length}

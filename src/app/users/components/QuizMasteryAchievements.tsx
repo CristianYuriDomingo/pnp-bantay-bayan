@@ -7,7 +7,6 @@ interface MasteryStats {
   gold: number;
   silver: number;
   bronze: number;
-  total: number;
 }
 
 interface MasteryAchievementsProps {
@@ -15,6 +14,9 @@ interface MasteryAchievementsProps {
 }
 
 const MasteryAchievements: React.FC<MasteryAchievementsProps> = ({ masteryStats }) => {
+  // Calculate total correctly - each mastery only counts at its highest level
+  const totalMasteries = masteryStats.perfect + masteryStats.gold + masteryStats.silver + masteryStats.bronze;
+
   const masteryItems = [
     {
       key: 'perfect',
@@ -99,7 +101,7 @@ const MasteryAchievements: React.FC<MasteryAchievementsProps> = ({ masteryStats 
       {/* Total Masteries Summary */}
       <div className="text-center">
         <p className="text-gray-600 text-sm font-semibold mb-1">Total Masteries Earned</p>
-        <p className="text-blue-900 text-3xl font-bold">{masteryStats.total}</p>
+        <p className="text-blue-900 text-3xl font-bold">{totalMasteries}</p>
       </div>
     </div>
   );

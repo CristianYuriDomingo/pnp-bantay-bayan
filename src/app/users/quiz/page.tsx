@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import QuizTitle from '../components/QuizTitle';
 import MasteryAchievements from '../components/QuizMasteryAchievements';
 import QuizCard from '../components/QuizCard';
@@ -325,6 +326,7 @@ const ParentQuizTitle = ({
 };
 
 export default function Quiz() {
+  const router = useRouter();
   const [parentQuizzes, setParentQuizzes] = useState<Quiz[]>([]);
   const [quizHistory, setQuizHistory] = useState<QuizHistory | null>(null);
   const [masteryMap, setMasteryMap] = useState<Map<string, QuizMastery>>(new Map());
@@ -417,7 +419,7 @@ export default function Quiz() {
 
   const handleSubQuizSelect = (quizId: string) => {
     setSelectedParentQuiz(null);
-    window.location.href = `/users/quizStart/${quizId}`;
+    router.push(`/users/quizStart/${quizId}`);
   };
 
   const displayedParentQuizzes = showAll ? parentQuizzes : parentQuizzes.slice(0, 4);
