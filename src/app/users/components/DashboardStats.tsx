@@ -38,7 +38,7 @@ export default function DashboardStats() {
       <h3 className="text-lg font-semibold text-blue-600 mb-4">
         Completed Lessons
       </h3>
-      
+
       <div className="mb-4">
         <div className="flex items-baseline gap-2 mb-2">
           <span className="text-3xl font-bold text-blue-600">
@@ -51,16 +51,16 @@ export default function DashboardStats() {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-4">
-        <div 
-          className="bg-blue-500 h-4 rounded-full transition-all duration-300"
+      <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+        <div
+          className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all duration-300 shadow-sm"
           style={{ width: `${progressPercentage}%` }}
         ></div>
       </div>
-      
+
       <p className="text-xs text-gray-500 mt-2 font-semibold">
         {progressPercentage}% Complete
       </p>
     </div>
   );
-} 
+}

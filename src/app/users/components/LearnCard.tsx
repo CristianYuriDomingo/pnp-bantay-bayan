@@ -1,4 +1,4 @@
-// components/LearnCard.tsx - FIXED: Badge type compatibility
+// components/LearnCard.tsx - UPDATED: Entire card is clickable
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOverallProgress } from '@/hooks/use-progress';
@@ -34,7 +34,7 @@ interface Lesson {
   updatedAt: string;
 }
 
-// Badge interface for display - FIXED: Updated trigger types to match use-all-badges.ts
+// Badge interface for display
 interface BadgeDisplay {
   id: string;
   name: string;
@@ -51,7 +51,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-lg mx-4">
-        {/* Conditionally render image only if imageSrc is provided and not empty */}
         {imageSrc && (
           <div className="absolute -top-14 left-1/2 transform -translate-x-1/2">
             <img
@@ -63,7 +62,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
           </div>
         )}
 
-        {/* Close Button */}
         <button 
           onClick={onClose} 
           className="absolute top-4 right-4 text-blue-500 hover:text-gray-900 text-xl font-bold transition-colors duration-200"
@@ -71,7 +69,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
           ✖
         </button>
 
-        {/* Conditionally push content down only if image exists */}
         <div className={imageSrc ? "mt-14" : ""}>{children}</div>
       </div>
     </div>
@@ -89,8 +86,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
 }) => {
   const router = useRouter();
   const { overallProgress, loading: progressLoading } = useOverallProgress();
-  
-  // Add badge hooks
   const { badges, loading: badgesLoading } = useAllBadges();
   
   const [imageError, setImageError] = useState(false);
@@ -110,28 +105,22 @@ const LearnCard: React.FC<LearnCardProps> = ({
   const totalLessons = moduleProgress?.totalLessons || 0;
   const completionPercentage = moduleProgress?.percentage || 0;
 
-  // ENHANCED: Filter badges for this module AND its lessons (EXCLUDING quiz badges)
+  // Filter badges for this module AND its lessons (EXCLUDING quiz badges)
   const moduleBadges: BadgeDisplay[] = React.useMemo(() => {
     if (!badges || badgesLoading || !moduleLessons.length) return [];
     
-    // Get all lesson IDs for this module
     const lessonIds = moduleLessons.map(lesson => lesson.id);
     
-    // Filter badges that are earned and related to this module or its lessons
-    // ONLY show module_complete and lesson_complete badges (NO quiz badges)
     const earnedBadges = badges
       .filter(badge => {
         if (!badge.isEarned) return false;
         
-        // Check if badge is for this module (module completion)
         const isModuleBadge = badge.triggerValue === moduleId || 
                              badge.category.toLowerCase().includes(title.toLowerCase().split(' ')[0]);
         
-        // Check if badge is for any lesson in this module (lesson completion only)
         const isLessonBadge = badge.triggerType === 'lesson_complete' && 
                              lessonIds.includes(badge.triggerValue);
         
-        // ONLY return module and lesson badges (quiz badges excluded)
         return isModuleBadge || isLessonBadge;
       })
       .map(badge => ({
@@ -144,25 +133,21 @@ const LearnCard: React.FC<LearnCardProps> = ({
         triggerValue: badge.triggerValue
       }));
 
-    // Sort with module badges first (emphasized), then by rarity
     return earnedBadges
       .sort((a, b) => {
-        // First, prioritize module badges (parent badges)
         const aIsModule = a.triggerValue === moduleId || a.triggerType === 'module_complete';
         const bIsModule = b.triggerValue === moduleId || b.triggerType === 'module_complete';
         
-        if (aIsModule && !bIsModule) return -1; // a (module) comes first
-        if (!aIsModule && bIsModule) return 1;  // b (module) comes first
+        if (aIsModule && !bIsModule) return -1;
+        if (!aIsModule && bIsModule) return 1;
         
-        // If both are module or both are lesson badges, sort by rarity
         const rarityOrder: Record<string, number> = { 'Legendary': 0, 'Epic': 1, 'Rare': 2, 'Common': 3 };
         const rarityDiff = (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
         if (rarityDiff !== 0) return rarityDiff;
         
-        // Then by earned date (newest first)
         return new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime();
       })
-      .slice(0, 3); // Show up to 3 badges
+      .slice(0, 3);
   }, [badges, badgesLoading, moduleId, title, moduleLessons]);
 
   // Fetch lessons when component mounts or moduleId changes
@@ -200,12 +185,13 @@ const LearnCard: React.FC<LearnCardProps> = ({
   };
 
   // Function to handle badge click
-  const handleBadgeClick = (badge: BadgeDisplay) => {
+  const handleBadgeClick = (e: React.MouseEvent, badge: BadgeDisplay) => {
+    e.stopPropagation(); // Prevent card click
     setSelectedBadge(badge);
     setBadgeModalOpen(true);
   };
 
-  // Function to get badge source description (simplified - no quiz badges)
+  // Function to get badge source description
   const getBadgeSourceDescription = (badge: BadgeDisplay) => {
     if (badge.triggerValue === moduleId || badge.triggerType === 'module_complete') {
       return `Module completion badge`;
@@ -219,11 +205,21 @@ const LearnCard: React.FC<LearnCardProps> = ({
     return badge.triggerType.replace('_', ' ');
   };
 
+  // Handle card click
+  const handleCardClick = () => {
+    if (isAvailable) {
+      openModal();
+    }
+  };
+
   return (
     <>
       <div
+        onClick={handleCardClick}
         className={`relative w-full max-w-[180px] sm:max-w-[220px] md:max-w-[250px] h-56 sm:h-68 md:h-80 bg-white shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden ${
-          isAvailable ? 'hover:scale-105' : 'opacity-75'
+          isAvailable 
+            ? 'hover:scale-105 cursor-pointer active:scale-100' 
+            : 'opacity-75 cursor-not-allowed'
         }`}
       >
         {/* Image Container - takes up 70% of card height */}
@@ -263,7 +259,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
                         ? 'w-10 h-10 sm:w-12 sm:h-12'
                         : 'w-6 h-6 sm:w-8 sm:h-8'
                     }`}
-                    onClick={() => handleBadgeClick(badge)}
+                    onClick={(e) => handleBadgeClick(e, badge)}
                   >
                     <div className="relative w-full h-full">
                       <img
@@ -288,24 +284,17 @@ const LearnCard: React.FC<LearnCardProps> = ({
             </div>
           )}
                   
-          {/* Button positioned in bottom-right corner of image */}
+          {/* Button positioned in bottom-right corner of image - Non-interactive, design only */}
           <div className="absolute bottom-3 right-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isAvailable) {
-                  openModal();
-                }
-              }}
-              disabled={!isAvailable}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 ${
+            <div
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 pointer-events-none ${
                 isAvailable
-                  ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'bg-gray-400 text-gray-200'
               }`}
             >
               {buttonText}
-            </button>
+            </div>
           </div>
         </div>
 
@@ -412,4 +401,4 @@ const LearnCard: React.FC<LearnCardProps> = ({
   );
 };
 
-export default LearnCard;  
+export default LearnCard;
