@@ -1,8 +1,48 @@
-// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete Updated Version with Shuffled Options)
+// FILE: app/users/quizStart/[id]/QuizUI.tsx (Fixed Version with Mastery Image)
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
+// Confetti animation component
+const Confetti = () => {
+  const [pieces, setPieces] = useState<Array<{id: number, left: number, delay: number}>>([]);
+
+  useEffect(() => {
+    const newPieces = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 0.5
+    }));
+    setPieces(newPieces);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-40">
+      {pieces.map(piece => (
+        <div
+          key={piece.id}
+          className="absolute w-2 h-2 animate-bounce"
+          style={{
+            left: `${piece.left}%`,
+            top: '-10px',
+            animation: `fall ${2 + Math.random() * 1}s linear ${piece.delay}s forwards`,
+            backgroundColor: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA502', '#95E1D3'][Math.floor(Math.random() * 5)],
+            borderRadius: '50%'
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes fall {
+          to {
+            transform: translateY(100vh) rotateZ(360deg);
+            opacity: 0;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const QuizInstructions = ({ topic, onStartQuiz, onClose }: {
   topic: string;
@@ -114,6 +154,17 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const motivationalQuotes = [
+  "Every expert was once a beginner.",
+  "Success is a journey, not a destination.",
+  "Keep learning, keep growing!",
+  "Your effort today shapes your tomorrow.",
+  "Progress is progress, no matter how small.",
+  "Believe in yourself and your abilities.",
+  "The only way to fail is to stop trying.",
+  "Great things take practice and dedication."
+];
+
 const QuizComplete = ({ 
   score, 
   totalQuestions, 
@@ -130,32 +181,48 @@ const QuizComplete = ({
   onClose: () => void;
 }) => {
   const percentage = Math.round((score / totalQuestions) * 100);
+  const [showConfetti, setShowConfetti] = useState(true);
+  const [randomQuote] = useState(() => {
+    return motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+  });
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
   
   const getMasteryColor = (level: string | null) => {
     switch (level) {
-      case 'Perfect': return 'text-purple-600 bg-purple-100';
-      case 'Gold': return 'text-yellow-600 bg-yellow-100';
-      case 'Silver': return 'text-gray-600 bg-gray-100';
-      case 'Bronze': return 'text-orange-600 bg-orange-100';
-      default: return 'text-gray-500 bg-gray-50';
+      case 'Perfect': return 'text-purple-600';
+      case 'Gold': return 'text-yellow-600';
+      case 'Silver': return 'text-gray-600';
+      case 'Bronze': return 'text-orange-600';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getMissionResult = () => {
+    if (percentage >= 80) {
+      return "Great Job, Cadet!";
+    } else if (percentage >= 60) {
+      return "Good Effort, Cadet!";
+    } else {
+      return "Retry Mission";
+    }
+  };
+
+  const getMissionSubtext = () => {
+    if (percentage >= 80) {
+      return "You've completed your mission successfully!";
+    } else if (percentage >= 60) {
+      return "You've completed your mission!";
+    } else {
+      return "Don't give up! Try again and improve your score.";
     }
   };
 
   const getResultImage = () => {
-    console.log('Getting result image. Mastery Level:', masteryData?.masteryLevel);
-    
-    // Check mastery level first (note: paths are case-sensitive on some servers)
-    if (masteryData?.masteryLevel === 'Perfect') {
-      return '/QuizImage/mastery/perfect-badge.png';
-    } else if (masteryData?.masteryLevel === 'Gold') {
-      return '/QuizImage/mastery/gold-badge.png';
-    } else if (masteryData?.masteryLevel === 'Silver') {
-      return '/QuizImage/mastery/silver-badge.png';
-    } else if (masteryData?.masteryLevel === 'Bronze') {
-      return '/QuizImage/mastery/bronze-badge.png';
-    } 
-    // Fallback to score-based images
-    else if (percentage >= 80) {
+    if (percentage >= 80) {
       return '/QuizImage/ResultGreat.png';
     } else if (percentage >= 60) {
       return '/QuizImage/ResultGood.png';
@@ -164,106 +231,154 @@ const QuizComplete = ({
     }
   };
 
+  const getMasteryBadgeImage = () => {
+    if (masteryData?.masteryLevel === 'Perfect') {
+      return '/QuizImage/mastery/perfect-badge.png';
+    } else if (masteryData?.masteryLevel === 'Gold') {
+      return '/QuizImage/mastery/gold-badge.png';
+    } else if (masteryData?.masteryLevel === 'Silver') {
+      return '/QuizImage/mastery/silver-badge.png';
+    } else if (masteryData?.masteryLevel === 'Bronze') {
+      return '/QuizImage/mastery/bronze-badge.png';
+    }
+    return null;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="max-w-lg w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-blue-100">
-        <div className="flex justify-end mb-2">
+      {showConfetti && percentage >= 60 && <Confetti />}
+      
+      <div className="max-w-md w-full mx-auto p-5 bg-white shadow-2xl rounded-2xl border border-blue-100 max-h-[85vh] overflow-y-auto">
+        <div className="flex justify-end mb-1">
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="Close results"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <div className="text-center">
-          <div className="mb-6">
-            <div className="flex justify-center mb-4">
-              <img 
-                src={getResultImage()} 
-                alt="Quiz Result" 
-                className="w-24 h-24 object-contain"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Complete!</h2>
-            <p className="text-gray-600">{quizTitle}</p>
+          {/* Result Image - TOP */}
+          <div className="mb-4 flex justify-center">
+            <img 
+              src={getResultImage()} 
+              alt="Quiz Result" 
+              className="w-28 h-28 object-contain"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
           </div>
 
-          <div className="bg-blue-50 rounded-xl p-6 mb-6">
-            <div className="text-3xl font-bold text-blue-600 mb-2">
-              {score}/{totalQuestions}
-            </div>
-            <div className="text-gray-700 mb-2">
-              {percentage}% Score
-            </div>
-            
-            {masteryData?.masteryLevel && (
-              <div className={`inline-block px-4 py-2 rounded-full text-sm font-medium ${getMasteryColor(masteryData.masteryLevel)}`}>
-                {masteryData.masteryLevel} Mastery ({Math.round(masteryData.masteryScore)}%)
-              </div>
-            )}
-            
-            {masteryData?.isNewBestScore && (
-              <div className="mt-2 text-green-600 text-sm font-medium">
-                🎊 New Best Score!
-              </div>
-            )}
-          </div>
+          {/* Main Result Message */}
+          <h2 className="text-2xl font-bold text-gray-800 mb-1">
+            {getMissionResult()}
+          </h2>
+          <p className="text-gray-600 text-base mb-4">{getMissionSubtext()}</p>
 
+          {/* Badges Section - Primary Focus */}
           {masteryData?.earnedBadges && masteryData.earnedBadges.length > 0 && (
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-3">Badges Earned!</h3>
-              <div className="flex justify-center space-x-3 mb-4">
+            <div className="mb-4 rounded-xl p-3 border border-gray-200 bg-gradient-to-br from-gray-50 to-white">
+              <h3 className="text-base font-bold text-gray-800 mb-2">Badges Earned!</h3>
+              <div className="flex justify-center items-center space-x-2 mb-2 flex-wrap gap-2">
                 {masteryData.earnedBadges.map((badge: any) => (
-                  <div key={badge.id} className="text-center">
-                    <div className="w-16 h-16 flex items-center justify-center mb-2">
+                  <div key={badge.id} className="text-center transform hover:scale-110 transition-transform">
+                    <div className="w-16 h-16 flex items-center justify-center mb-1 mx-auto">
                       {badge.image ? (
                         <img 
                           src={badge.image} 
                           alt={badge.name} 
-                          className="w-16 h-16 object-contain" 
+                          className="w-full h-full object-contain drop-shadow-md" 
                         />
                       ) : (
                         <span className="text-4xl">🏆</span>
                       )}
                     </div>
-                    <p className="text-xs font-medium text-gray-700">{badge.name}</p>
+                    <p className="text-xs font-semibold text-gray-700">{badge.name}</p>
                   </div>
                 ))}
               </div>
+              {masteryData?.message && (
+                <p className="text-green-700 text-xs font-medium italic mt-1">{masteryData.message}</p>
+              )}
             </div>
           )}
 
-          {masteryData?.message && (
-            <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 text-sm font-medium">{masteryData.message}</p>
+          {/* Score and Mastery Info - Secondary */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 mb-3 border border-blue-200 shadow-sm">
+            <div className="text-xl font-bold text-blue-600 mb-1">
+              {score}/{totalQuestions}
             </div>
-          )}
+            <div className="text-gray-700 mb-2 font-semibold text-sm">
+              {percentage}% Accuracy
+            </div>
+            
+            {masteryData?.masteryLevel && (
+              <div className="flex items-center justify-center gap-2 mb-1">
+                {/* Mastery Badge Image - LEFT SIDE */}
+                {getMasteryBadgeImage() && (
+                  <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center">
+                    <img 
+                      src={getMasteryBadgeImage()!} 
+                      alt={`${masteryData.masteryLevel} Badge`}
+                      className="w-full h-full object-contain drop-shadow-md"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                
+                {/* Mission Report Text - RIGHT SIDE */}
+                <div className="text-left">
+                  <p className="text-[10px] text-gray-500 leading-tight font-medium">MISSION REPORT</p>
+                  <p className={`text-sm font-bold leading-tight ${getMasteryColor(masteryData.masteryLevel)}`}>
+                    {masteryData.masteryLevel} Mastery
+                  </p>
+                  <p className="text-xs text-gray-600 leading-tight font-medium">{Math.round(masteryData.masteryScore)}%</p>
+                </div>
+              </div>
+            )}
 
+            {masteryData?.isNewBestScore && (
+              <div className="mt-1 text-yellow-600 text-xs font-bold">
+                ⭐ New Best Score!
+              </div>
+            )}
+          </div>
+
+          {/* Time Efficiency with Clock Icon */}
           {masteryData && (
-            <div className="mb-6 text-sm text-gray-600 space-y-1">
-              <div>Time Efficiency: {Math.round(masteryData.timeEfficiency)}%</div>
-              <div>Attempt #{masteryData.attemptCount}</div>
+            <div className="mb-3 text-xs text-gray-600 flex justify-center items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Time Efficiency: {Math.round(masteryData.timeEfficiency)}%</span>
             </div>
           )}
 
-          <div className="flex gap-3">
+          {/* Motivational Quote */}
+          <div className="mb-4 italic text-gray-600 text-xs px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
+            "{randomQuote}"
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
             <button
               onClick={onRetakeQuiz}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex-1 relative px-4 py-2.5 text-sm font-bold text-white bg-[#2d87ff] rounded-xl transition-all duration-150 ease-out shadow-[0_3px_0_0_#2563eb] hover:shadow-[0_1px_0_0_#2563eb] active:translate-y-0.5 active:shadow-none"
             >
               Retake Quiz
             </button>
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              className="flex-1 relative px-4 py-2.5 text-sm font-bold text-white bg-gray-500 rounded-xl transition-all duration-150 ease-out shadow-[0_3px_0_0_#4b5563] hover:shadow-[0_1px_0_0_#4b5563] active:translate-y-0.5 active:shadow-none"
             >
               Close
             </button>
@@ -306,7 +421,6 @@ interface UserAnswer {
   correct: boolean;
 }
 
-// Helper function to shuffle an array
 const shuffleArray = <T,>(array: T[]): T[] => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -316,10 +430,9 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
-// Helper function to prepare questions with shuffled options
 const prepareQuestionsWithShuffledOptions = (questions: any[]): ShuffledQuestion[] => {
   return questions.map(question => {
-    const originalCorrectAnswerIndex = 0; // Assuming the correct answer is always at index 0 from API
+    const originalCorrectAnswerIndex = 0;
     const shuffledOptions = shuffleArray(question.options);
     const correctAnswerIndex = shuffledOptions.indexOf(question.options[originalCorrectAnswerIndex]);
 
@@ -398,7 +511,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
 
   const submitAnswer = async (questionId: string, selectedAnswerIndex: number, currentQuestionData: ShuffledQuestion) => {
     try {
-      // Convert the shuffled answer index back to the original index for the backend
       const originalAnswerIndex = selectedAnswerIndex === -1 ? -1 : 
         currentQuestionData.options.indexOf(currentQuestionData.shuffledOptions[selectedAnswerIndex]);
 
@@ -417,7 +529,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       
       const feedback = await response.json();
 
-      // Convert the feedback's correct answer index to shuffled index
       const shuffledCorrectAnswerIndex = feedback.correctAnswer === -1 ? -1 :
         currentQuestionData.shuffledOptions.indexOf(currentQuestionData.options[feedback.correctAnswer]);
 
@@ -472,7 +583,6 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         body: JSON.stringify({
           answers: userAnswers.map((ua, index) => {
             if (ua.answer === null) return -1;
-            // Convert shuffled answer index back to original index
             return shuffledQuestions[index].options.indexOf(
               shuffledQuestions[index].shuffledOptions[ua.answer]
             );
@@ -488,12 +598,10 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         setMasteryData(completionData);
       } else {
         console.warn('Failed to save quiz completion to database');
-        // Set empty mastery data to still show the completion screen
         setMasteryData({});
       }
     } catch (error) {
       console.error('Error submitting complete quiz:', error);
-      // Set empty mastery data to still show the completion screen
       setMasteryData({});
     } finally {
       setIsLoadingMastery(false);
