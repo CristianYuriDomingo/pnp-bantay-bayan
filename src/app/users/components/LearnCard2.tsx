@@ -1,16 +1,58 @@
 // app/users/components/LearnCard2.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
 import { useUserRank } from '@/hooks/use-rank';
 
+interface UserProfile {
+  name: string;
+  email: string;
+}
+
 const LearnCard2: React.FC = () => {
   const { data: session } = useSession();
   const { rankInfo } = useUserRank();
+  
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const username = session?.user?.email?.split('@')[0] || 'User';
+  // Fetch user profile to get the name
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/users/profile', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProfile(data.data);
+        } else {
+          console.error('Failed to fetch profile');
+        }
+      } catch (error) {
+        console.error('Profile fetch error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [session?.user]);
+
+  // Use profile name if available, fallback to email prefix
+  const displayName = profile?.name || session?.user?.email?.split('@')[0] || 'User';
   const rankTitle = rankInfo?.name || '';
 
   return (
@@ -20,7 +62,7 @@ const LearnCard2: React.FC = () => {
         {/* Header with Welcome Message */}
         <div className="mb-4 text-center">
           <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            Welcome back, {rankTitle} {username}!
+            Welcome back, {rankTitle} {displayName}!
           </h2>
         </div>
 

@@ -1,4 +1,4 @@
-// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete with Fixed Rank Display)
+// FILE: app/users/quizStart/[id]/QuizUI.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -46,7 +46,7 @@ const Confetti = () => {
   );
 };
 
-// Exit Confirmation Modal - THEMED VERSION
+// Exit Confirmation Modal
 const ExitConfirmation = ({ onConfirm, onCancel }: {
   onConfirm: () => void;
   onCancel: () => void;
@@ -219,17 +219,6 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const motivationalQuotes = [
-  "Every expert was once a beginner.",
-  "Success is a journey, not a destination.",
-  "Keep learning, keep growing!",
-  "Your effort today shapes your tomorrow.",
-  "Progress is progress, no matter how small.",
-  "Believe in yourself and your abilities.",
-  "The only way to fail is to stop trying.",
-  "Great things take practice and dedication."
-];
-
 const QuizComplete = ({ 
   score, 
   totalQuestions, 
@@ -252,7 +241,17 @@ const QuizComplete = ({
   const percentage = Math.round((score / totalQuestions) * 100);
   const [showConfetti, setShowConfetti] = useState(true);
   const [randomQuote] = useState(() => {
-    return motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+    const quotes = [
+      "Every expert was once a beginner.",
+      "Success is a journey, not a destination.",
+      "Keep learning, keep growing!",
+      "Your effort today shapes your tomorrow.",
+      "Progress is progress, no matter how small.",
+      "Believe in yourself and your abilities.",
+      "The only way to fail is to stop trying.",
+      "Great things take practice and dedication."
+    ];
+    return quotes[Math.floor(Math.random() * quotes.length)];
   });
   
   useEffect(() => {
@@ -321,7 +320,6 @@ const QuizComplete = ({
       
       <div className="max-w-md w-full mx-auto p-5 bg-white shadow-2xl rounded-2xl border border-blue-100 max-h-[85vh] overflow-y-auto">
         <div className="text-center">
-          {/* Result Image - TOP */}
           <div className="mb-4 flex justify-center">
             <img 
               src={getResultImage()} 
@@ -334,13 +332,11 @@ const QuizComplete = ({
             />
           </div>
 
-          {/* Main Result Message */}
           <h2 className="text-2xl font-bold text-gray-800 mb-1">
             {getMissionResult()}
           </h2>
           <p className="text-gray-600 text-base mb-4">{getMissionSubtext()}</p>
 
-          {/* Badges Section - Primary Focus */}
           {masteryData?.earnedBadges && masteryData.earnedBadges.length > 0 && (
             <div className="mb-4 rounded-xl p-3 border border-gray-200 bg-gradient-to-br from-gray-50 to-white">
               <h3 className="text-base font-bold text-gray-800 mb-2">Badges Earned!</h3>
@@ -368,7 +364,6 @@ const QuizComplete = ({
             </div>
           )}
 
-          {/* Score and Mastery Info - Secondary */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 mb-3 border border-blue-200 shadow-sm">
             <div className="text-xl font-bold text-blue-600 mb-1">
               {score}/{totalQuestions}
@@ -379,7 +374,6 @@ const QuizComplete = ({
             
             {masteryData?.masteryLevel && (
               <div className="flex items-center justify-center gap-2 mb-1">
-                {/* Mastery Badge Image - LEFT SIDE */}
                 {getMasteryBadgeImage() && (
                   <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center">
                     <img 
@@ -394,7 +388,6 @@ const QuizComplete = ({
                   </div>
                 )}
                 
-                {/* Mission Report Text - RIGHT SIDE */}
                 <div className="text-left">
                   <p className="text-[10px] text-gray-500 leading-tight font-medium">MISSION REPORT</p>
                   <p className={`text-sm font-bold leading-tight ${getMasteryColor(masteryData.masteryLevel)}`}>
@@ -412,7 +405,6 @@ const QuizComplete = ({
             )}
           </div>
 
-          {/* Time Efficiency with Clock Icon */}
           {masteryData && (
             <div className="mb-3 text-xs text-gray-600 flex justify-center items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -422,12 +414,10 @@ const QuizComplete = ({
             </div>
           )}
 
-          {/* Motivational Quote */}
           <div className="mb-4 italic text-gray-600 text-xs px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">
             "{randomQuote}"
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-2">
             <button
               onClick={onRetakeQuiz}
@@ -508,6 +498,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { rankInfo } = useUserRank();
+  
   const [showInstructions, setShowInstructions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quizData, setQuizData] = useState<any>(null);
@@ -526,9 +517,41 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [isLoadingMastery, setIsLoadingMastery] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [hasSeenInstructions, setHasSeenInstructions] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
-  const username = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
   const rankTitle = rankInfo?.name || 'Cadet';
+  const displayName = profileName || session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.user) {
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/users/profile', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProfileName(data.data.name);
+        }
+      } catch (error) {
+        console.error('Profile fetch error:', error);
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
+  }, [session?.user]);
 
   const fetchQuizData = async () => {
     try {
@@ -748,17 +771,14 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     setMasteryData(null);
     setIsLoadingMastery(false);
     
-    // Skip instructions on retake - start immediately
     setShowInstructions(false);
     setQuizStarted(true);
   };
 
   const handleCloseAttempt = () => {
-    // If quiz hasn't started or is complete, close immediately
     if (!quizStarted || isQuizComplete) {
       router.push('/users/quiz');
     } else {
-      // If quiz is in progress, show confirmation
       setShowExitConfirmation(true);
     }
   };
@@ -1034,7 +1054,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           quizTitle={quizData.title}
           masteryData={masteryData}
           userRank={rankTitle}
-          userName={username}
+          userName={displayName}
           onRetakeQuiz={handleRetakeQuiz}
           onClose={() => router.push('/users/quiz')}
         />
