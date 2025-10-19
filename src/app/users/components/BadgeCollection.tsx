@@ -56,7 +56,7 @@ const BadgeCollection: React.FC = () => {
     );
   }, [badges]);
 
-  // Calculate XP statistics - FIXED: Use xpAwarded instead of xpValue
+  // Calculate XP statistics
   const xpStats = React.useMemo(() => {
     const totalXP = badges.reduce((sum, badge) => sum + ((badge as any).xpValue || 0), 0);
     const earnedXP = badges
@@ -216,49 +216,6 @@ const BadgeCollection: React.FC = () => {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Badge Collection</h2>
         
-        {/* Overall Stats Card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Badges Progress */}
-          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-700 flex items-center">
-                <Trophy className="mr-2 text-blue-500" size={20} />
-                Badge Progress
-              </h3>
-              <span className="text-sm font-medium text-blue-600">{statistics?.completionPercentage}%</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-              <span>{statistics?.totalEarned} of {statistics?.totalAvailable} earned</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all"
-                style={{ width: `${statistics?.completionPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* XP Progress */}
-          <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-gray-700 flex items-center">
-                <Zap className="mr-2 text-yellow-500" size={20} />
-                XP Progress
-              </h3>
-              <span className="text-sm font-medium text-yellow-600">{xpStats.percentage}%</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-2">
-              <span>{xpStats.earned} of {xpStats.total} XP earned</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-yellow-500 h-2 rounded-full transition-all"
-                style={{ width: `${xpStats.percentage}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-
         {/* Rarity Breakdown */}
         <div className="bg-white bg-opacity-60 rounded-lg p-4 shadow-sm mb-4">
           <h3 className="font-semibold text-gray-700 mb-3">Collection by Rarity</h3>

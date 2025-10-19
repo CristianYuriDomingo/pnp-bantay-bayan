@@ -82,7 +82,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-8 py-6"> {/* Reduced margin from px-20 to px-8 */}
+        <div className="px-20 py-6">
           <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
             <div className="w-full flex justify-center mb-2">
               <Image
@@ -109,7 +109,7 @@ export default function ProfilePage() {
   if (!isAuthenticated || !user) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-8 py-6"> {/* Reduced margin from px-20 to px-8 */}
+        <div className="px-20 py-6">
           <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
             <div className="w-full flex justify-center mb-2">
               <Image
@@ -138,7 +138,7 @@ export default function ProfilePage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-8 py-6"> {/* Reduced margin from px-20 to px-8 */}
+      <div className="px-20 py-6">
         <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
           {/* Profile Settings Section - Main Content */}
           <div className="space-y-6">

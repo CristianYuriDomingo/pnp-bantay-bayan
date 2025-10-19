@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
+import { useUserRank } from '@/hooks/use-rank';
 import { User, Calendar, Mail, Camera, Edit3, Check, X, Loader2 } from 'lucide-react';
 
 interface UserProfile {
@@ -16,6 +17,7 @@ interface UserProfile {
 
 const ProfileSettings = () => {
   const { user: contextUser, isLoading: contextLoading, isAuthenticated } = useCurrentUser();
+  const { rankData, rankInfo, loading: rankLoading } = useUserRank();
   
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,12 +32,10 @@ const ProfileSettings = () => {
   // Fetch user profile data
   useEffect(() => {
     const fetchProfile = async () => {
-      // Wait for context to load
       if (contextLoading) {
         return;
       }
       
-      // If not authenticated, set loading to false and return
       if (!isAuthenticated || !contextUser) {
         setIsLoading(false);
         return;
@@ -91,7 +91,6 @@ const ProfileSettings = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError('Image size should be less than 5MB');
         return;
@@ -184,11 +183,9 @@ const ProfileSettings = () => {
     if (user?.image) {
       return user.image;
     }
-    // Default avatar
     return 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face';
   };
 
-  // Show loading state while context or profile loads
   if (contextLoading || isLoading) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
@@ -202,7 +199,6 @@ const ProfileSettings = () => {
     );
   }
 
-  // Not authenticated
   if (!isAuthenticated || !contextUser) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
@@ -214,7 +210,6 @@ const ProfileSettings = () => {
     );
   }
 
-  // Profile not loaded (API error)
   if (!user) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
@@ -235,7 +230,7 @@ const ProfileSettings = () => {
 
   return (
     <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
-      {/* Header section */}
+      {/* Header section with blue background */}
       <div className="bg-gradient-to-br from-blue-400 via-blue-500 to-blue-600 px-8 py-16 relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute top-0 left-0 w-full h-full">
@@ -276,7 +271,7 @@ const ProfileSettings = () => {
         )}
 
         {/* Profile Avatar */}
-        <div className="flex justify-center relative z-10">
+        <div className="flex justify-center relative z-10 mb-6">
           <div className="relative group">
             <div className="w-32 h-32 rounded-full overflow-hidden bg-gradient-to-br from-yellow-400 to-orange-500 p-1 shadow-2xl">
               <div className="w-full h-full rounded-full overflow-hidden bg-white p-0.5">
@@ -304,6 +299,29 @@ const ProfileSettings = () => {
             )}
           </div>
         </div>
+
+        {/* Rank Section - Below Profile Image */}
+        {rankLoading ? (
+          <div className="flex items-center justify-center gap-2 text-white">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Loading rank...</span>
+          </div>
+        ) : rankData && rankInfo ? (
+          <div className="flex items-center justify-center gap-4 relative z-10">
+            <div className="w-16 h-16 flex-shrink-0">
+              <img 
+                src={rankInfo.icon} 
+                alt={rankInfo.name}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="text-left text-white leading-tight">
+              <p className="text-sm font-semibold opacity-90">Current Rank:</p>
+              <p className="text-lg font-bold -mt-1">{rankInfo.name}</p>
+              <p className="text-sm opacity-90 -mt-0.5">Position: #{rankData.leaderboardPosition}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Profile Details */}
