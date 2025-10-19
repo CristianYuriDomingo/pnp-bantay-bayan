@@ -1,8 +1,10 @@
-// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete with Themed Exit Confirmation)
+// FILE: app/users/quizStart/[id]/QuizUI.tsx (Complete with Fixed Rank Display)
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useUserRank } from '@/hooks/use-rank';
 
 // Confetti animation component
 const Confetti = () => {
@@ -233,6 +235,8 @@ const QuizComplete = ({
   totalQuestions, 
   quizTitle, 
   masteryData,
+  userRank,
+  userName,
   onRetakeQuiz, 
   onClose 
 }: {
@@ -240,6 +244,8 @@ const QuizComplete = ({
   totalQuestions: number;
   quizTitle: string;
   masteryData?: any;
+  userRank?: string;
+  userName?: string;
   onRetakeQuiz: () => void;
   onClose: () => void;
 }) => {
@@ -265,10 +271,12 @@ const QuizComplete = ({
   };
 
   const getMissionResult = () => {
+    const displayRank = userRank || 'Cadet';
+    const displayName = userName || 'User';
     if (percentage >= 80) {
-      return "Great Job, Cadet!";
+      return `Great Job, ${displayRank} ${displayName}!`;
     } else if (percentage >= 60) {
-      return "Good Effort, Cadet!";
+      return `Good Effort, ${displayRank} ${displayName}!`;
     } else {
       return "Retry Mission";
     }
@@ -312,18 +320,6 @@ const QuizComplete = ({
       {showConfetti && percentage >= 60 && <Confetti />}
       
       <div className="max-w-md w-full mx-auto p-5 bg-white shadow-2xl rounded-2xl border border-blue-100 max-h-[85vh] overflow-y-auto">
-        <div className="flex justify-end mb-1">
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close results"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
         <div className="text-center">
           {/* Result Image - TOP */}
           <div className="mb-4 flex justify-center">
@@ -510,6 +506,8 @@ const prepareQuestionsWithShuffledOptions = (questions: any[]): ShuffledQuestion
 
 export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const { rankInfo } = useUserRank();
   const [showInstructions, setShowInstructions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [quizData, setQuizData] = useState<any>(null);
@@ -528,6 +526,9 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const [isLoadingMastery, setIsLoadingMastery] = useState(false);
   const [showExitConfirmation, setShowExitConfirmation] = useState(false);
   const [hasSeenInstructions, setHasSeenInstructions] = useState(false);
+
+  const username = session?.user?.name || session?.user?.email?.split('@')[0] || 'User';
+  const rankTitle = rankInfo?.name || 'Cadet';
 
   const fetchQuizData = async () => {
     try {
@@ -570,7 +571,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
-  useEffect(() => {fetchQuizData();
+  useEffect(() => {
+    fetchQuizData();
   }, [quizId]);
 
   const submitAnswer = async (questionId: string, selectedAnswerIndex: number, currentQuestionData: ShuffledQuestion) => {
@@ -1031,6 +1033,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
           totalQuestions={shuffledQuestions.length}
           quizTitle={quizData.title}
           masteryData={masteryData}
+          userRank={rankTitle}
+          userName={username}
           onRetakeQuiz={handleRetakeQuiz}
           onClose={() => router.push('/users/quiz')}
         />
