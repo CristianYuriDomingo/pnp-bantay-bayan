@@ -51,7 +51,7 @@ const UserAvatar: React.FC<{
       return `ring-4`
     }
     if (rank === 1) {
-      return 'ring-4 ring-blue-500 animate-pulse-slow'
+      return 'ring-4 ring-blue-500 animate-pulse-slow shining-border'
     }
     if (rank === 2) {
       return 'ring-4 ring-blue-400'
@@ -94,7 +94,7 @@ const UserAvatar: React.FC<{
   return avatarContent
 }
 
-// Top 3 Podium Display with Dynamic Rank Colors
+// Top 3 Podium Display with Dynamic Rank Colors - MINIMIZED VERSION
 const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: string }> = ({ topThree, currentUserId }) => {
   if (topThree.length === 0) return null
   const [first, second, third] = topThree
@@ -109,43 +109,59 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
   const thirdRankInfo = getThirdPlaceRankInfo()
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 mb-6 border-2 border-blue-200">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border-2 border-blue-200">
+      <style jsx>{`
+        @keyframes shine {
+          0% {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.9), 0 0 50px rgba(59, 130, 246, 0.7);
+          }
+          100% {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+          }
+        }
+        .shining-border {
+          animation: shine 2s ease-in-out infinite;
+        }
+      `}</style>
       <div className="flex items-end justify-center gap-6 md:gap-12">
-        {/* Second Place */}
+        {/* Second Place - LARGER */}
         {second && secondRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === second.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative">
-              <UserAvatar image={second.image} name={second.displayName} size={64} rank={2} />
+              <UserAvatar image={second.image} name={second.displayName} size={72} rank={2} />
               {currentUserId === second.userId && (
                 <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">YOU</div>
               )}
             </div>
             <div className="mb-2">
-              <div className={`inline-flex items-center gap-1.5 rounded-full font-semibold border-2 ${secondRankInfo.color} ${secondRankInfo.bgColor} border-current text-xs px-2.5 py-1`}>
+              <div className={`inline-flex items-center gap-1.5 rounded-full font-semibold border-2 ${secondRankInfo.color} ${secondRankInfo.bgColor} border-current text-sm px-3 py-1`}>
                 <Image 
                   src={`/ranks/${second.pnpRank}.png`}
                   alt={second.pnpRank} 
-                  width={22} 
-                  height={22} 
+                  width={24} 
+                  height={24} 
                   className="object-contain"
                 />
                 <span>{second.pnpRank}</span>
               </div>
             </div>
-            <div className="text-center">
-              <p className="font-semibold text-gray-800 text-sm truncate max-w-[90px]">{second.displayName}</p>
-              <div className="flex items-center justify-center mt-1 text-blue-600">
-                <Zap size={12} fill="currentColor" />
-                <span className="text-xs font-semibold ml-1">{second.totalXP}</span>
-              </div>
+            <div className="text-center mb-4">
+              <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px] leading-tight">{second.displayName}</p>
             </div>
-            <div className="mt-4 bg-gradient-to-t from-blue-500 to-blue-400 h-24 w-20 rounded-t-lg flex items-center justify-center border-t-4 border-blue-600">
-              <span className="text-white text-xl font-bold">2</span>
+            <div className="mt-4 bg-gradient-to-t from-blue-500 to-blue-400 h-44 w-36 rounded-t-xl flex flex-col items-center justify-center border-t-4 border-blue-600">
+              <span className="text-white text-3xl font-bold mb-2">2</span>
+              <div className="flex items-center justify-center text-white">
+                <Zap size={14} fill="currentColor" />
+                <span className="text-sm font-semibold ml-1">{second.totalXP}</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* First Place - EMPHASIZED */}
+        {/* First Place - WITH SHINING USER IMAGE BORDER - LARGER */}
         {first && firstRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === first.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative flex flex-col items-center">
@@ -154,20 +170,20 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
                 <Image
                   src="/MainImage/crown.png"
                   alt="Crown"
-                  width={40}
-                  height={40}
+                  width={48}
+                  height={48}
                   className="object-contain"
                 />
               </div>
               <div className="relative">
-                <UserAvatar image={first.image} name={first.displayName} size={80} rank={1} />
+                <UserAvatar image={first.image} name={first.displayName} size={88} rank={1} />
                 {currentUserId === first.userId && (
                   <div className="absolute top-0 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">YOU</div>
                 )}
               </div>
             </div>
             <div className="mb-2">
-              <div className={`inline-flex items-center gap-1.5 rounded-full font-semibold border-2 ${firstRankInfo.color} ${firstRankInfo.bgColor} border-current text-sm px-3 py-1.5`}>
+              <div className={`inline-flex items-center gap-2 rounded-full font-semibold border-2 ${firstRankInfo.color} ${firstRankInfo.bgColor} border-current text-base px-4 py-1.5`}>
                 <Image 
                   src={`/ranks/${first.pnpRank}.png`}
                   alt={first.pnpRank} 
@@ -178,49 +194,49 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
                 <span>{first.pnpRank}</span>
               </div>
             </div>
-            <div className="text-center">
-              <p className="font-bold text-gray-900 text-base truncate max-w-[110px]">{first.displayName}</p>
-              <div className="flex items-center justify-center mt-1 text-blue-600">
-                <Zap size={14} fill="currentColor" />
-                <span className="text-sm font-bold ml-1">{first.totalXP}</span>
-              </div>
+            <div className="text-center mb-4">
+              <p className="font-bold text-gray-900 text-base truncate max-w-[120px] leading-tight">{first.displayName}</p>
             </div>
-            <div className="mt-4 bg-gradient-to-t from-blue-600 to-blue-500 h-32 w-24 rounded-t-lg flex items-center justify-center border-t-4 border-blue-700">
-              <span className="text-white text-2xl font-black">1</span>
+            <div className="mt-4 bg-gradient-to-t from-blue-600 to-blue-500 h-56 w-40 rounded-t-xl flex flex-col items-center justify-center border-t-4 border-blue-700">
+              <span className="text-white text-5xl font-black mb-3">1</span>
+              <div className="flex items-center justify-center text-white">
+                <Zap size={16} fill="currentColor" />
+                <span className="text-base font-bold ml-1">{first.totalXP}</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Third Place */}
+        {/* Third Place - LARGER */}
         {third && thirdRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === third.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative">
-              <UserAvatar image={third.image} name={third.displayName} size={64} rank={3} />
+              <UserAvatar image={third.image} name={third.displayName} size={72} rank={3} />
               {currentUserId === third.userId && (
                 <div className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">YOU</div>
               )}
             </div>
             <div className="mb-2">
-              <div className={`inline-flex items-center gap-1.5 rounded-full font-semibold border-2 ${thirdRankInfo.color} ${thirdRankInfo.bgColor} border-current text-xs px-2.5 py-1`}>
+              <div className={`inline-flex items-center gap-1.5 rounded-full font-semibold border-2 ${thirdRankInfo.color} ${thirdRankInfo.bgColor} border-current text-sm px-3 py-1`}>
                 <Image 
                   src={`/ranks/${third.pnpRank}.png`}
                   alt={third.pnpRank} 
-                  width={22} 
-                  height={22} 
+                  width={24} 
+                  height={24} 
                   className="object-contain"
                 />
                 <span>{third.pnpRank}</span>
               </div>
             </div>
-            <div className="text-center">
-              <p className="font-semibold text-gray-800 text-sm truncate max-w-[90px]">{third.displayName}</p>
-              <div className="flex items-center justify-center mt-1 text-blue-600">
-                <Zap size={12} fill="currentColor" />
-                <span className="text-xs font-semibold ml-1">{third.totalXP}</span>
-              </div>
+            <div className="text-center mb-4">
+              <p className="font-semibold text-gray-800 text-sm truncate max-w-[100px] leading-tight">{third.displayName}</p>
             </div>
-            <div className="mt-4 bg-gradient-to-t from-slate-400 to-slate-300 h-20 w-20 rounded-t-lg flex items-center justify-center border-t-4 border-slate-500">
-              <span className="text-white text-xl font-bold">3</span>
+            <div className="mt-4 bg-gradient-to-t from-slate-400 to-slate-300 h-40 w-36 rounded-t-xl flex flex-col items-center justify-center border-t-4 border-slate-500">
+              <span className="text-white text-3xl font-bold mb-2">3</span>
+              <div className="flex items-center justify-center text-white">
+                <Zap size={14} fill="currentColor" />
+                <span className="text-sm font-semibold ml-1">{third.totalXP}</span>
+              </div>
             </div>
           </div>
         )}
