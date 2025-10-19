@@ -1,27 +1,29 @@
+// types/rank.ts
 // All PNP ranks from lowest to highest
 export type PNPRank = 
-  | 'Pat'      // Patrolman/Patrolwoman
-  | 'PCpl'     // Police Corporal
-  | 'PSSg'     // Police Staff Sergeant
-  | 'PMSg'     // Police Master Sergeant
-  | 'PSMS'     // Police Senior Master Sergeant
-  | 'PCMS'     // Police Chief Master Sergeant
-  | 'PEMS'     // Police Executive Master Sergeant
-  | 'PLT'      // Police Lieutenant
-  | 'PCPT'     // Police Captain
-  | 'PMAJ'     // Police Major
-  | 'PLTCOL'   // Police Lieutenant Colonel
-  | 'PCOL'     // Police Colonel
-  | 'PBGEN'    // Police Brigadier General
-  | 'PMGEN'    // Police Major General
-  | 'PLTGEN'   // Police Lieutenant General
-  | 'PGEN'     // Police General
+  | 'Cadet'     // Cadet (new users)
+  | 'Pat'       // Patrolman/Patrolwoman
+  | 'PCpl'      // Police Corporal
+  | 'PSSg'      // Police Staff Sergeant
+  | 'PMSg'      // Police Master Sergeant
+  | 'PSMS'      // Police Senior Master Sergeant
+  | 'PCMS'      // Police Chief Master Sergeant
+  | 'PEMS'      // Police Executive Master Sergeant
+  | 'PLT'       // Police Lieutenant
+  | 'PCPT'      // Police Captain
+  | 'PMAJ'      // Police Major
+  | 'PLTCOL'    // Police Lieutenant Colonel
+  | 'PCOL'      // Police Colonel
+  | 'PBGEN'     // Police Brigadier General
+  | 'PMGEN'     // Police Major General
+  | 'PLTGEN'    // Police Lieutenant General
+  | 'PGEN'      // Police General
 
 export interface RankInfo {
   code: PNPRank
   name: string
   shortName: string
-  category: 'Enlisted' | 'Officer'
+  category: 'Cadet' | 'Enlisted' | 'Officer'
   order: number
   color: string
   bgColor: string

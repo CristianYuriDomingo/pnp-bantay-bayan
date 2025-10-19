@@ -1,9 +1,59 @@
-////lib/rank-calculator.ts
+// lib/rank-calculator.ts
 import { prisma } from '@/lib/prisma'
 import { PNPRank, UserRankData, RankChangeEvent } from '@/types/rank'
 import { getRankByPosition, getRankInfo, compareRanks } from '@/lib/rank-config'
 
 export class RankCalculator {
+  /**
+   * Initialize a new user with Cadet rank
+   * Call this when creating a new user
+   */
+  static async initializeNewUserRank(userId: string): Promise<UserRankData | null> {
+    try {
+      const rankHistoryEntry = {
+        rank: 'Cadet',
+        position: null,
+        timestamp: new Date().toISOString(),
+        totalXP: 0
+      }
+
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          currentRank: 'Cadet',
+          leaderboardPosition: null,
+          rankAchievedAt: new Date(),
+          highestRankEver: 'Cadet',
+          rankHistory: [rankHistoryEntry] as any
+        },
+        select: {
+          id: true,
+          currentRank: true,
+          leaderboardPosition: true,
+          totalXP: true,
+          level: true,
+          rankAchievedAt: true,
+          highestRankEver: true
+        }
+      })
+
+      console.log(`✅ New user initialized with Cadet rank: ${userId}`)
+
+      return {
+        userId: user.id,
+        currentRank: user.currentRank as PNPRank,
+        leaderboardPosition: user.leaderboardPosition || 0,
+        totalXP: user.totalXP,
+        level: user.level,
+        rankAchievedAt: user.rankAchievedAt,
+        highestRankEver: user.highestRankEver as PNPRank
+      }
+    } catch (error) {
+      console.error('❌ Error initializing user rank:', error)
+      return null
+    }
+  }
+
   /**
    * Calculate and update ranks for all users
    * Call this daily via cron job or after XP changes

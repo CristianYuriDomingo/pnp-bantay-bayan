@@ -1,4 +1,4 @@
-//app/api/ranks/calculate/route.ts
+// app/api/ranks/calculate/route.ts
 import { NextResponse } from 'next/server'
 import { RankCalculator } from '@/lib/rank-calculator'
 

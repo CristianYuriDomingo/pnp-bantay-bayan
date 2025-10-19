@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '25') as LeaderboardPaginationLimit
     const page = parseInt(searchParams.get('page') || '1')
     const forceRefresh = searchParams.get('refresh') === 'true'
+    const forceRecalculate = searchParams.get('recalculate') === 'true' // New parameter
 
     // Validate pagination
     if (![10, 25, 50, 100].includes(limit)) {
@@ -35,11 +36,11 @@ export async function GET(request: NextRequest) {
       return createAuthErrorResponse('Invalid page number', 400)
     }
 
-    console.log(`📊 Leaderboard request: limit=${limit}, page=${page}, user=${currentUser?.email || 'anonymous'}`)
+    console.log(`📊 Leaderboard request: limit=${limit}, page=${page}, recalculate=${forceRecalculate}, user=${currentUser?.email || 'anonymous'}`)
 
-    // Check cache (unless force refresh)
+    // Check cache (unless force refresh or recalculate)
     const now = Date.now()
-    if (!forceRefresh && cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
+    if (!forceRefresh && !forceRecalculate && cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
       console.log('✅ Returning cached leaderboard data')
       
       // Filter cached data for current page
@@ -98,13 +99,11 @@ export async function GET(request: NextRequest) {
       // Calculate the correct rank based on position
       const calculatedRank = getRankByPosition(position, totalUsers)
       
-      // Use stored rank or calculated rank
-      let pnpRank = user.currentRank as PNPRank
+      // Use calculated rank or stored rank
+      let pnpRank = calculatedRank
       
-      // Update database if rank is missing or position changed
-      if (!user.currentRank || user.leaderboardPosition !== position) {
-        pnpRank = calculatedRank
-        
+      // Update database if rank is missing, position changed, or force recalculate is enabled
+      if (!user.currentRank || user.leaderboardPosition !== position || forceRecalculate) {
         // Update user's rank in database (fire and forget for performance)
         prisma.user.update({
           where: { id: user.id },
@@ -118,7 +117,9 @@ export async function GET(request: NextRequest) {
           }
         }).catch(err => console.error(`Failed to update rank for ${user.email}:`, err))
         
-        console.log(`🔄 Updated ${user.email}: Position #${position} → Rank ${calculatedRank}`)
+        if (user.currentRank !== calculatedRank) {
+          console.log(`🔄 Updated ${user.email}: Position #${position} → Rank ${calculatedRank} (was ${user.currentRank})`)
+        }
       }
       
       return {
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
         totalXP: user.totalXP,
         level: user.level,
         rank: position,
-        pnpRank, // Add PNP rank
+        pnpRank,
         createdAt: user.createdAt,
         totalBadges: totalBadgesCount,
         earnedBadges: user.badgeEarned.length
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
     // Calculate rank distribution
     const rankDistribution: Record<string, number> = {}
     leaderboard.forEach(entry => {
-      const rank = entry.pnpRank || 'Pat'
+      const rank = entry.pnpRank || 'Cadet'
       rankDistribution[rank] = (rankDistribution[rank] || 0) + 1
     })
 
@@ -178,13 +179,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Cache the full leaderboard
-    cachedData = {
-      data: {
-        ...responseData,
-        leaderboard: leaderboard // Cache full list
-      },
-      timestamp: now
+    // Cache the full leaderboard (unless recalculating)
+    if (!forceRecalculate) {
+      cachedData = {
+        data: {
+          ...responseData,
+          leaderboard: leaderboard // Cache full list
+        },
+        timestamp: now
+      }
+    } else {
+      cachedData = null // Clear cache after recalculation
+      console.log('🗑️ Cache cleared due to recalculation')
     }
 
     console.log(`✅ Leaderboard generated: ${leaderboard.length} users, showing ${paginatedLeaderboard.length}`)
@@ -200,6 +206,7 @@ export async function GET(request: NextRequest) {
 // Helper function to get rank order for comparison
 function getRankOrder(rank: PNPRank): number {
   const rankOrder: Record<PNPRank, number> = {
+    'Cadet': 0,
     'Pat': 1,
     'PCpl': 2,
     'PSSg': 3,
@@ -217,7 +224,7 @@ function getRankOrder(rank: PNPRank): number {
     'PLTGEN': 15,
     'PGEN': 16
   }
-  return rankOrder[rank] || 1
+  return rankOrder[rank] || 0
 }
 
 // Endpoint to invalidate cache (for admin use or after major events)
