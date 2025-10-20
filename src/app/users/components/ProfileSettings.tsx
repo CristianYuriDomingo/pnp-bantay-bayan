@@ -348,7 +348,7 @@ const ProfileSettings = () => {
           )}
           
           {!isEditing && (
-            <p className="text-lg text-blue-500 font-medium">@{generateUsername(user.name, user.email)}</p>
+            <p className="text-sm text-gray-500 font-medium">Username</p>
           )}
         </div>
 
