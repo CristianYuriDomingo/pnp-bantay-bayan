@@ -22,7 +22,7 @@ export async function GET() {
       totalUsers,
       totalModules,
       totalLessons,
-      totalTips,
+      totalQuizzes,
       totalBadges,
       newUsersThisWeek,
       completedLessons,
@@ -37,8 +37,12 @@ export async function GET() {
       // Total lessons count
       prisma.lesson.count(),
       
-      // Total tips count
-      prisma.tip.count(),
+      // Total quizzes count (only sub-quizzes, not parent categories)
+      prisma.quiz.count({
+        where: {
+          isParent: false
+        }
+      }),
       
       // Total badges count
       prisma.badge.count(),
@@ -80,7 +84,7 @@ export async function GET() {
       totalUsers,
       totalModules,
       totalLessons,
-      totalTips,
+      totalQuizzes,
       totalBadges,
       activeUsers,
       completedLessons,

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Stats, RecentActivity } from '../types';
-import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, AlertCircle, Crown, Target, Lightbulb } from 'lucide-react';
+import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, AlertCircle, Crown, Target } from 'lucide-react';
 
 // Add interface for leaderboard data
 interface LeaderboardUser {
@@ -175,7 +175,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Stats Grid - Now 4 cards including Quiz & Tips */}
+        {/* Stats Grid - 4 cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { 
@@ -214,21 +214,10 @@ export default function AdminDashboard() {
               href: '/admin/badges'
             },
             { 
-              title: 'Quiz & Tips', 
-              value: (
-                <div className="flex items-center space-x-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalQuizzes)}</div>
-                    <div className="text-xs text-gray-600">Quizzes</div>
-                  </div>
-                  <div className="w-px h-8 bg-gray-300"></div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-900">{getStatValue(stats?.totalTips)}</div>
-                    <div className="text-xs text-gray-600">Tips</div>
-                  </div>
-                </div>
-              ),
-              icon: Lightbulb,
+              title: 'Total Quizzes', 
+              value: getStatValue(stats?.totalQuizzes),
+              subtitle: 'Created quizzes',
+              icon: Target,
               color: 'purple',
               href: '/admin/quiz'
             }
