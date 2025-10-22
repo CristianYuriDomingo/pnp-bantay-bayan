@@ -1,4 +1,4 @@
-// app/admin/types.ts
+// app/admin/types.ts - UPDATED WITH LEADERBOARD TYPES
 export interface Module {
   id: string;
   title: string;
@@ -11,7 +11,7 @@ export interface Tip {
   id: string;
   title: string;
   description: string;
-  image?: string; // Add the optional image field
+  image?: string;
 }
 
 export interface Lesson {
@@ -47,13 +47,13 @@ export interface Stats {
   totalModules: number;
   totalLessons: number;
   totalTips: number;
-  totalBadges: number; // Added badge count
-  totalQuizzes: number; // ADD THIS LINE - Quiz count
+  totalBadges: number;
+  totalQuizzes: number;
   activeUsers: number;
   completedLessons: number;
   averageScore: number;
   newUsersThisWeek: number;
-  badgesEarnedThisWeek?: number; // Optional badge stats
+  badgesEarnedThisWeek?: number;
 }
 
 export interface RecentActivity {
@@ -82,7 +82,7 @@ export interface User {
   lastLogin?: string;
   completedLessons: number;
   totalScore: number;
-  badges?: UserBadge[]; // User's earned badges
+  badges?: UserBadge[];
 }
 
 export interface UserBadge {
@@ -91,4 +91,27 @@ export interface UserBadge {
   userId: string;
   earnedAt: Date;
   badge: Badge;
+}
+
+// NEW: Leaderboard-specific types for Admin Dashboard
+export interface AdminTopLearner {
+  userId: string;
+  name: string | null;
+  displayName: string;
+  email: string;
+  image: string | null;
+  totalXP: number;
+  level: number;
+  rank: number;
+  pnpRank: string;
+  earnedBadges: number;
+  totalBadges: number;
+  createdAt: Date;
+}
+
+export interface AdminLeaderboardData {
+  leaderboard: AdminTopLearner[];
+  totalUsers: number;
+  topXP: number;
+  averageXP: number;
 }
