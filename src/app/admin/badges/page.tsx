@@ -407,13 +407,7 @@ const BadgeFormModal = ({
     }
   };
 
-  const categories = Array.from(new Set([
-    ...modules.map(m => m.title), 
-    'General', 
-    'Quiz Mastery', 
-    'Performance',
-    'Lesson Completion'
-  ]));
+  const categories = Array.from(new Set(badges.map(b => b.category).filter(Boolean)));
 
   const isAutoCalculated = !initialBadge && (
     (triggerType === 'lesson_complete' && preselectedLessonId) ||
@@ -455,16 +449,19 @@ const BadgeFormModal = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Category <span className="text-red-500">*</span>
             </label>
-            <select 
+            <input 
+              type="text"
+              placeholder="e.g., Cybersecurity, Networking, General" 
               className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
               value={category} 
               onChange={(e) => setCategory(e.target.value)}
-            >
-              <option value="">Select Category</option>
+              list="category-suggestions"
+            />
+            <datalist id="category-suggestions">
               {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat} />
               ))}
-            </select>
+            </datalist>
           </div>
 
           <div>
@@ -657,9 +654,17 @@ export default function BadgeManagementPage() {
 
   useEffect(() => {
     if (preselectedLessonId && !showAddBadge && !editingBadge) {
-      setShowAddBadge(true);
+      const existingBadge = badges.find(b => 
+        b.triggerType === 'lesson_complete' && b.triggerValue === preselectedLessonId
+      );
+      
+      if (existingBadge) {
+        setEditingBadge(existingBadge);
+      } else {
+        setShowAddBadge(true);
+      }
     }
-  }, [preselectedLessonId, showAddBadge, editingBadge]);
+  }, [preselectedLessonId, showAddBadge, editingBadge, badges]);
 
   useEffect(() => {
     fetchData();
@@ -807,15 +812,14 @@ export default function BadgeManagementPage() {
   const handleCloseForm = () => {
     setShowAddBadge(false);
     setEditingBadge(null);
+    
+    // If came from lesson page, redirect back
+    if (preselectedLessonId) {
+      window.history.back();
+    }
   };
 
-  const categories = Array.from(new Set([
-    ...modules.map(m => m.title), 
-    'General', 
-    'Quiz Mastery', 
-    'Performance',
-    'Lesson Completion'
-  ]));
+  const categories = Array.from(new Set(badges.map(b => b.category).filter(Boolean)));
 
   const rarities = ['Common', 'Rare', 'Epic', 'Legendary'];
 

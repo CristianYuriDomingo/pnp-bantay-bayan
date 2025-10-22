@@ -74,7 +74,7 @@ const BadgeStatus = ({
         className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 transition-colors"
       >
         <Award className="w-4 h-4" />
-        <span>Badge Created</span>
+        <span>Badge Created - Click to Edit</span>
       </button>
     );
   }
@@ -170,6 +170,7 @@ const QuickBadgeModal = ({
   useEffect(() => {
     if (isOpen && targetItem) {
       if (existingBadge) {
+        // Editing existing badge
         setName(existingBadge.name);
         setDescription(existingBadge.description);
         setRarity(existingBadge.rarity);
@@ -177,6 +178,7 @@ const QuickBadgeModal = ({
         setXpValue(existingBadge.xpValue || 0);
         setTipCount(badgeType === 'lesson' && (targetItem as Lesson).tips ? (targetItem as Lesson).tips.length : 0);
       } else {
+        // Creating new badge
         if (badgeType === 'module') {
           setName(`${targetItem.title} Master`);
           setDescription(`Complete all lessons in the ${targetItem.title} module to earn this badge`);
@@ -208,13 +210,14 @@ const QuickBadgeModal = ({
 
   const handleSave = async () => {
     if (!name.trim() || !description.trim() || !imagePreview || !targetItem) {
-      return alert('Please fill in all required fields and select an image');
+      alert('Please fill in all required fields and select an image');
+      return;
     }
     
     setLoading(true);
     try {
-      const badgeData = {
-        ...(existingBadge?.id && { id: existingBadge.id }),
+      // Build the badge data payload
+      const badgeData: any = {
         name: name.trim(),
         description: description.trim(),
         image: imagePreview,
@@ -224,20 +227,39 @@ const QuickBadgeModal = ({
         triggerType: badgeType === 'module' ? 'module_complete' : 'lesson_complete',
         triggerValue: targetItem.id,
       };
+
+      let url = '/api/admin/badges';
+      let method = 'POST';
+
+      // If editing existing badge, add ID and change method to PUT
+      if (existingBadge?.id) {
+        badgeData.id = existingBadge.id;
+        method = 'PUT';
+        url = `/api/admin/badges?id=${existingBadge.id}`;
+      }
       
-      const response = await fetch('/api/admin/badges', {
-        method: existingBadge ? 'PUT' : 'POST',
+      console.log('Saving badge:', { method, url, badgeData }); // Debug log
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(badgeData),
       });
 
-      if (!response.ok) throw new Error('Failed to save badge');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Badge save error:', errorData);
+        throw new Error(errorData.error || 'Failed to save badge');
+      }
 
       const savedBadge = await response.json();
+      console.log('Badge saved successfully:', savedBadge); // Debug log
+      
       onSave(savedBadge);
       onClose();
       alert(`Badge ${existingBadge ? 'updated' : 'created'} successfully!`);
     } catch (error: any) {
+      console.error('Error saving badge:', error);
       alert(`Error saving badge: ${error.message}`);
     } finally {
       setLoading(false);
@@ -247,6 +269,22 @@ const QuickBadgeModal = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`${existingBadge ? 'Edit' : 'Create'} ${badgeType === 'module' ? 'Module' : 'Lesson'} Badge`}>
       <div className="space-y-4">
+        {existingBadge && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Edit2 className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-900">
+                  Editing Existing Badge
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Badge ID: {existingBadge.id}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {badgeType === 'lesson' && !existingBadge && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <div className="flex items-start gap-3">
@@ -337,7 +375,10 @@ const QuickBadgeModal = ({
             />
             <label htmlFor="badge-image" className="cursor-pointer">
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg mx-auto" />
+                <div className="flex flex-col items-center gap-2">
+                  <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg mx-auto" />
+                  <span className="text-xs text-gray-500">Click to change image</span>
+                </div>
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -681,7 +722,9 @@ const LessonManagement = ({
   const [showAddLesson, setShowAddLesson] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
 
   useEffect(() => {
     const fetchLessons = async () => {
@@ -723,7 +766,20 @@ const LessonManagement = ({
   };
 
   const handleLessonBadgeClick = (lesson: Lesson) => {
-    router.push(`/admin/badges?lessonId=${lesson.id}`);
+    const lessonBadge = badges.find(badge => 
+      badge.triggerType === 'lesson_complete' && badge.triggerValue === lesson.id
+    );
+    
+    setSelectedLesson(lesson);
+    setEditingBadge(lessonBadge || null);
+    setShowBadgeModal(true);
+  };
+
+  const handleSaveBadge = (savedBadge: Badge) => {
+    setShowBadgeModal(false);
+    setSelectedLesson(null);
+    setEditingBadge(null);
+    onBadgeUpdate();
   };
 
   return (
@@ -757,6 +813,21 @@ const LessonManagement = ({
           onClose={() => { setShowAddLesson(false); setEditingLesson(null); }} 
           onSave={handleSaveLesson}
           initialLesson={editingLesson || undefined}
+        />
+      )}
+
+      {showBadgeModal && selectedLesson && (
+        <QuickBadgeModal 
+          isOpen={showBadgeModal}
+          onClose={() => {
+            setShowBadgeModal(false);
+            setSelectedLesson(null);
+            setEditingBadge(null);
+          }}
+          onSave={handleSaveBadge}
+          badgeType="lesson"
+          targetItem={selectedLesson}
+          existingBadge={editingBadge || undefined}
         />
       )}
 
@@ -1173,7 +1244,7 @@ export default function ContentManagementPage() {
     setShowBadgeModal(false);
     setEditingBadge(null);
     setSelectedTargetItem(null);
-    if (badgeModalType === 'lesson') fetchData();
+    fetchData();
   };
 
   if (showModuleLessons && selectedModule) {
@@ -1183,6 +1254,7 @@ export default function ContentManagementPage() {
         onBack={() => { 
           setShowModuleLessons(false); 
           setSelectedModule(null); 
+          fetchData();
         }}
         badges={badges}
         onBadgeUpdate={refreshBadges}
