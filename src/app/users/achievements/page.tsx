@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { Loader2, Award, Camera, Star, User } from 'lucide-react';
+import { Loader2, Award, Camera, Star, User, Trophy, Target } from 'lucide-react';
 import Image from 'next/image';
 import { RANK_INFO } from '@/lib/rank-config';
 import { PNPRank } from '@/types/rank';
@@ -80,6 +80,17 @@ export default function AchievementsPage() {
       const hasProfilePicture = user.image ? true : false;
       const totalBadges = user.badges?.length || 0;
       
+      // Count learning and quiz badges separately
+      const learningBadges = user.badges?.filter((badge: any) => 
+        badge.triggerType === 'lesson_complete' || badge.triggerType === 'module_complete'
+      ) || [];
+      const quizBadges = user.badges?.filter((badge: any) => 
+        badge.triggerType === 'quiz_mastery' || badge.triggerType === 'parent_quiz_mastery'
+      ) || [];
+      
+      const totalLearningBadges = learningBadges.length;
+      const totalQuizBadges = quizBadges.length;
+
       // Username achievement
       allAchievements.push({
         id: 'set-username',
@@ -110,46 +121,89 @@ export default function AchievementsPage() {
         level: 2,
       });
 
-      // Badge collector achievements
+      // LEARNING BADGE ACHIEVEMENTS
       allAchievements.push({
-        id: 'badge-collector-5',
-        name: 'Badge Collector',
-        description: 'Earn 5 badges',
+        id: 'learning-badge-collector-5',
+        name: 'Learning Novice',
+        description: 'Earn 5 learning badges',
         icon: <Award className="w-8 h-8 text-white" />,
         type: 'special',
-        category: 'Badges',
-        isUnlocked: totalBadges >= 5,
-        currentProgress: totalBadges,
-        targetProgress: 5,
-        unlockedAt: totalBadges >= 5 ? new Date() : undefined,
+        category: 'Learning Badges',
+        isUnlocked: totalLearningBadges >= 5,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalLearningBadges >= 5 ? new Date() : undefined,
         level: 1,
       });
 
       allAchievements.push({
-        id: 'badge-collector-10',
-        name: 'Badge Master',
-        description: 'Earn 10 badges',
+        id: 'learning-badge-collector-10',
+        name: 'Learning Expert',
+        description: 'Earn 10 learning badges',
         icon: <Award className="w-8 h-8 text-white" />,
         type: 'special',
-        category: 'Badges',
-        isUnlocked: totalBadges >= 10,
-        currentProgress: totalBadges,
-        targetProgress: 10,
-        unlockedAt: totalBadges >= 10 ? new Date() : undefined,
+        category: 'Learning Badges',
+        isUnlocked: totalLearningBadges >= 10,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalLearningBadges >= 10 ? new Date() : undefined,
         level: 2,
       });
 
       allAchievements.push({
-        id: 'badge-collector-all',
-        name: 'Badge Legend',
-        description: 'Earn all badges',
+        id: 'learning-badge-master',
+        name: 'Learning Master',
+        description: 'Earn all learning badges',
         icon: <Star className="w-8 h-8 text-white" />,
         type: 'special',
-        category: 'Badges',
-        isUnlocked: totalBadges >= 50,
-        currentProgress: totalBadges,
-        targetProgress: 50,
-        unlockedAt: totalBadges >= 50 ? new Date() : undefined,
+        category: 'Learning Badges',
+        isUnlocked: totalLearningBadges >= learningBadges.length && learningBadges.length > 0,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalLearningBadges >= learningBadges.length && learningBadges.length > 0 ? new Date() : undefined,
+        level: 3,
+      });
+
+      // QUIZ BADGE ACHIEVEMENTS
+      allAchievements.push({
+        id: 'quiz-badge-collector-5',
+        name: 'Quiz Apprentice',
+        description: 'Earn 5 quiz badges',
+        icon: <Trophy className="w-8 h-8 text-white" />,
+        type: 'special',
+        category: 'Quiz Badges',
+        isUnlocked: totalQuizBadges >= 5,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalQuizBadges >= 5 ? new Date() : undefined,
+        level: 1,
+      });
+
+      allAchievements.push({
+        id: 'quiz-badge-collector-10',
+        name: 'Quiz Champion',
+        description: 'Earn 10 quiz badges',
+        icon: <Trophy className="w-8 h-8 text-white" />,
+        type: 'special',
+        category: 'Quiz Badges',
+        isUnlocked: totalQuizBadges >= 10,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalQuizBadges >= 10 ? new Date() : undefined,
+        level: 2,
+      });
+
+      allAchievements.push({
+        id: 'quiz-badge-legend',
+        name: 'Quiz Legend',
+        description: 'Earn all quiz badges',
+        icon: <Target className="w-8 h-8 text-white" />,
+        type: 'special',
+        category: 'Quiz Badges',
+        isUnlocked: totalQuizBadges >= quizBadges.length && quizBadges.length > 0,
+        currentProgress: 0,
+        targetProgress: 0,
+        unlockedAt: totalQuizBadges >= quizBadges.length && quizBadges.length > 0 ? new Date() : undefined,
         level: 3,
       });
 
@@ -257,7 +311,11 @@ export default function AchievementsPage() {
                 ) : (
                   <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
                     achievement.isUnlocked
-                      ? 'bg-gradient-to-br from-purple-400 to-pink-500 border-gray-200 dark:border-gray-600'
+                      ? achievement.category === 'Learning Badges'
+                        ? 'bg-gradient-to-br from-blue-400 to-cyan-500 border-gray-200 dark:border-gray-600'
+                        : achievement.category === 'Quiz Badges'
+                        ? 'bg-gradient-to-br from-green-400 to-emerald-500 border-gray-200 dark:border-gray-600'
+                        : 'bg-gradient-to-br from-purple-400 to-pink-500 border-gray-200 dark:border-gray-600'
                       : 'bg-gray-300 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                   }`}>
                     <div className={!achievement.isUnlocked ? 'opacity-40' : ''}>
