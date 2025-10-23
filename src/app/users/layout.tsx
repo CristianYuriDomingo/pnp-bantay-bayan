@@ -35,6 +35,9 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   const isQuizStartPage = pathname.includes('/quizStart/');
   const isFullPageLayout = isLessonPage || isQuizStartPage;
 
+  // Check if right column should be hidden (for full-width pages)
+  const shouldHideRightColumn = rightColumnContent === null;
+
   const handleSignOut = async () => {
     await signOut({
       callbackUrl: '/auth/signin',
@@ -274,30 +277,30 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
           {/* Main content - Responsive margin */}
           <div className="flex-1 ml-16 md:ml-72 transition-all duration-300 ease-in-out">
             <div className="p-4">
-              {/* Two-column layout */}
-              <div className="flex flex-col lg:flex-row w-full gap-4">
-                {/* Left column - 70% with no background */}
-                <div className="w-full lg:w-[70%]">
+              {/* Conditional layout based on right column visibility */}
+              {shouldHideRightColumn ? (
+                // Full width layout when right column is hidden
+                <div className="w-full">
                   <div className="h-full overflow-hidden">
                     {children}
                   </div>
                 </div>
-                
-                {/* Right column - 30% - UPDATED: Removed max-h-screen and overflow-y-auto */}
-                <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit flex flex-col gap-4">
-                  {/* Dynamic content from pages or default placeholder */}
-                  {rightColumnContent || (
-                    <div className="p-4 bg-gray-50/80 dark:bg-gray-700/80 rounded-lg backdrop-blur-sm">
-                      <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                        Right Column Content
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-300">
-                        This is the right column placeholder. You can add any content here.
-                      </p>
+              ) : (
+                // Two-column layout when right column has content
+                <div className="flex flex-col lg:flex-row w-full gap-4">
+                  {/* Left column - 70% with no background */}
+                  <div className="w-full lg:w-[70%]">
+                    <div className="h-full overflow-hidden">
+                      {children}
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* Right column - 30% */}
+                  <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit flex flex-col gap-4">
+                    {rightColumnContent}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

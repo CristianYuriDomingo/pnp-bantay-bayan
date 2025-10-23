@@ -5,10 +5,10 @@ import React, { useEffect } from 'react';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import AchievementsUI from '../components/Achievement';
 import ProfileSettings from '../components/ProfileSettings';
-import BadgeCollection from '../components/BadgeCollection'; // Import the BadgeCollection component
+import BadgeCollection from '../components/BadgeCollection';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRightColumn } from '../layout'; // Import the hook
+import { useRightColumn } from '../layout';
 import Image from 'next/image';
 
 // ProfileCard component styled like QuizCard from Quiz page
@@ -27,7 +27,7 @@ const ProfileCard = () => {
           {/* Character image */}
           <div className="w-20 h-20 relative mr-4 flex-shrink-0">
             <Image
-              src="/ProfileImage/ProfileMascot.png" // Update this path to your profile mascot image
+              src="/ProfileImage/ProfileMascot.png"
               alt="Profile mascot"
               fill
               sizes="80px"
@@ -57,14 +57,14 @@ const ProfileCard = () => {
 
 export default function ProfilePage() {
   const { user, isLoading, isAuthenticated } = useCurrentUser();
-  const { setRightColumnContent } = useRightColumn(); // Use the hook
+  const { setRightColumnContent } = useRightColumn();
 
-  // Set right column content when component mounts - styled like Quiz page with increased width
+  // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full">
-        {/* Achievements Component */}
-        <div className="p-4">
+        {/* Achievements Component with proper padding */}
+        <div className="p-6">
           <AchievementsUI />
         </div>
       </div>
@@ -83,10 +83,10 @@ export default function ProfilePage() {
     return (
       <div className="h-full overflow-y-auto">
         <div className="px-20 py-6">
-          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
+          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
-                src="/ProfileImage/ProfileHeader.png" // Update this path to your profile header image
+                src="/ProfileImage/ProfileHeader.png"
                 alt="Profile Header"
                 width={400}
                 height={140}
@@ -105,15 +105,15 @@ export default function ProfilePage() {
     );
   }
 
-  // This should rarely happen due to layout protection, but just in case
+  // Authentication check
   if (!isAuthenticated || !user) {
     return (
       <div className="h-full overflow-y-auto">
         <div className="px-20 py-6">
-          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
+          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
-                src="/ProfileImage/ProfileHeader.png" // Update this path to your profile header image
+                src="/ProfileImage/ProfileHeader.png"
                 alt="Profile Header"
                 width={400}
                 height={140}
@@ -139,7 +139,7 @@ export default function ProfilePage() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-20 py-6">
-        <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4"> {/* Removed dashed border and max-width constraint */}
+        <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
           {/* Profile Settings Section - Main Content */}
           <div className="space-y-6">
             <ProfileSettings />
