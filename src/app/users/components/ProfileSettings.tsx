@@ -28,6 +28,9 @@ const ProfileSettings = () => {
     name: '',
     image: ''
   });
+  
+  // Track if image was actually changed by user
+  const [imageChanged, setImageChanged] = useState(false);
 
   // Fetch user profile data
   useEffect(() => {
@@ -101,6 +104,7 @@ const ProfileSettings = () => {
         const result = e.target?.result;
         if (typeof result === 'string') {
           setEditForm(prev => ({ ...prev, image: result }));
+          setImageChanged(true); // Mark that image was changed
         }
       };
       reader.readAsDataURL(file);
@@ -117,16 +121,29 @@ const ProfileSettings = () => {
     setError('');
 
     try {
+      // Build request body - only include image if it was changed
+      const requestBody: any = {
+        name: editForm.name.trim(),
+      };
+
+      // Only send image if user uploaded a new one
+      if (imageChanged) {
+        requestBody.image = editForm.image;
+      }
+
+      console.log('🔄 Saving profile with:', {
+        name: requestBody.name,
+        imageIncluded: !!requestBody.image,
+        imageChanged
+      });
+
       const response = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          name: editForm.name.trim(),
-          image: editForm.image
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -135,6 +152,7 @@ const ProfileSettings = () => {
         const updatedUser = data.data;
         setUser(updatedUser);
         setIsEditing(false);
+        setImageChanged(false); // Reset image changed flag
         setError('');
       } else {
         if (response.status === 401) {
@@ -159,6 +177,7 @@ const ProfileSettings = () => {
       });
     }
     setIsEditing(false);
+    setImageChanged(false); // Reset image changed flag
     setError('');
   };
 

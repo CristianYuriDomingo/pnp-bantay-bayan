@@ -1,7 +1,8 @@
-// app/api/users/badges/award/route.ts
+// app/api/users/badges/award/route.ts - With Achievement Trigger
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { BadgeService } from '@/lib/badge-service'
+import { checkAndAwardAchievements } from '@/lib/achievement-checker'
 
 function addCacheHeaders(response: Response): Response {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
@@ -44,6 +45,25 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`🏆 Successfully awarded ${badgeResult.newBadges.length} new badges to user ${user.email}`)
+
+    // ⭐ TRIGGER ACHIEVEMENT CHECK IF NEW BADGES WERE EARNED
+    if (badgeResult.newBadges.length > 0) {
+      try {
+        const achievementResult = await checkAndAwardAchievements(
+          user.id,
+          'badge_earned'
+        );
+
+        if (achievementResult.newAchievements.length > 0) {
+          console.log(
+            `🎉 User earned ${achievementResult.newAchievements.length} badge milestone achievement(s)!`
+          );
+        }
+      } catch (achievementError) {
+        console.error('⚠️ Achievement check failed:', achievementError);
+        // Don't fail the badge award if achievement check fails
+      }
+    }
 
     const response = createSuccessResponse({
       userId: user.id,

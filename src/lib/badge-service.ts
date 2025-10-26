@@ -48,6 +48,10 @@ export class BadgeService {
       const cascadingBadges = await this.checkCascadingBadges(userId);
       result.newBadges.push(...cascadingBadges);
 
+      // 🔥 4. CHECK AND UNLOCK BADGE MILESTONE ACHIEVEMENTS
+      const { AchievementService } = await import('./achievement-service');
+      await AchievementService.checkAndUnlockBadgeMilestoneAchievements(userId);
+
       console.log(`✅ Badge check complete for user ${userId}: ${result.newBadges.length} new badges awarded`);
       return result;
 
@@ -227,7 +231,7 @@ export class BadgeService {
       // Fetch badge to get xpValue
       const badge = await prisma.badge.findUnique({
         where: { id: badgeId },
-        select: { id: true, xpValue: true, name: true }
+        select: { id: true, xpValue: true, name: true, category: true }
       });
 
       if (!badge) {
@@ -239,7 +243,7 @@ export class BadgeService {
         data: {
           userId: userId,
           badgeId: badgeId,
-          xpAwarded: badge.xpValue // ✅ NOW SETTING XP!
+          xpAwarded: badge.xpValue
         }
       });
 
@@ -255,7 +259,6 @@ export class BadgeService {
    * Check for cascading badge awards (when earning one badge unlocks others)
    */
   private static async checkCascadingBadges(userId: string): Promise<any[]> {
-    // FIXED: Get all badges that have prerequisites (non-empty array)
     const badgesWithPrereqs = await prisma.badge.findMany({
       where: {
         prerequisites: {
@@ -270,7 +273,6 @@ export class BadgeService {
       const eligibility = await this.checkBadgeEligibility(userId, badge.id);
       
       if (eligibility.eligible) {
-        // Additional check: ensure trigger condition is also met
         const triggerMet = await this.checkTriggerCondition(userId, badge);
         
         if (triggerMet) {
@@ -308,7 +310,6 @@ export class BadgeService {
         return await this.checkModuleCompletion(userId, badge.triggerValue);
 
       case 'quiz_mastery':
-        // Check if user has achieved 90%+ on this quiz
         const quizMastery = await prisma.quizMastery.findFirst({
           where: {
             userId: userId,
@@ -319,7 +320,6 @@ export class BadgeService {
         return !!quizMastery;
 
       case 'parent_quiz_mastery':
-        // Check if user has mastered all sub-quizzes
         const parentQuiz = await prisma.quiz.findUnique({
           where: { id: badge.triggerValue },
           include: { children: { select: { id: true } } }
@@ -339,7 +339,7 @@ export class BadgeService {
         return masteries.length === subQuizIds.length;
 
       case 'manual':
-        return false; // Manual badges are not automatically awarded
+        return false;
 
       default:
         return false;
@@ -407,7 +407,6 @@ export class BadgeService {
     };
 
     try {
-      // Get quiz to check question count
       const quiz = await prisma.quiz.findUnique({
         where: { id: quizId },
         include: { questions: true, parent: { include: { children: { select: { id: true } } } } }
@@ -418,24 +417,19 @@ export class BadgeService {
         return result;
       }
 
-      // Determine threshold based on question count
       let threshold = 90;
       if (quiz.questions.length <= 2) {
-        // For 1-2 question quizzes, require 100% accuracy
         threshold = 100;
       } else if (quiz.questions.length <= 5) {
-        threshold = 80; // Lower threshold for short quizzes
+        threshold = 80;
       }
 
       console.log(`Quiz has ${quiz.questions.length} questions, using threshold: ${threshold}%`);
 
-      // Award if user achieved threshold
       if (percentage >= threshold || masteryScore >= threshold) {
-        // 1. Award sub-quiz mastery badge
         const subQuizBadges = await this.awardQuizMasteryBadges(userId, quizId);
         result.newBadges.push(...subQuizBadges);
 
-        // 2. Check if this quiz completion unlocks parent quiz master badge
         if (quiz?.parentId && quiz.parent) {
           const parentBadges = await this.checkParentQuizMasterBadge(
             userId,
@@ -445,6 +439,9 @@ export class BadgeService {
           result.newBadges.push(...parentBadges);
         }
       }
+
+      // 🔥 CHECK AND UNLOCK BADGE MILESTONE ACHIEVEMENTS
+      await this.checkAndUnlockBadgeMilestoneAchievements(userId);
 
       console.log(`✅ Quiz badge check complete: ${result.newBadges.length} new badges`);
       return result;
@@ -488,10 +485,9 @@ export class BadgeService {
   }
 
   /**
-   * Check and award parent quiz master badges (when all sub-quizzes are mastered)
+   * Check and award parent quiz master badges
    */
   private static async checkParentQuizMasterBadge(userId: string, parentQuizId: string, subQuizIds: string[]): Promise<any[]> {
-    // Check if user already has the parent quiz master badge
     const existingBadge = await prisma.userBadge.findFirst({
       where: {
         userId: userId,
@@ -503,10 +499,9 @@ export class BadgeService {
     });
 
     if (existingBadge) {
-      return []; // Already awarded
+      return [];
     }
 
-    // Check if all sub-quizzes are mastered by the user
     const masteries = await prisma.quizMastery.findMany({
       where: {
         userId: userId,
@@ -516,7 +511,6 @@ export class BadgeService {
     });
 
     if (masteries.length === subQuizIds.length) {
-      // All sub-quizzes mastered, award the parent quiz master badge
       const badge = await prisma.badge.findFirst({
         where: {
           triggerType: 'parent_quiz_mastery',
@@ -537,5 +531,113 @@ export class BadgeService {
     }
 
     return [];
+  }
+
+  /**
+   * 🔥 NEW: Check and unlock badge milestone achievements
+   * This runs after every badge award to check if any achievements should be unlocked
+   */
+  private static async checkAndUnlockBadgeMilestoneAchievements(userId: string): Promise<void> {
+    console.log(`🎖️ Checking badge milestone achievements for user ${userId}`);
+
+    try {
+      // Get all user's badges with their types
+      const userBadges = await prisma.userBadge.findMany({
+        where: { userId },
+        include: {
+          badge: {
+            select: {
+              category: true,
+              masteryLevel: true,
+              triggerType: true,
+              name: true
+            }
+          }
+        }
+      });
+
+      // 🔥 IMPROVED: Count badges based on trigger type (more reliable)
+      // Learning badges = lesson_complete or module_complete
+      const learningBadgeCount = userBadges.filter(ub => 
+        ub.badge.triggerType === 'lesson_complete' || 
+        ub.badge.triggerType === 'module_complete' ||
+        ub.badge.category === 'Learning'
+      ).length;
+
+      // Quiz badges = quiz_mastery or parent_quiz_mastery OR has masteryLevel
+      const quizBadgeCount = userBadges.filter(ub => 
+        ub.badge.triggerType === 'quiz_mastery' || 
+        ub.badge.triggerType === 'parent_quiz_mastery' ||
+        ub.badge.category === 'Quiz Mastery' ||
+        ub.badge.masteryLevel !== null
+      ).length;
+
+      console.log(`📊 Badge counts: Learning=${learningBadgeCount}, Quiz=${quizBadgeCount}`);
+      console.log(`🏅 Total badges: ${userBadges.length}`);
+
+      // Log some badges for debugging
+      if (userBadges.length > 0) {
+        console.log(`Sample badges:`);
+        userBadges.slice(0, 3).forEach(ub => {
+          console.log(`  - ${ub.badge.name} (trigger: ${ub.badge.triggerType}, category: ${ub.badge.category})`);
+        });
+      }
+
+      // Get all badge milestone achievements that aren't unlocked yet
+      const badgeMilestoneAchievements = await prisma.achievement.findMany({
+        where: {
+          type: 'badge_milestone',
+          isActive: true,
+          userAchievements: {
+            none: {
+              userId: userId
+            }
+          }
+        }
+      });
+
+      console.log(`Found ${badgeMilestoneAchievements.length} locked badge milestone achievements`);
+
+      // Check each achievement to see if it should be unlocked
+      for (const achievement of badgeMilestoneAchievements) {
+        const criteriaData = achievement.criteriaData as any;
+        
+        if (!criteriaData || !criteriaData.badgeType || !criteriaData.count) {
+          console.warn(`⚠️ Achievement ${achievement.code} missing criteriaData`);
+          continue;
+        }
+
+        const { badgeType, count } = criteriaData;
+        const userCount = badgeType === 'learning' ? learningBadgeCount : quizBadgeCount;
+
+        console.log(`Checking ${achievement.name}: needs ${count} ${badgeType} badges, user has ${userCount}`);
+
+        // 🔥 UNLOCK IF TARGET REACHED
+        if (userCount >= count) {
+          console.log(`✅ UNLOCKING ACHIEVEMENT: ${achievement.name}`);
+          
+          try {
+            await prisma.userAchievement.create({
+              data: {
+                userId: userId,
+                achievementId: achievement.id,
+                xpAwarded: achievement.xpReward
+              }
+            });
+
+            console.log(`🎉 Achievement "${achievement.name}" unlocked for user ${userId}!`);
+          } catch (err) {
+            // Ignore duplicate errors (achievement already unlocked)
+            if (err instanceof Error && err.message.includes('Unique constraint')) {
+              console.log(`ℹ️ Achievement "${achievement.name}" already unlocked`);
+            } else {
+              throw err;
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking badge milestone achievements:', error);
+    }
   }
 }

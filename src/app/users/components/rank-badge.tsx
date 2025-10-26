@@ -132,7 +132,7 @@ export const PositionBadge: React.FC<{ rank: number; size?: 'sm' | 'md' | 'lg' }
   )
 }
 
-// Enhanced Rank Card with full UI
+// Enhanced Rank Card with Duolingo-style UI
 interface RankCardProps {
   rank?: PNPRank | string | null
   leaderboardPosition?: number
@@ -164,11 +164,11 @@ export const RankCard: React.FC<RankCardProps> = ({
 }) => {
   if (!rank) {
     return (
-      <div className={`bg-gray-100 rounded-2xl p-5 shadow-sm border-2 border-gray-300 ${className}`}>
+      <div className={`bg-white rounded-2xl p-6 shadow-lg border border-gray-200 ${className}`}>
         <div className="flex items-center gap-2">
           <Image src="/ranks/Pat.png" alt="Pat" width={28} height={28} className="object-contain" />
           <div>
-            <p className="text-xs font-medium text-gray-600 uppercase">Rank Not Set</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase">Rank Not Set</p>
             <p className="text-sm text-gray-500 mt-1">Calculating rank...</p>
           </div>
         </div>
@@ -185,7 +185,7 @@ export const RankCard: React.FC<RankCardProps> = ({
   
   if (!rankInfo) {
     return (
-      <div className={`bg-gray-100 rounded-2xl p-5 shadow-sm border-2 border-gray-300 ${className}`}>
+      <div className={`bg-white rounded-2xl p-6 shadow-lg border border-gray-200 ${className}`}>
         <p className="text-gray-500 text-center">Invalid Rank Data</p>
       </div>
     )
@@ -194,93 +194,76 @@ export const RankCard: React.FC<RankCardProps> = ({
   const nextRankInfo = nextPNPRank ? getRankInfo(nextPNPRank) : null
   
   return (
-    <div className={`bg-blue-50 rounded-2xl p-5 shadow-sm border-2 border-blue-200 ${className}`}>
-      {/* Position and PNP Rank Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          {leaderboardPosition && <PositionBadge rank={leaderboardPosition} size="lg" />}
-          <div>
-            <p className="text-xs font-medium text-gray-500">Your Position</p>
-            <p className="text-2xl font-semibold text-gray-800">#{leaderboardPosition || '?'}</p>
-          </div>
+    <div className={`bg-white rounded-2xl p-6 shadow-lg border border-gray-200 max-w-lg mx-auto ${className}`}>
+      {/* Header with Position and Rank */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Your Rank</p>
+          <p className="text-4xl font-black text-gray-800">#{leaderboardPosition || '?'}</p>
         </div>
-        <div className="text-right">
-          <PNPRankBadge rank={rank} size="md" showName={false} showIcon={true} />
-          <p className="text-xs font-medium text-gray-600 mt-1">{rankInfo.name}</p>
-        </div>
+        <PNPRankBadge rank={rank} size="lg" showName={false} showIcon={true} />
       </div>
 
-      {/* Level Display */}
+      {/* Level Display - Duolingo Style */}
       {level > 0 && (
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl px-4 py-3 mb-3 shadow-sm">
+        <div className="bg-blue-500 rounded-2xl px-6 py-4 mb-4 shadow-md">
           <div className="flex items-center justify-between text-white">
-            <span className="text-xs font-medium">Level</span>
-            <span className="text-2xl font-bold">{level}</span>
+            <span className="text-sm font-bold uppercase tracking-wide">Level</span>
+            <span className="text-5xl font-black">{level}</span>
           </div>
         </div>
       )}
 
-      <div className="space-y-3">
-        {/* XP Progress */}
+      <div className="space-y-4">
+        {/* XP Progress - Clean Style */}
         {totalXP > 0 && (
-          <div className="bg-white rounded-xl p-3 border border-blue-200">
-            <div className="flex justify-between text-xs mb-2 font-medium">
-              <span className="text-gray-700">XP Progress</span>
-              <span className="text-blue-600 font-semibold">{totalXP} XP</span>
+          <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200">
+            <div className="flex justify-between items-baseline mb-3">
+              <span className="text-sm font-bold text-gray-700">Total XP</span>
+              <span className="text-3xl font-black text-blue-500">{totalXP}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
               <div 
-                className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all shadow-sm"
+                className="bg-blue-500 h-full rounded-full transition-all duration-300"
                 style={{ width: `${percentToNextLevel}%` }}
               ></div>
             </div>
             {xpToNextLevel > 0 && (
-              <p className="text-xs text-gray-600 mt-1 font-medium">
+              <p className="text-xs text-gray-600 mt-2 font-medium">
                 {xpToNextLevel} XP to Level {level + 1}
               </p>
             )}
           </div>
         )}
 
-        {/* Rank Progression */}
+        {/* Next Rank - Clean Style */}
         {nextPNPRank && xpToNextRank && nextRankInfo && (
-          <div className="bg-white rounded-xl p-3 border border-blue-200">
-            <p className="text-xs font-semibold mb-2 flex items-center text-gray-700">
-              <TrendingUp size={14} className="mr-1 text-blue-500" />
-              Next Rank: {nextRankInfo.shortName}
+          <div className="bg-blue-50 rounded-2xl p-5 border border-blue-200">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-gray-700 flex items-center">
+                <TrendingUp size={16} className="mr-2 text-blue-500" />
+                Next Rank
+              </p>
+              <PNPRankBadge rank={nextPNPRank} size="sm" showIcon={true} />
+            </div>
+            <p className="text-sm font-medium text-gray-700">
+              Need <span className="text-blue-600 font-bold">{xpToNextRank} XP</span>
             </p>
+          </div>
+        )}
+
+        {/* Badge Stats - Yellow Style like Duolingo */}
+        {totalBadges > 0 && (
+          <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-200">
             <div className="flex items-center justify-between">
-              <PNPRankBadge rank={nextPNPRank} size="xs" showIcon={true} />
-              <span className="text-xs font-medium text-gray-600">
-                Need <span className="text-blue-600 font-semibold">{xpToNextRank} XP</span>
+              <span className="flex items-center text-base font-bold text-gray-700">
+                <Trophy size={20} className="mr-2 text-yellow-600" />
+                Badges
+              </span>
+              <span className="font-black text-3xl text-gray-800">
+                {earnedBadges}/{totalBadges}
               </span>
             </div>
-          </div>
-        )}
-
-        {/* Climb to next position */}
-        {xpBehindNext !== null && xpBehindNext > 0 && (
-          <div className="bg-white rounded-xl p-3 border border-blue-200">
-            <p className="text-xs font-semibold mb-1 flex items-center text-gray-700">
-              <TrendingUp size={14} className="mr-1 text-blue-500" />
-              Catch the next player!
-            </p>
-            <p className="text-xs font-medium text-gray-600">
-              Need <span className="text-blue-600 font-semibold">{xpBehindNext} more XP</span>
-            </p>
-          </div>
-        )}
-
-        {/* Badge stats */}
-        {totalBadges > 0 && (
-          <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-blue-200">
-            <span className="flex items-center text-sm font-medium text-gray-700">
-              <Trophy size={16} className="mr-2 text-blue-500" />
-              Badges
-            </span>
-            <span className="font-semibold text-base text-gray-800">
-              {earnedBadges}/{totalBadges}
-            </span>
           </div>
         )}
       </div>

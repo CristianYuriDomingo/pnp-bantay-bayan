@@ -1,16 +1,16 @@
-// app/api/users/profile/route.ts - Using your middleware
+// app/api/users/profile/route.ts - Pass context to achievement checker
 import { NextRequest } from 'next/server';
 import { withApiAuth } from '@/middleware/auth-middleware';
 import { createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { Session } from 'next-auth';
+import { checkAndAwardAchievements } from '@/lib/achievement-checker';
 
 // GET handler function
 async function getProfileHandler(request: NextRequest, user: Session['user']) {
   console.log('📋 GET Profile handler called for user:', user.email);
   
   try {
-    // Find user by email since that's what we have from session
     const profile = await prisma.user.findUnique({
       where: { email: user.email! },
       select: {
@@ -57,6 +57,62 @@ async function putProfileHandler(request: NextRequest, user: Session['user']) {
       return createAuthErrorResponse('Name is required', 400);
     }
 
+    // 🔍 GET CURRENT USER DATA + CHECK EXISTING ACHIEVEMENTS
+    const currentUser = await prisma.user.findUnique({
+      where: { email: user.email! },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        achievementsEarned: {
+          select: {
+            achievement: {
+              select: {
+                code: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!currentUser) {
+      return createAuthErrorResponse('User not found', 404);
+    }
+
+    // 📌 Check if user already has profile achievements
+    const earnedCodes = currentUser.achievementsEarned.map(ua => ua.achievement.code);
+    const hasIdentityAchievement = earnedCodes.includes('identity-established');
+    const hasFaceAchievement = earnedCodes.includes('face-of-justice');
+
+    // Track which fields are being updated
+    const updatedFields: string[] = [];
+    
+    // Check if name is being updated and achievement not earned
+    const isNameBeingUpdated = name && name.trim() !== currentUser.name;
+    if (isNameBeingUpdated && !hasIdentityAchievement && name.trim().length > 0) {
+      updatedFields.push('name');
+    }
+    
+    // Check if image is being updated and achievement not earned
+    const isImageBeingUpdated = image !== undefined && image !== null && image.trim() !== currentUser.image;
+    if (isImageBeingUpdated && !hasFaceAchievement && image.trim().length > 0) {
+      updatedFields.push('image');
+    }
+
+    console.log('🔍 Achievement Check Debug:', {
+      currentName: currentUser.name,
+      newName: name,
+      isNameBeingUpdated,
+      currentImage: currentUser.image ? 'exists' : 'none',
+      newImage: image ? 'provided' : 'not provided',
+      isImageBeingUpdated,
+      earnedAchievements: earnedCodes,
+      hasIdentityAchievement,
+      hasFaceAchievement,
+      updatedFields,
+    });
+
     const updateData: any = {
       name: name.trim(),
       updatedAt: new Date()
@@ -67,7 +123,7 @@ async function putProfileHandler(request: NextRequest, user: Session['user']) {
       updateData.image = image;
     }
 
-    // Update user by email
+    // Update user profile
     const updatedUser = await prisma.user.update({
       where: { email: user.email! },
       data: updateData,
@@ -84,6 +140,37 @@ async function putProfileHandler(request: NextRequest, user: Session['user']) {
     });
 
     console.log('✅ Profile updated successfully');
+
+    // ⭐ TRIGGER ACHIEVEMENT CHECK with context about what was updated
+    if (updatedFields.length > 0) {
+      try {
+        console.log('🎯 Triggering achievement check for profile_update');
+        console.log(`   📝 Fields to check:`, updatedFields);
+        
+        const achievementResult = await checkAndAwardAchievements(
+          updatedUser.id,
+          'profile_update',
+          { updatedFields }
+        );
+
+        if (achievementResult.newAchievements.length > 0) {
+          console.log(
+            `🎉 User earned ${achievementResult.newAchievements.length} profile achievement(s)!`
+          );
+          achievementResult.newAchievements.forEach(ua => {
+            console.log(`   ✨ ${ua.achievement.name} (+${ua.xpAwarded} XP)`);
+          });
+        } else {
+          console.log('ℹ️ No new achievements awarded (criteria not met or already earned)');
+        }
+      } catch (achievementError) {
+        console.error('⚠️ Achievement check failed:', achievementError);
+        // Don't fail the profile update if achievement check fails
+      }
+    } else {
+      console.log('ℹ️ Profile update - no achievement-eligible changes');
+    }
+
     return createSuccessResponse(updatedUser, 'Profile updated successfully');
 
   } catch (error: unknown) {

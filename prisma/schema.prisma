@@ -36,34 +36,38 @@ model Session {
 }
 
 model User {
-  id                   String         @id @default(cuid())
+  id                   String              @id @default(cuid())
   name                 String?
-  email                String         @unique
+  email                String              @unique
   emailVerified        DateTime?
   image                String?
   password             String?
-  role                 String         @default("user")
-  status               String         @default("active")
-  totalXP              Int            @default(0)
-  level                Int            @default(1)
-  // NEW: PNP Rank System Fields
-  currentRank          String         @default("Pat")
+  role                 String              @default("user")
+  status               String              @default("active")
+  totalXP              Int                 @default(0)
+  level                Int                 @default(1)
+
+  // PNP Rank System Fields - UPDATED: Changed default from "Pat" to "Cadet"
+  currentRank          String              @default("Cadet")
   leaderboardPosition  Int?
-  rankAchievedAt       DateTime       @default(now())
-  highestRankEver      String         @default("Pat")
+  rankAchievedAt       DateTime            @default(now())
+  highestRankEver      String              @default("Cadet")
   rankHistory          Json?
-  lastActiveDate       DateTime       @default(now())
-  // End of new fields
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  lastActiveDate       DateTime            @default(now())
+
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
   resetToken           String?
   resetTokenExpiry     DateTime?
+  
+  // Relations
   accounts             Account[]
   sessions             Session[]
   quizAttempts         QuizAttempt[]
   quizMasteries        QuizMastery[]
   badgeEarned          UserBadge[]
   progress             UserProgress[]
+  achievementsEarned   UserAchievement[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -174,6 +178,57 @@ model UserBadge {
   @@index([userId])
   @@index([earnedAt])
   @@map("user_badges")
+}
+
+// Achievement Model (NO RARITY)
+model Achievement {
+  id               String              @id @default(cuid())
+  code             String              @unique  // e.g., "identity-established", "rank-pco1"
+  name             String                       // e.g., "Identity Established"
+  description      String                       // e.g., "Set your username"
+  icon             String?                      // Icon path or emoji
+  category         String                       // e.g., "Profile", "Rank Promotions", "Learning Badges"
+  type             String                       // e.g., "profile", "rank", "badge_milestone"
+  xpReward         Int                 @default(0)         // XP awarded (ONLY for profile/rank, 0 for badges)
+  
+  // Unlock criteria (stored as JSON for flexibility)
+  criteriaType     String                       // e.g., "profile_field", "rank_achieved", "badge_count"
+  criteriaValue    String                       // e.g., "name", "PCO1", "5"
+  criteriaData     Json?                        // Additional criteria data if needed
+  
+  // Metadata
+  sortOrder        Int                 @default(0)         // Display order
+  isActive         Boolean             @default(true)      // Can be disabled without deleting
+  
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  
+  // Relations
+  userAchievements UserAchievement[]
+
+  @@index([category])
+  @@index([type])
+  @@index([isActive])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  xpAwarded     Int         @default(0)  // Actual XP awarded (for audit trail)
+  earnedAt      DateTime    @default(now())
+  notificationSeen Boolean  @default(false)  // For future notification system
+  
+  // Relations
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])  // User can only earn each achievement once
+  @@index([userId])
+  @@index([earnedAt])
+  @@index([notificationSeen])
+  @@map("user_achievements")
 }
 
 model Quiz {

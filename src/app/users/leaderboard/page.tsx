@@ -35,7 +35,7 @@ const PositionBadge: React.FC<{ rank: number; size?: 'sm' | 'md' | 'lg' }> = ({ 
   )
 }
 
-// User avatar component with decorative border for top 3
+// User avatar component
 const UserAvatar: React.FC<{ 
   image: string | null
   name: string
@@ -45,7 +45,6 @@ const UserAvatar: React.FC<{
 }> = ({ image, name, size = 48, rank, customBorderColor }) => {
   const [imgError, setImgError] = useState(false)
 
-  // Decorative border styles for top 3
   const getBorderStyle = () => {
     if (customBorderColor) {
       return `ring-4`
@@ -94,12 +93,11 @@ const UserAvatar: React.FC<{
   return avatarContent
 }
 
-// Top 3 Podium Display with Dynamic Rank Colors - MINIMIZED VERSION
+// Top 3 Podium Display
 const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: string }> = ({ topThree, currentUserId }) => {
   if (topThree.length === 0) return null
   const [first, second, third] = topThree
 
-  // Get rank colors from config
   const getSecondPlaceRankInfo = () => second ? getRankInfo(second.pnpRank) : null
   const getFirstPlaceRankInfo = () => first ? getRankInfo(first.pnpRank) : null
   const getThirdPlaceRankInfo = () => third ? getRankInfo(third.pnpRank) : null
@@ -127,7 +125,7 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
         }
       `}</style>
       <div className="flex items-end justify-center gap-6 md:gap-12">
-        {/* Second Place - LARGER */}
+        {/* Second Place */}
         {second && secondRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === second.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative">
@@ -161,11 +159,10 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
           </div>
         )}
 
-        {/* First Place - WITH SHINING USER IMAGE BORDER - LARGER */}
+        {/* First Place */}
         {first && firstRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === first.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative flex flex-col items-center">
-              {/* Crown decoration on top center of avatar */}
               <div className="mb-[-8px] z-20">
                 <Image
                   src="/MainImage/crown.png"
@@ -207,7 +204,7 @@ const PodiumDisplay: React.FC<{ topThree: LeaderboardEntry[]; currentUserId?: st
           </div>
         )}
 
-        {/* Third Place - LARGER */}
+        {/* Third Place */}
         {third && thirdRankInfo && (
           <div className={`flex flex-col items-center ${currentUserId === third.userId ? 'ring-2 ring-blue-500 rounded-2xl p-4 bg-white/80' : ''}`}>
             <div className="mb-3 relative">
@@ -279,7 +276,7 @@ const LeaderboardInfoCard: React.FC = () => {
   )
 }
 
-// User's current rank card
+// Simplified User Rank Card (Duolingo style - NO profile picture)
 const UserRankCard: React.FC = () => {
   const { rankData, rankInfo } = useUserRank()
   const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank()
@@ -298,90 +295,67 @@ const UserRankCard: React.FC = () => {
   }
 
   return (
-    <div className="bg-blue-50 rounded-2xl p-5 mb-4 border-2 border-blue-200">
-      {/* Position and Profile Header */}
+    <div className="bg-white rounded-3xl p-5 mb-4">
+      {/* Header: Your Rank */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          {/* User Avatar with custom golden border */}
-          <UserAvatar 
-            image={user.image || null} 
-            name={user.name || 'User'} 
-            size={64} 
-            customBorderColor="#fecf6b"
-          />
-          <div>
-            <p className="text-xs font-medium text-gray-500">Your Position</p>
-            <p className="text-2xl font-semibold text-gray-800">#{leaderboardRankInfo.rank}</p>
-          </div>
+        <div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">YOUR RANK</p>
+          <p className="text-3xl font-black text-gray-900">#{leaderboardRankInfo.rank}</p>
         </div>
-        <div className="text-right">
+        <div>
           <PNPRankBadge rank={rankData.currentRank} size="md" showName={false} showIcon={true} />
-          <p className="text-xs font-medium text-gray-600 mt-1">{rankInfo?.name}</p>
         </div>
       </div>
 
-      {/* Level Display */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl px-4 py-3 mb-3">
+      {/* Level Display - Full width blue card */}
+      <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl px-5 py-3 mb-3">
         <div className="flex items-center justify-between text-white">
-          <span className="text-xs font-medium">Level</span>
-          <span className="text-2xl font-bold">{leaderboardRankInfo.level}</span>
+          <span className="text-sm font-bold uppercase tracking-wider">Level</span>
+          <span className="text-3xl font-black">{leaderboardRankInfo.level}</span>
         </div>
       </div>
 
-      <div className="space-y-3">
-        {/* XP Progress */}
-        <div className="bg-white rounded-xl p-3 border border-blue-200">
-          <div className="flex justify-between text-xs mb-2 font-medium">
-            <span className="text-gray-700">XP Progress</span>
-            <span className="text-blue-600 font-semibold">{leaderboardRankInfo.totalXP} XP</span>
+      {/* Total XP Card */}
+      <div className="bg-gray-50 rounded-2xl p-4 mb-3">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-semibold text-gray-700">Total XP</span>
+          <span className="text-xl font-bold text-blue-600">{leaderboardRankInfo.totalXP}</span>
+        </div>
+        <div className="w-full bg-gray-300 rounded-full h-3">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all"
+            style={{ width: `${leaderboardRankInfo.percentToNextLevel}%` }}
+          ></div>
+        </div>
+        <p className="text-xs text-gray-600 mt-2 font-medium">
+          {leaderboardRankInfo.xpToNextLevel} XP to Level {leaderboardRankInfo.level + 1}
+        </p>
+      </div>
+
+      {/* Next Rank Card */}
+      {leaderboardRankInfo.nextPNPRank && leaderboardRankInfo.xpToNextRank && (
+        <div className="bg-blue-50 rounded-2xl p-4 mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-blue-600" />
+              <span className="text-sm font-bold text-gray-700">Next Rank</span>
+            </div>
+            <PNPRankBadge rank={leaderboardRankInfo.nextPNPRank} size="xs" showIcon={true} />
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div 
-              className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all"
-              style={{ width: `${leaderboardRankInfo.percentToNextLevel}%` }}
-            ></div>
-          </div>
-          <p className="text-xs text-gray-600 mt-1 font-medium">
-            {leaderboardRankInfo.xpToNextLevel} XP to Level {leaderboardRankInfo.level + 1}
+          <p className="text-sm font-semibold text-gray-700">
+            Need <span className="text-blue-600 text-base font-bold">{leaderboardRankInfo.xpToNextRank} XP</span>
           </p>
         </div>
+      )}
 
-        {/* Rank Progression */}
-        {leaderboardRankInfo.nextPNPRank && leaderboardRankInfo.xpToNextRank && (
-          <div className="bg-white rounded-xl p-3 border border-blue-200">
-            <p className="text-xs font-semibold mb-2 flex items-center text-gray-700">
-              <TrendingUp size={14} className="mr-1 text-blue-500" />
-              Next Rank: {getRankInfo(leaderboardRankInfo.nextPNPRank).shortName}
-            </p>
-            <div className="flex items-center justify-between">
-              <PNPRankBadge rank={leaderboardRankInfo.nextPNPRank} size="xs" showIcon={true} />
-              <span className="text-xs font-medium text-gray-600">
-                Need <span className="text-blue-600 font-semibold">{leaderboardRankInfo.xpToNextRank} XP</span>
-              </span>
-            </div>
+      {/* Badges Card */}
+      <div className="bg-yellow-50 rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Trophy size={18} className="text-yellow-600" />
+            <span className="text-sm font-bold text-gray-700">Badges</span>
           </div>
-        )}
-
-        {/* Climb to next position */}
-        {leaderboardRankInfo.xpBehindNext !== null && (
-          <div className="bg-white rounded-xl p-3 border border-blue-200">
-            <p className="text-xs font-semibold mb-1 flex items-center text-gray-700">
-              <TrendingUp size={14} className="mr-1 text-blue-500" />
-              Catch the next player!
-            </p>
-            <p className="text-xs font-medium text-gray-600">
-              Need <span className="text-blue-600 font-semibold">{leaderboardRankInfo.xpBehindNext} more XP</span>
-            </p>
-          </div>
-        )}
-
-        {/* Badge stats */}
-        <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-blue-200">
-          <span className="flex items-center text-sm font-medium text-gray-700">
-            <Trophy size={16} className="mr-2 text-blue-500" />
-            Badges
-          </span>
-          <span className="font-semibold text-base text-gray-800">
+          <span className="text-2xl font-black text-gray-900">
             {leaderboardRankInfo.earnedBadges}/{leaderboardRankInfo.totalBadges}
           </span>
         </div>

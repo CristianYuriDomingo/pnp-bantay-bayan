@@ -1,12 +1,12 @@
-// lib/rank-calculator.ts
+// lib/rank-calculator.ts - With Achievement Trigger
 import { prisma } from '@/lib/prisma'
 import { PNPRank, UserRankData, RankChangeEvent } from '@/types/rank'
 import { getRankByPosition, getRankInfo, compareRanks } from '@/lib/rank-config'
+import { checkAndAwardAchievements } from '@/lib/achievement-checker'
 
 export class RankCalculator {
   /**
    * Initialize a new user with Cadet rank
-   * Call this when creating a new user
    */
   static async initializeNewUserRank(userId: string): Promise<UserRankData | null> {
     try {
@@ -55,8 +55,7 @@ export class RankCalculator {
   }
 
   /**
-   * Calculate and update ranks for all users
-   * Call this daily via cron job or after XP changes
+   * Calculate and update ranks for all users - WITH ACHIEVEMENT TRIGGERS
    */
   static async calculateAllRanks(): Promise<RankChangeEvent[]> {
     try {
@@ -74,7 +73,7 @@ export class RankCalculator {
         },
         orderBy: [
           { totalXP: 'desc' },
-          { createdAt: 'asc' } // Tie-breaker: older accounts win
+          { createdAt: 'asc' }
         ]
       })
 
@@ -84,6 +83,7 @@ export class RankCalculator {
 
       const totalUsers = allUsers.length
       const rankChanges: RankChangeEvent[] = []
+      const usersWithPromotions: string[] = []
 
       // Calculate new rank for each user
       for (let i = 0; i < allUsers.length; i++) {
@@ -127,7 +127,7 @@ export class RankCalculator {
           }
         })
 
-        // Track rank changes
+        // Track rank changes and promotions
         if (oldRank !== newRank) {
           const change = compareRanks(newRank, oldRank) > 0 ? 'promotion' : 'demotion'
           rankChanges.push({
@@ -137,6 +137,34 @@ export class RankCalculator {
             change,
             timestamp: new Date()
           })
+
+          // Track users who got promoted for achievement check
+          if (change === 'promotion') {
+            usersWithPromotions.push(user.id)
+          }
+        }
+      }
+
+      // ⭐ TRIGGER ACHIEVEMENT CHECKS FOR PROMOTED USERS
+      if (usersWithPromotions.length > 0) {
+        console.log(`🏆 Checking rank achievements for ${usersWithPromotions.length} promoted users...`)
+        
+        for (const userId of usersWithPromotions) {
+          try {
+            const achievementResult = await checkAndAwardAchievements(
+              userId,
+              'rank_promotion'
+            )
+
+            if (achievementResult.newAchievements.length > 0) {
+              console.log(
+                `🎉 User ${userId} earned ${achievementResult.newAchievements.length} rank achievement(s)!`
+              )
+            }
+          } catch (achievementError) {
+            console.error(`⚠️ Achievement check failed for user ${userId}:`, achievementError)
+            // Continue with other users even if one fails
+          }
         }
       }
 
@@ -241,7 +269,7 @@ export class RankCalculator {
   }
 
   /**
-   * Get rank progress for a user (XP needed to next rank)
+   * Get rank progress for a user
    */
   static async getRankProgress(userId: string) {
     try {

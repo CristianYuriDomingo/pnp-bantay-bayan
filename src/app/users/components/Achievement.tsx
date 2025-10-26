@@ -1,185 +1,95 @@
-// app/users/components/Achievement.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useCurrentUser } from '@/hooks/use-current-user';
-import { Loader2, Camera, Award, User } from 'lucide-react';
+import React from 'react';
+import { useUserAchievements } from '@/hooks/use-user-achievements';
+import { Loader2, Trophy } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { RANK_INFO, getNextRank } from '@/lib/rank-config';
-import { PNPRank } from '@/types/rank';
-
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string | React.ReactNode;
-  type: 'rank' | 'special';
-  category: string;
-  isUnlocked: boolean;
-  currentProgress: number;
-  targetProgress: number;
-  rank?: PNPRank;
-  level?: number;
-}
-
-// Extended user type for type safety
-interface ExtendedUser {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  role: string;
-  rank?: string;
-  totalXP?: number;
-  badges?: Array<any>;
-}
 
 const AchievementsUI = () => {
-  const { user: baseUser, isLoading } = useCurrentUser();
-  const user = baseUser as ExtendedUser;
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loadingAchievements, setLoadingAchievements] = useState(true);
+  const { achievements, loading, error } = useUserAchievements();
 
-  useEffect(() => {
-    const fetchAchievements = async () => {
-      if (!user) return;
-
-      const allAchievements: Achievement[] = [];
-
-      // 1. Get ONE next rank achievement
-      const currentRank = (user.rank as PNPRank) || 'Cadet';
-      let nextRank = getNextRank(currentRank);
-      
-      // Skip Cadet if it's the next rank
-      if (nextRank === 'Cadet') {
-        nextRank = getNextRank(nextRank);
-      }
-      
-      if (nextRank) {
-        const rankInfo = RANK_INFO[nextRank];
-        allAchievements.push({
-          id: `rank-${rankInfo.code}`,
-          name: `Promoted to ${rankInfo.shortName}`,
-          description: `Reach ${rankInfo.name} rank`,
-          icon: rankInfo.icon,
-          type: 'rank',
-          category: 'Rank Promotions',
-          isUnlocked: false,
-          currentProgress: user.totalXP || 0,
-          targetProgress: (rankInfo as any).requiredXP,
-          rank: nextRank,
-          level: 1,
-        });
+  // 🔹 Group achievements by category, then take 1 per category
+  const achievementsByCategory = Object.values(
+    achievements.reduce((acc: any, curr: any) => {
+      // Handle "Learning Badges" and "Quiz Badges" separately
+      let categoryKey = curr.category;
+      if (curr.category === 'Learning Badges' && curr.criteriaData) {
+        if (curr.criteriaData.badgeType === 'quiz') categoryKey = 'Quiz Badges';
+        else categoryKey = 'Learning Badges';
       }
 
-      // 2. Get ONE profile achievement (prioritize uncompleted ones)
-      const hasUsername = user.name ? true : false;
-      const hasProfilePicture = user.image ? true : false;
-      
-      // Always show at least one profile achievement
-      if (!hasUsername) {
-        allAchievements.push({
-          id: 'set-username',
-          name: 'Identity Established',
-          description: 'Set your username',
-          icon: <User className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Profile',
-          isUnlocked: false,
-          currentProgress: 0,
-          targetProgress: 1,
-          level: 1,
-        });
-      } else if (!hasProfilePicture) {
-        allAchievements.push({
-          id: 'photogenic',
-          name: 'Photogenic',
-          description: 'Add a profile picture',
-          icon: <Camera className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Profile',
-          isUnlocked: false,
-          currentProgress: 0,
-          targetProgress: 1,
-          level: 1,
-        });
-      } else {
-        // Both completed, show the username achievement as completed
-        allAchievements.push({
-          id: 'set-username',
-          name: 'Identity Established',
-          description: 'Set your username',
-          icon: <User className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Profile',
-          isUnlocked: true,
-          currentProgress: 1,
-          targetProgress: 1,
-          level: 1,
-        });
-      }
+      if (!acc[categoryKey]) acc[categoryKey] = curr; // Keep first achievement found per category
+      return acc;
+    }, {})
+  );
 
-      // 3. Get ONE badge achievement (show the next uncompleted one)
-      const totalBadges = user.badges?.length || 0;
-      
-      if (totalBadges < 5) {
-        allAchievements.push({
-          id: 'badge-collector-5',
-          name: 'Badge Collector',
-          description: 'Earn 5 badges',
-          icon: <Award className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Badges',
-          isUnlocked: false,
-          currentProgress: totalBadges,
-          targetProgress: 5,
-          level: 1,
-        });
-      } else if (totalBadges < 10) {
-        allAchievements.push({
-          id: 'badge-collector-10',
-          name: 'Badge Master',
-          description: 'Earn 10 badges',
-          icon: <Award className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Badges',
-          isUnlocked: false,
-          currentProgress: totalBadges,
-          targetProgress: 10,
-          level: 2,
-        });
-      } else if (totalBadges < 50) {
-        allAchievements.push({
-          id: 'badge-collector-all',
-          name: 'Badge Legend',
-          description: 'Earn all badges',
-          icon: <Award className="w-8 h-8 text-white" />,
-          type: 'special',
-          category: 'Badges',
-          isUnlocked: false,
-          currentProgress: totalBadges,
-          targetProgress: 50,
-          level: 3,
-        });
-      }
+  // If no achievements found, show empty state
+  const displayAchievements = achievementsByCategory;
 
-      setAchievements(allAchievements);
-      setLoadingAchievements(false);
-    };
-
-    if (user) {
-      fetchAchievements();
-    }
-  }, [user]);
-
-  if (isLoading || loadingAchievements) {
+  if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
       </div>
     );
   }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-4 text-center">
+        <p className="text-red-600 dark:text-red-400 text-sm">
+          Failed to load achievements
+        </p>
+      </div>
+    );
+  }
+
+  const renderIcon = (achievement: any) => {
+    if (achievement.icon && typeof achievement.icon === 'string') {
+      if (achievement.icon.startsWith('http') || achievement.icon.startsWith('/')) {
+        return (
+          <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 flex items-center justify-center">
+            <Image
+              src={achievement.icon}
+              alt={achievement.name}
+              width={48}
+              height={48}
+              className={`object-contain ${!achievement.isUnlocked ? 'grayscale opacity-50' : ''}`}
+            />
+          </div>
+        );
+      } else {
+        return (
+          <div className={`w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center ${
+            achievement.isUnlocked 
+              ? achievement.category === 'Profile'
+                ? 'bg-gradient-to-br from-green-400 to-emerald-500'
+                : achievement.category === 'Rank Promotions'
+                ? 'bg-gradient-to-br from-yellow-400 to-orange-500'
+                : achievement.category === 'Learning Badges' || achievement.category === 'Quiz Badges'
+                ? 'bg-gradient-to-br from-blue-400 to-cyan-500'
+                : 'bg-gradient-to-br from-purple-400 to-pink-500'
+              : 'bg-gray-300 dark:bg-gray-700'
+          }`}>
+            <span className={`text-3xl ${!achievement.isUnlocked ? 'opacity-50 grayscale' : ''}`}>
+              {achievement.icon}
+            </span>
+          </div>
+        );
+      }
+    }
+
+    return (
+      <div className={`w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center ${
+        achievement.isUnlocked 
+          ? 'bg-gradient-to-br from-purple-400 to-pink-500' 
+          : 'bg-gray-300 dark:bg-gray-700'
+      }`}>
+        <Trophy className={`w-8 h-8 text-white ${!achievement.isUnlocked ? 'opacity-50' : ''}`} />
+      </div>
+    );
+  };
 
   return (
     <div className="w-full">
@@ -198,40 +108,42 @@ const AchievementsUI = () => {
 
       {/* Achievements List */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {achievements.map((achievement, index) => (
+        {displayAchievements.map((achievement: any, index: number) => (
           <div key={achievement.id}>
             <div className="p-4 flex items-start gap-4">
               {/* Achievement Icon */}
               <div className="relative flex-shrink-0">
-                {achievement.type === 'rank' ? (
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 flex items-center justify-center">
-                    <Image
-                      src={achievement.icon as string}
-                      alt={achievement.name}
-                      width={48}
-                      height={48}
-                      className="object-contain"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center">
-                    {achievement.icon}
-                  </div>
-                )}
+                {renderIcon(achievement)}
               </div>
 
-              {/* Achievement Details - Now with flex layout */}
+              {/* Achievement Details */}
               <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
                     {achievement.name}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                     {achievement.description}
                   </p>
+                  
+                  {achievement.xpReward > 0 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">
+                      +{achievement.xpReward} XP
+                    </p>
+                  )}
+
+                  {achievement.isUnlocked && achievement.earnedAt && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      Unlocked {new Date(achievement.earnedAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  )}
                 </div>
 
-                {/* Achievement Image - Moved to top right, smaller size */}
+                {/* Lock/Unlock Badge */}
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 rounded-lg overflow-hidden">
                     <Image
@@ -246,8 +158,8 @@ const AchievementsUI = () => {
               </div>
             </div>
 
-            {/* Separator line (except for last item) */}
-            {index < achievements.length - 1 && (
+            {/* Separator line */}
+            {index < displayAchievements.length - 1 && (
               <div className="border-b border-gray-200 dark:border-gray-700 mx-4"></div>
             )}
           </div>
@@ -255,13 +167,13 @@ const AchievementsUI = () => {
       </div>
 
       {/* Empty State */}
-      {achievements.length === 0 && (
+      {displayAchievements.length === 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center">
             <span className="text-2xl">🎉</span>
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-lg">
-            All caught up! Check back later for more achievements.
+            No achievements yet. Start learning to unlock achievements!
           </p>
         </div>
       )}
