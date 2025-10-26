@@ -1,4 +1,4 @@
-// app/users/achievements/page.tsx - WITH REAL BADGE PROGRESS
+// app/users/achievements/page.tsx - Themed to match your app
 
 'use client';
 
@@ -75,15 +75,15 @@ export default function AchievementsPage() {
         return (
           <div className={`w-20 h-20 rounded-xl border-2 p-3 flex items-center justify-center overflow-hidden ${
             achievement.isUnlocked
-              ? 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600'
-              : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+              ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
+              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
           }`}>
             <div className="relative w-full h-full">
               <Image
                 src={achievement.icon}
                 alt={achievement.name}
                 fill
-                className={`object-contain ${!achievement.isUnlocked ? 'opacity-40 grayscale' : ''}`}
+                className={`object-contain ${!achievement.isUnlocked ? 'opacity-20 grayscale' : ''}`}
               />
             </div>
           </div>
@@ -93,16 +93,10 @@ export default function AchievementsPage() {
         return (
           <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
             achievement.isUnlocked
-              ? achievement.category === 'Learning Badges'
-                ? 'bg-gradient-to-br from-blue-400 to-cyan-500 border-gray-200 dark:border-gray-600'
-                : achievement.category === 'Rank Promotions'
-                ? 'bg-gradient-to-br from-yellow-400 to-orange-500 border-gray-200 dark:border-gray-600'
-                : achievement.category === 'Profile'
-                ? 'bg-gradient-to-br from-green-400 to-emerald-500 border-gray-200 dark:border-gray-600'
-                : 'bg-gradient-to-br from-purple-400 to-pink-500 border-gray-200 dark:border-gray-600'
-              : 'bg-gray-300 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+              ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
+              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
           }`}>
-            <span className={`text-4xl ${!achievement.isUnlocked ? 'opacity-40 grayscale' : ''}`}>
+            <span className={`text-4xl ${!achievement.isUnlocked ? 'opacity-20 grayscale' : ''}`}>
               {achievement.icon}
             </span>
           </div>
@@ -114,17 +108,17 @@ export default function AchievementsPage() {
     return (
       <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
         achievement.isUnlocked
-          ? 'bg-gradient-to-br from-purple-400 to-pink-500 border-gray-200 dark:border-gray-600'
-          : 'bg-gray-300 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+          ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
+          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
       }`}>
-        <Trophy className={`w-10 h-10 text-white ${!achievement.isUnlocked ? 'opacity-40' : ''}`} />
+        <Trophy className={`w-10 h-10 ${achievement.isUnlocked ? 'text-blue-500' : 'text-gray-300 dark:text-gray-600 opacity-30'}`} />
       </div>
     );
   };
 
   if (loading) {
     return (
-      <div className="h-full overflow-y-auto">
+      <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
         <div className="px-4 md:px-20 py-6">
           <div className="flex justify-center items-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -138,12 +132,12 @@ export default function AchievementsPage() {
     return (
       <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
-          <div className="bg-red-50 dark:bg-red-900/20 rounded-2xl p-8 text-center">
-            <Trophy className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-2xl p-8 text-center border-2 border-gray-200 dark:border-gray-700">
+            <Trophy className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-700 dark:text-gray-300 mb-2">
               Failed to Load Achievements
             </h2>
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">{error}</p>
           </div>
         </div>
       </div>
@@ -158,16 +152,16 @@ export default function AchievementsPage() {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Achievements
           </h1>
-          <div className="flex items-center gap-4 text-gray-600 dark:text-gray-400">
-            <span>
+          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <span className="font-medium">
               {statistics.unlockedCount} of {statistics.totalCount} unlocked
             </span>
-            <span className="text-gray-400">•</span>
-            <span>{statistics.completionPercentage}% complete</span>
+            <span className="text-gray-300 dark:text-gray-600">•</span>
+            <span className="font-medium">{statistics.completionPercentage}% complete</span>
             {statistics.totalXPEarned > 0 && (
               <>
-                <span className="text-gray-400">•</span>
-                <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">
                   {statistics.totalXPEarned} XP earned
                 </span>
               </>
@@ -176,25 +170,25 @@ export default function AchievementsPage() {
         </div>
 
         {/* Progress Bar */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 mb-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 mb-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               Overall Progress
             </span>
-            <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
               {statistics.completionPercentage}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500 rounded-full"
+              className="bg-blue-500 h-full transition-all duration-500 rounded-full"
               style={{ width: `${statistics.completionPercentage}%` }}
             />
           </div>
         </div>
 
         {/* Category Filter Tabs */}
-        <div className="flex gap-1 mb-6 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {categories.map((category) => {
             // Calculate counts based on the separated categories
             let categoryCount = 0;
@@ -225,10 +219,10 @@ export default function AchievementsPage() {
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-colors text-sm ${
+                className={`px-4 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all text-sm ${
                   selectedCategory === category
-                    ? 'bg-yellow-500 text-white shadow-sm'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
                 }`}
               >
                 {category}
@@ -249,9 +243,9 @@ export default function AchievementsPage() {
             return (
               <div
                 key={achievement.id}
-                className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm border-2 p-6 transition-all hover:shadow-md ${
+                className={`bg-white dark:bg-gray-800 rounded-2xl border-2 p-6 transition-all ${
                   achievement.isUnlocked
-                    ? 'border-green-400 dark:border-green-600'
+                    ? 'border-gray-300 dark:border-gray-600 shadow-sm'
                     : 'border-gray-200 dark:border-gray-700'
                 }`}
               >
@@ -259,7 +253,7 @@ export default function AchievementsPage() {
                 <div className="flex justify-end mb-2">
                   <div className="w-10 h-10 rounded-lg overflow-hidden">
                     <Image
-                      src={achievement.isUnlocked ? "/unlocked-badge.png" : "/locked-badge.png"}
+                      src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
                       alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
                       width={40}
                       height={40}
@@ -275,10 +269,18 @@ export default function AchievementsPage() {
 
                 {/* Achievement Info */}
                 <div className="text-center">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
+                  <h3 className={`text-lg font-bold mb-1 ${
+                    achievement.isUnlocked
+                      ? 'text-gray-900 dark:text-gray-100'
+                      : 'text-gray-500 dark:text-gray-500'
+                  }`}>
                     {achievement.name}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                  <p className={`text-sm mb-3 ${
+                    achievement.isUnlocked
+                      ? 'text-gray-600 dark:text-gray-400'
+                      : 'text-gray-400 dark:text-gray-500'
+                  }`}>
                     {achievement.description}
                   </p>
 
@@ -286,14 +288,14 @@ export default function AchievementsPage() {
                   {hasProgress && !achievement.isUnlocked && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-gray-600 dark:text-gray-400">Progress</span>
-                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        <span className="text-gray-500 dark:text-gray-500">Progress</span>
+                        <span className="font-semibold text-gray-700 dark:text-gray-400">
                           {extendedAchievement.progress.current}/{extendedAchievement.progress.target}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full transition-all duration-300"
+                          className="bg-blue-500 h-full transition-all duration-300"
                           style={{ width: `${Math.min(extendedAchievement.progress.percentage, 100)}%` }}
                         />
                       </div>
@@ -302,15 +304,25 @@ export default function AchievementsPage() {
 
                   {/* XP Reward - Only show if greater than 0 */}
                   {achievement.xpReward > 0 && (
-                    <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 mb-2">
-                      +{achievement.xpReward} XP
-                    </p>
+                    <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full mb-2 ${
+                      achievement.isUnlocked
+                        ? 'bg-blue-50 dark:bg-blue-900/20'
+                        : 'bg-gray-50 dark:bg-gray-700'
+                    }`}>
+                      <span className={`text-sm font-semibold ${
+                        achievement.isUnlocked
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-gray-400 dark:text-gray-500'
+                      }`}>
+                        +{achievement.xpReward} XP
+                      </span>
+                    </div>
                   )}
 
                   {/* Unlock Date */}
                   {achievement.isUnlocked && achievement.earnedAt && (
-                    <p className="text-xs text-green-600 dark:text-green-400">
-                      Unlocked {new Date(achievement.earnedAt).toLocaleDateString('en-US', {
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-2">
+                      ✓ Unlocked {new Date(achievement.earnedAt).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric'
@@ -325,11 +337,11 @@ export default function AchievementsPage() {
 
         {/* Empty State */}
         {filteredAchievements.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full mx-auto mb-4 flex items-center justify-center">
               <span className="text-2xl">🏆</span>
             </div>
-            <p className="text-gray-500 dark:text-gray-400 text-lg">
+            <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">
               No achievements found in this category
             </p>
           </div>
