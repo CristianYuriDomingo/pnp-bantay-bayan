@@ -147,7 +147,7 @@ const AchievementsUI = () => {
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 rounded-lg overflow-hidden">
                     <Image
-                      src={achievement.isUnlocked ? "/unlocked-badge.png" : "/locked-badge.png"}
+                      src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/unlocked.png"}
                       alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
                       width={40}
                       height={40}
