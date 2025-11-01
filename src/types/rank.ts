@@ -14,20 +14,22 @@ export type PNPRank =
   | 'PMAJ'      // Police Major
   | 'PLTCOL'    // Police Lieutenant Colonel
   | 'PCOL'      // Police Colonel
-  | 'PBGEN'     // Police Brigadier General
-  | 'PMGEN'     // Police Major General
-  | 'PLTGEN'    // Police Lieutenant General
-  | 'PGEN'      // Police General
+  | 'PBGEN'     // Police Brigadier General ⭐
+  | 'PMGEN'     // Police Major General ⭐⭐
+  | 'PLTGEN'    // Police Lieutenant General ⭐⭐⭐
+  | 'PGEN'      // Police General ⭐⭐⭐⭐
 
 export interface RankInfo {
   code: PNPRank
   name: string
   shortName: string
-  category: 'Cadet' | 'Enlisted' | 'Officer'
+  category: 'Cadet' | 'Enlisted' | 'Officer' | 'StarRank'
   order: number
   color: string
   bgColor: string
   icon: string
+  isCompetitive: boolean
+  minXP?: number
 }
 
 export interface UserRankData {
@@ -39,6 +41,7 @@ export interface UserRankData {
   previousRank?: PNPRank
   rankAchievedAt: Date
   highestRankEver: PNPRank
+  baseRank?: PNPRank
 }
 
 export interface RankChangeEvent {
@@ -47,4 +50,5 @@ export interface RankChangeEvent {
   newRank: PNPRank
   change: 'promotion' | 'demotion' | 'maintained'
   timestamp: Date
+  isStarRank?: boolean
 }

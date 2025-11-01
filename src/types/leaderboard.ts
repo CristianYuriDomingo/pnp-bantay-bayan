@@ -4,19 +4,18 @@ import { PNPRank } from './rank'
 export interface LeaderboardEntry {
   userId: string;
   name: string | null;
-  displayName: string; // Computed: name or "Anonymous User"
+  displayName: string;
   image: string | null;
   totalXP: number;
   level: number;
-  rank: number; // Position number (1, 2, 3, etc.)
-  pnpRank: PNPRank; // NEW: PNP Rank (Pat, PCpl, etc.)
+  rank: number;
+  pnpRank: PNPRank;
+  baseRank?: PNPRank;
   createdAt: Date;
   
-  // Badge stats
   totalBadges: number;
   earnedBadges: number;
   
-  // XP breakdown (optional - for future use)
   learningXP?: number;
   quizXP?: number;
 }
@@ -27,8 +26,7 @@ export interface LeaderboardStats {
   averageXP: number;
   averageLevel: number;
   lastUpdated: Date;
-  // NEW: Rank distribution
-  rankDistribution: Record<PNPRank, number>;
+  rankDistribution: Record<string, number>;
 }
 
 export interface LeaderboardResponse {
@@ -44,22 +42,20 @@ export interface LeaderboardResponse {
 }
 
 export interface UserRankInfo {
-  rank: number; // Position number
-  pnpRank: PNPRank; // NEW: PNP Rank
+  rank: number;
+  pnpRank: PNPRank;
+  baseRank?: PNPRank;
   totalXP: number;
   level: number;
   xpToNextLevel: number;
   percentToNextLevel: number;
   
-  // Position changes
   usersAhead: number;
-  xpBehindNext: number | null; // null if rank #1
+  xpBehindNext: number | null;
   
-  // NEW: Rank progression
   nextPNPRank: PNPRank | null;
   xpToNextRank: number | null;
   
-  // Progress
   totalBadges: number;
   earnedBadges: number;
 }

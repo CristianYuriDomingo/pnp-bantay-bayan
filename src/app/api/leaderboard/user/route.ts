@@ -1,9 +1,10 @@
+// app/api/leaderboard/user/route.ts
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
 import { UserRankInfo } from '@/types/leaderboard'
 import { PNPRank } from '@/types/rank'
-import { getRankByPosition, getNextRank, getRankInfo } from '@/lib/rank-config'
+import { getRankByXP, getBaseRankByXP, getNextRank, getRankInfo, getNextXPThreshold, isStarRank } from '@/lib/rank-config'
 
 function addCacheHeaders(response: Response): Response {
   response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       return addCacheHeaders(createAuthErrorResponse('User not found', 404))
     }
 
-    // Get total number of active users for rank calculation
+    // Get total number of active users
     const totalUsers = await prisma.user.count({
       where: { status: 'active' }
     })
@@ -62,15 +63,12 @@ export async function GET(request: NextRequest) {
 
     const rank = usersAhead + 1
 
-    // Calculate PNP rank based on position - ensure we always have a valid rank
-    let pnpRank: PNPRank
-    if (currentUser.currentRank && getRankInfo(currentUser.currentRank as PNPRank)) {
-      pnpRank = currentUser.currentRank as PNPRank
-    } else {
-      // Calculate based on position if not set
-      pnpRank = getRankByPosition(rank, totalUsers)
-      
-      // Update the user's rank in the database
+    // ✅ NEW: Calculate rank using dual-track system
+    const pnpRank = getRankByXP(currentUser.totalXP, rank, totalUsers)
+    const baseRank = getBaseRankByXP(currentUser.totalXP)
+    
+    // Update if rank changed
+    if (currentUser.currentRank !== pnpRank) {
       await prisma.user.update({
         where: { id: currentUser.id },
         data: {
@@ -79,35 +77,50 @@ export async function GET(request: NextRequest) {
           rankAchievedAt: new Date()
         }
       })
-      
-      console.log(`🔄 Auto-assigned rank ${pnpRank} to user ${user.email}`)
+      console.log(`🔄 Auto-updated rank ${pnpRank} for user ${user.email}`)
     }
     
-    const nextPNPRank = getNextRank(pnpRank)
-
-    // Get the user directly ahead (for XP difference and next rank info)
-    const userAhead = await prisma.user.findFirst({
-      where: {
-        status: 'active',
-        OR: [
-          { totalXP: { gt: currentUser.totalXP } },
-          {
-            AND: [
-              { totalXP: currentUser.totalXP },
-              { createdAt: { lt: currentUser.createdAt } }
-            ]
-          }
-        ]
-      },
-      orderBy: [
-        { totalXP: 'asc' },
-        { createdAt: 'desc' }
-      ],
-      select: {
-        totalXP: true,
-        currentRank: true
+    // ✅ NEW: Determine next rank based on rank type
+    let nextPNPRank: PNPRank | null = null
+    let xpToNextRank: number | null = null
+    
+    if (isStarRank(pnpRank)) {
+      // For star ranks, show competitive progression
+      const userAhead = await prisma.user.findFirst({
+        where: {
+          status: 'active',
+          OR: [
+            { totalXP: { gt: currentUser.totalXP } },
+            {
+              AND: [
+                { totalXP: currentUser.totalXP },
+                { createdAt: { lt: currentUser.createdAt } }
+              ]
+            }
+          ]
+        },
+        orderBy: [
+          { totalXP: 'asc' },
+          { createdAt: 'desc' }
+        ],
+        select: {
+          totalXP: true,
+          currentRank: true
+        }
+      })
+      
+      if (userAhead && userAhead.currentRank !== pnpRank) {
+        nextPNPRank = userAhead.currentRank as PNPRank
+        xpToNextRank = userAhead.totalXP - currentUser.totalXP
       }
-    })
+    } else {
+      // For sequential ranks, show XP threshold progression
+      const nextThreshold = getNextXPThreshold(currentUser.totalXP)
+      if (nextThreshold) {
+        nextPNPRank = nextThreshold.rank
+        xpToNextRank = nextThreshold.xpNeeded
+      }
+    }
 
     // Calculate XP to next level (every 100 XP = 1 level)
     const currentLevelXP = (currentUser.level - 1) * 100
@@ -115,12 +128,6 @@ export async function GET(request: NextRequest) {
     const xpInCurrentLevel = currentUser.totalXP - currentLevelXP
     const xpToNextLevel = nextLevelXP - currentUser.totalXP
     const percentToNextLevel = Math.round((xpInCurrentLevel / 100) * 100)
-
-    // Calculate XP needed for next PNP rank (if there is one)
-    let xpToNextRank: number | null = null
-    if (userAhead && userAhead.currentRank !== pnpRank) {
-      xpToNextRank = userAhead.totalXP - currentUser.totalXP
-    }
 
     // Get total badges count
     const totalBadges = await prisma.badge.count()
@@ -132,15 +139,16 @@ export async function GET(request: NextRequest) {
       xpToNextLevel,
       percentToNextLevel,
       usersAhead,
-      xpBehindNext: userAhead ? userAhead.totalXP - currentUser.totalXP : null,
+      xpBehindNext: xpToNextRank,
       totalBadges,
       earnedBadges: currentUser.badgeEarned.length,
       pnpRank,
+      baseRank, // ✅ NEW: Learning progression rank
       nextPNPRank,
       xpToNextRank
     }
 
-    console.log(`✅ Rank info for ${user.email}: Rank #${rank}, PNP Rank: ${pnpRank}, Level ${currentUser.level}, ${currentUser.totalXP} XP`)
+    console.log(`✅ Rank info: #${rank}, Rank: ${pnpRank}, Base: ${baseRank}, Level ${currentUser.level}, ${currentUser.totalXP} XP`)
 
     return addCacheHeaders(createSuccessResponse(rankInfo))
 

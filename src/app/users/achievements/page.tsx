@@ -4,12 +4,14 @@
 
 import React, { useState, useMemo } from 'react';
 import { useUserAchievements } from '@/hooks/use-user-achievements';
-import { Loader2, Trophy } from 'lucide-react';
+import { Loader2, Trophy, ChevronDown } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AchievementsPage() {
   const { achievements, loading, error } = useUserAchievements();
   const [selectedCategory, setSelectedCategory] = useState<string>('All Achievements');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [hoveredAchievementId, setHoveredAchievementId] = useState<string | null>(null);
 
   // Get unique categories - map "Learning Badges" to separate categories
   const categories = useMemo(() => {
@@ -187,51 +189,73 @@ export default function AchievementsPage() {
           </div>
         </div>
 
-        {/* Category Filter Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {categories.map((category) => {
-            // Calculate counts based on the separated categories
-            let categoryCount = 0;
-            let categoryUnlocked = 0;
+        {/* Category Filter Dropdown */}
+        <div className="mb-6 relative w-full sm:w-64">
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="w-full px-4 py-2.5 rounded-lg font-medium text-sm bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-between"
+          >
+            <span className="truncate">{selectedCategory}</span>
+            <ChevronDown 
+              className={`w-5 h-5 ml-2 transition-transform flex-shrink-0 ${
+                isDropdownOpen ? 'transform rotate-180' : ''
+              }`}
+            />
+          </button>
 
-            if (category === 'All Achievements') {
-              categoryCount = achievements.length;
-              categoryUnlocked = statistics.unlockedCount;
-            } else if (category === 'Learning Badges') {
-              const learningAchievements = achievements.filter(
-                a => a.category === 'Learning Badges' && (a as any).criteriaData?.badgeType === 'learning'
-              );
-              categoryCount = learningAchievements.length;
-              categoryUnlocked = learningAchievements.filter(a => a.isUnlocked).length;
-            } else if (category === 'Quiz Badges') {
-              const quizAchievements = achievements.filter(
-                a => a.category === 'Learning Badges' && (a as any).criteriaData?.badgeType === 'quiz'
-              );
-              categoryCount = quizAchievements.length;
-              categoryUnlocked = quizAchievements.filter(a => a.isUnlocked).length;
-            } else {
-              const categoryAchievements = achievements.filter(a => a.category === category);
-              categoryCount = categoryAchievements.length;
-              categoryUnlocked = categoryAchievements.filter(a => a.isUnlocked).length;
-            }
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+              {categories.map((category) => {
+                // Calculate counts based on the separated categories
+                let categoryCount = 0;
+                let categoryUnlocked = 0;
 
-            return (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all text-sm ${
-                  selectedCategory === category
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                {category}
-                <span className="ml-2 text-xs opacity-75">
-                  ({categoryUnlocked}/{categoryCount})
-                </span>
-              </button>
-            );
-          })}
+                if (category === 'All Achievements') {
+                  categoryCount = achievements.length;
+                  categoryUnlocked = statistics.unlockedCount;
+                } else if (category === 'Learning Badges') {
+                  const learningAchievements = achievements.filter(
+                    a => a.category === 'Learning Badges' && (a as any).criteriaData?.badgeType === 'learning'
+                  );
+                  categoryCount = learningAchievements.length;
+                  categoryUnlocked = learningAchievements.filter(a => a.isUnlocked).length;
+                } else if (category === 'Quiz Badges') {
+                  const quizAchievements = achievements.filter(
+                    a => a.category === 'Learning Badges' && (a as any).criteriaData?.badgeType === 'quiz'
+                  );
+                  categoryCount = quizAchievements.length;
+                  categoryUnlocked = quizAchievements.filter(a => a.isUnlocked).length;
+                } else {
+                  const categoryAchievements = achievements.filter(a => a.category === category);
+                  categoryCount = categoryAchievements.length;
+                  categoryUnlocked = categoryAchievements.filter(a => a.isUnlocked).length;
+                }
+
+                return (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setIsDropdownOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-all ${
+                      selectedCategory === category
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span>{category}</span>
+                      <span className="text-xs opacity-75">
+                        {categoryUnlocked}/{categoryCount}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Achievements Grid */}
@@ -239,32 +263,42 @@ export default function AchievementsPage() {
           {filteredAchievements.map((achievement) => {
             const extendedAchievement = achievement as any;
             const hasProgress = extendedAchievement.progress;
+            const unlockedDate = achievement.isUnlocked && achievement.earnedAt 
+              ? new Date(achievement.earnedAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric'
+                })
+              : null;
             
             return (
               <div
                 key={achievement.id}
-                className={`bg-white dark:bg-gray-800 rounded-2xl border-2 p-6 transition-all ${
+                className={`bg-white dark:bg-gray-800 rounded-2xl border-2 p-6 transition-all relative group ${
                   achievement.isUnlocked
                     ? 'border-gray-300 dark:border-gray-600 shadow-sm'
                     : 'border-gray-200 dark:border-gray-700'
                 }`}
+                onMouseEnter={() => setHoveredAchievementId(achievement.id)}
+                onMouseLeave={() => setHoveredAchievementId(null)}
               >
-                {/* Lock/Unlock Badge - Top Right */}
-                <div className="flex justify-end mb-2">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden">
-                    <Image
-                      src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
-                      alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
-                      width={40}
-                      height={40}
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
+
 
                 {/* Achievement Icon - Centered */}
                 <div className="flex justify-center mb-4">
-                  {renderIcon(achievement)}
+                  <div className="relative">
+                    {renderIcon(achievement)}
+                    {/* Lock/Unlock Badge - Overlay */}
+                    <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-white dark:bg-gray-700">
+                      <Image
+                        src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
+                        alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
+                        width={32}
+                        height={32}
+                        className="object-cover"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Achievement Info */}
@@ -318,18 +352,17 @@ export default function AchievementsPage() {
                       </span>
                     </div>
                   )}
-
-                  {/* Unlock Date */}
-                  {achievement.isUnlocked && achievement.earnedAt && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-2">
-                      ✓ Unlocked {new Date(achievement.earnedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  )}
                 </div>
+
+                {/* Tooltip - Unlock Date */}
+                {unlockedDate && (
+                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-950 text-white text-xs rounded-lg whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
+                    hoveredAchievementId === achievement.id ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    ✓ Unlocked {unlockedDate}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-950 rotate-45" />
+                  </div>
+                )}
               </div>
             );
           })}

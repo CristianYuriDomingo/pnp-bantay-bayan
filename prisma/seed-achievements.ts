@@ -36,7 +36,8 @@ async function seedAchievements() {
     },
 
     // ==========================================
-    // RANK ACHIEVEMENTS (WITH XP)
+    // SEQUENTIAL RANK ACHIEVEMENTS (NO XP)
+    // Pat → PLTCOL - XP-based, never lost
     // ==========================================
     {
       code: 'rank-pat',
@@ -45,9 +46,9 @@ async function seedAchievements() {
       icon: '/ranks/Pat.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 50,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'Pat',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '100',
       sortOrder: 10,
     },
     {
@@ -57,9 +58,9 @@ async function seedAchievements() {
       icon: '/ranks/PCpl.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 100,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PCpl',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '250',
       sortOrder: 11,
     },
     {
@@ -69,9 +70,9 @@ async function seedAchievements() {
       icon: '/ranks/PSSg.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 150,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PSSg',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '500',
       sortOrder: 12,
     },
     {
@@ -81,9 +82,9 @@ async function seedAchievements() {
       icon: '/ranks/PMSg.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 200,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PMSg',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '800',
       sortOrder: 13,
     },
     {
@@ -93,9 +94,9 @@ async function seedAchievements() {
       icon: '/ranks/PSMS.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 300,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PSMS',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '1200',
       sortOrder: 14,
     },
     {
@@ -105,9 +106,9 @@ async function seedAchievements() {
       icon: '/ranks/PCMS.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 400,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PCMS',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '1600',
       sortOrder: 15,
     },
     {
@@ -117,9 +118,9 @@ async function seedAchievements() {
       icon: '/ranks/PEMS.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 500,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PEMS',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '2000',
       sortOrder: 16,
     },
     {
@@ -129,9 +130,9 @@ async function seedAchievements() {
       icon: '/ranks/PLT.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 750,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PLT',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '2400',
       sortOrder: 17,
     },
     {
@@ -141,9 +142,9 @@ async function seedAchievements() {
       icon: '/ranks/PCPT.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 1000,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PCPT',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '2800',
       sortOrder: 18,
     },
     {
@@ -153,9 +154,9 @@ async function seedAchievements() {
       icon: '/ranks/PMAJ.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 1500,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PMAJ',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '3200',
       sortOrder: 19,
     },
     {
@@ -165,75 +166,108 @@ async function seedAchievements() {
       icon: '/ranks/PLTCOL.png',
       category: 'Rank Promotions',
       type: 'rank',
-      xpReward: 2000,
-      criteriaType: 'rank_achieved',
-      criteriaValue: 'PLTCOL',
+      xpReward: 0,
+      criteriaType: 'xp_threshold',
+      criteriaValue: '3500',
       sortOrder: 20,
     },
+
+    // ==========================================
+    // STAR RANK ACHIEVEMENTS (NO XP)
+    // PCOL → PGEN - Competitive, can be lost
+    // ==========================================
     {
       code: 'rank-pcol',
       name: 'Police Colonel',
-      description: 'Reach Police Colonel rank',
+      description: 'Reach Police Colonel rank - Maximum learning progression',
       icon: '/ranks/PCOL.png',
-      category: 'Rank Promotions',
-      type: 'rank',
-      xpReward: 3000,
-      criteriaType: 'rank_achieved',
+      category: 'Star Ranks',
+      type: 'star_rank',
+      xpReward: 0,
+      criteriaType: 'competitive_rank',
       criteriaValue: 'PCOL',
       sortOrder: 21,
     },
     {
       code: 'rank-pbgen',
-      name: 'Police Brigadier General',
-      description: 'Reach Police Brigadier General rank',
+      name: 'Police Brigadier General ⭐',
+      description: 'Achieve Brigadier General rank - Top 10% of officers',
       icon: '/ranks/PBGEN.png',
-      category: 'Rank Promotions',
-      type: 'rank',
-      xpReward: 4000,
-      criteriaType: 'rank_achieved',
+      category: 'Star Ranks',
+      type: 'star_rank',
+      xpReward: 0,
+      criteriaType: 'competitive_rank',
       criteriaValue: 'PBGEN',
       sortOrder: 22,
     },
     {
       code: 'rank-pmgen',
-      name: 'Police Major General',
-      description: 'Reach Police Major General rank',
+      name: 'Police Major General ⭐⭐',
+      description: 'Achieve Major General rank - Top 2% of officers',
       icon: '/ranks/PMGEN.png',
-      category: 'Rank Promotions',
-      type: 'rank',
-      xpReward: 5000,
-      criteriaType: 'rank_achieved',
+      category: 'Star Ranks',
+      type: 'star_rank',
+      xpReward: 0,
+      criteriaType: 'competitive_rank',
       criteriaValue: 'PMGEN',
       sortOrder: 23,
     },
     {
       code: 'rank-pltgen',
-      name: 'Police Lieutenant General',
-      description: 'Reach Police Lieutenant General rank',
+      name: 'Police Lieutenant General ⭐⭐⭐',
+      description: 'Achieve Lieutenant General rank - Deputy Chief (Top 3)',
       icon: '/ranks/PLTGEN.png',
-      category: 'Rank Promotions',
-      type: 'rank',
-      xpReward: 7500,
-      criteriaType: 'rank_achieved',
+      category: 'Star Ranks',
+      type: 'star_rank',
+      xpReward: 0,
+      criteriaType: 'competitive_rank',
       criteriaValue: 'PLTGEN',
       sortOrder: 24,
     },
     {
       code: 'rank-pgen',
-      name: 'Police General',
-      description: 'Reach Police General rank - The highest honor',
+      name: 'Police General ⭐⭐⭐⭐',
+      description: 'Achieve Police General rank - Chief of PNP (#1)',
       icon: '/ranks/PGEN.png',
-      category: 'Rank Promotions',
-      type: 'rank',
-      xpReward: 10000,
-      criteriaType: 'rank_achieved',
+      category: 'Star Ranks',
+      type: 'star_rank',
+      xpReward: 0,
+      criteriaType: 'competitive_rank',
       criteriaValue: 'PGEN',
       sortOrder: 25,
     },
 
     // ==========================================
-    // 🔥 DYNAMIC BADGE MILESTONE ACHIEVEMENTS (NO XP)
-    // criteriaData is optional - system detects from code/name
+    // SPECIAL PERMANENT BADGES
+    // These are NEVER lost, even after demotion
+    // ==========================================
+    {
+      code: 'former-chief-pnp',
+      name: 'Former Chief of PNP',
+      description: 'Served as Police General - Chief of the Philippine National Police',
+      icon: '/achievements/former-chief.png',
+      category: 'Special Honors',
+      type: 'special_achievement',
+      xpReward: 0,
+      criteriaType: 'special_badge',
+      criteriaValue: 'reached_pgen',
+      sortOrder: 50,
+    },
+    {
+      code: 'former-deputy-chief-pnp',
+      name: 'Former Deputy Chief of PNP',
+      description: 'Served as Police Lieutenant General - Deputy Chief of PNP',
+      icon: '/achievements/former-deputy.png',
+      category: 'Special Honors',
+      type: 'special_achievement',
+      xpReward: 0,
+      criteriaType: 'special_badge',
+      criteriaValue: 'reached_pltgen',
+      sortOrder: 51,
+    },
+
+    // ==========================================
+    // DYNAMIC BADGE MILESTONE ACHIEVEMENTS (NO XP)
     // ==========================================
     
     // Learning Badge Achievements
@@ -246,8 +280,8 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 1 badge
-      criteriaData: { badgeType: 'learning' }, // Optional hint
+      criteriaValue: 'dynamic',
+      criteriaData: { badgeType: 'learning' },
       sortOrder: 30,
     },
     {
@@ -259,7 +293,7 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 50% of total
+      criteriaValue: 'dynamic',
       criteriaData: { badgeType: 'learning' },
       sortOrder: 31,
     },
@@ -272,7 +306,7 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 100% of total
+      criteriaValue: 'dynamic',
       criteriaData: { badgeType: 'learning' },
       sortOrder: 32,
     },
@@ -287,7 +321,7 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 1 badge
+      criteriaValue: 'dynamic',
       criteriaData: { badgeType: 'quiz' },
       sortOrder: 33,
     },
@@ -300,7 +334,7 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 50% of total
+      criteriaValue: 'dynamic',
       criteriaData: { badgeType: 'quiz' },
       sortOrder: 34,
     },
@@ -313,7 +347,7 @@ async function seedAchievements() {
       type: 'badge_milestone',
       xpReward: 0,
       criteriaType: 'badge_count',
-      criteriaValue: 'dynamic', // System detects: 100% of total
+      criteriaValue: 'dynamic',
       criteriaData: { badgeType: 'quiz' },
       sortOrder: 35,
     },
@@ -333,15 +367,18 @@ async function seedAchievements() {
 
   console.log('🎉 Achievement seeding completed!');
   console.log(`📊 Total achievements created: ${achievements.length}`);
+  console.log(`\n📋 Breakdown:`);
   console.log(`   - Profile: 2 (with XP)`);
-  console.log(`   - Rank: 16 (with XP) - Pat to PGEN`);
+  console.log(`   - Sequential Ranks: 11 (Pat → PLTCOL) - XP-based, PERMANENT`);
+  console.log(`   - Star Ranks: 5 (PCOL → PGEN) - Competitive, can be lost`);
+  console.log(`   - Special Honors: 2 (Former Chief/Deputy) - PERMANENT`);
   console.log(`   - Learning Badge Milestones: 3 (Starter/Master/Legend) - DYNAMIC`);
   console.log(`   - Quiz Badge Milestones: 3 (Starter/Master/Legend) - DYNAMIC`);
-  console.log(`\n💡 Badge milestone achievements are now FULLY DYNAMIC:`);
-  console.log(`   - Starter: Unlocks at 1 badge`);
-  console.log(`   - Master: Unlocks at 50% of total badges`);
-  console.log(`   - Legend: Unlocks at 100% of total badges`);
-  console.log(`   ✨ Automatically adjusts when admin adds/removes badges!`);
+  console.log(`\n✨ Key Features:`);
+  console.log(`   🎖️ Sequential ranks: Never skipped, all achievable`);
+  console.log(`   ⭐ Star ranks: Competitive, top performers only`);
+  console.log(`   👑 PGEN/PLTGEN: Get permanent honor badge even after demotion`);
+  console.log(`   💯 All rank achievements have 0 XP (rank IS the reward)`);
 }
 
 seedAchievements()

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useUserAchievements } from '@/hooks/use-user-achievements';
 import { Loader2, Trophy } from 'lucide-react';
 import Image from 'next/image';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 
 const AchievementsUI = () => {
   const { achievements, loading, error } = useUserAchievements();
+  const [hoveredAchievementId, setHoveredAchievementId] = useState<string | null>(null);
 
   // 🔹 Group achievements by category, then take 1 per category
   const achievementsByCategory = Object.values(
@@ -108,62 +109,73 @@ const AchievementsUI = () => {
 
       {/* Achievements List */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {displayAchievements.map((achievement: any, index: number) => (
-          <div key={achievement.id}>
-            <div className="p-4 flex items-start gap-4">
-              {/* Achievement Icon */}
-              <div className="relative flex-shrink-0">
-                {renderIcon(achievement)}
-              </div>
+        {displayAchievements.map((achievement: any, index: number) => {
+          const unlockedDate = achievement.isUnlocked && achievement.earnedAt 
+            ? new Date(achievement.earnedAt).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })
+            : null;
 
-              {/* Achievement Details */}
-              <div className="flex-1 min-w-0 flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
-                    {achievement.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    {achievement.description}
-                  </p>
-                  
-                  {achievement.xpReward > 0 && (
-                    <p className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">
-                      +{achievement.xpReward} XP
-                    </p>
-                  )}
-
-                  {achievement.isUnlocked && achievement.earnedAt && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      Unlocked {new Date(achievement.earnedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  )}
-                </div>
-
-                {/* Lock/Unlock Badge */}
-                <div className="flex-shrink-0">
-                  <div className="w-10 h-10 rounded-lg overflow-hidden">
+          return (
+            <div key={achievement.id}>
+              <div 
+                className="p-4 flex items-start gap-4 relative group"
+                onMouseEnter={() => setHoveredAchievementId(achievement.id)}
+                onMouseLeave={() => setHoveredAchievementId(null)}
+              >
+                {/* Achievement Icon */}
+                <div className="relative flex-shrink-0">
+                  {renderIcon(achievement)}
+                  {/* Lock/Unlock Badge - Overlay */}
+                  <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden border border-white dark:border-gray-800 bg-white dark:bg-gray-700">
                     <Image
-                      src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/unlocked.png"}
+                      src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
                       alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
-                      width={40}
-                      height={40}
+                      width={24}
+                      height={24}
                       className="object-cover"
                     />
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Separator line */}
-            {index < displayAchievements.length - 1 && (
-              <div className="border-b border-gray-200 dark:border-gray-700 mx-4"></div>
-            )}
-          </div>
-        ))}
+                {/* Achievement Details */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
+                      {achievement.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                      {achievement.description}
+                    </p>
+                    
+                    {achievement.xpReward > 0 && (
+                      <p className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">
+                        +{achievement.xpReward} XP
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tooltip - Unlock Date */}
+                {unlockedDate && (
+                  <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-950 text-white text-xs rounded-lg whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
+                    hoveredAchievementId === achievement.id ? 'opacity-100' : 'opacity-0'
+                  }`}>
+                    ✓ Unlocked {unlockedDate}
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-gray-950 rotate-45" />
+                  </div>
+                )}
+              </div>
+
+              {/* Separator line */}
+              {index < displayAchievements.length - 1 && (
+                <div className="border-b border-gray-200 dark:border-gray-700 mx-4"></div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Empty State */}

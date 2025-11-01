@@ -1,7 +1,7 @@
 // lib/achievement-checker.ts - COMPLETE FIXED VERSION
-
 import { prisma } from '@/lib/prisma';
 import { Achievement, UserAchievement, User } from '@prisma/client';
+import { PNPRank } from '@/types/rank';
 
 // Types for better code clarity
 interface AchievementCheckResult {
@@ -11,6 +11,8 @@ interface AchievementCheckResult {
 
 interface AchievementCheckContext {
   updatedFields?: string[];
+  rank?: PNPRank;
+  code?: string;
 }
 
 // ============================================
@@ -18,13 +20,13 @@ interface AchievementCheckContext {
 // ============================================
 export async function checkAndAwardAchievements(
   userId: string,
-  actionType: 'profile_update' | 'badge_earned' | 'rank_promotion',
+  actionType: 'profile_update' | 'badge_earned' | 'rank_promotion' | 'star_rank_achieved' | 'special_achievement',
   context?: AchievementCheckContext
 ): Promise<AchievementCheckResult> {
   console.log('🔍 [ACHIEVEMENT CHECK] Starting for userId:', userId, 'actionType:', actionType);
   
-  if (context?.updatedFields) {
-    console.log('📝 [ACHIEVEMENT CHECK] Updated fields:', context.updatedFields);
+  if (context) {
+    console.log('📝 [ACHIEVEMENT CHECK] Context:', context);
   }
   
   try {
@@ -64,29 +66,14 @@ export async function checkAndAwardAchievements(
 
     console.log('🏆 [ACHIEVEMENT CHECK] Total active achievements:', allAchievements.length);
 
-    // Filter achievements based on action type
-    let relevantAchievements = allAchievements.filter((achievement) => {
-      if (actionType === 'profile_update' && achievement.type === 'profile') return true;
-      if (actionType === 'rank_promotion' && achievement.type === 'rank') return true;
-      if (actionType === 'badge_earned' && achievement.type === 'badge_milestone') return true;
-      return false;
-    });
+    // Filter achievements based on action type and context
+    let relevantAchievements = filterRelevantAchievements(
+      allAchievements,
+      actionType,
+      context
+    );
 
-    // Filter profile achievements based on updated fields
-    if (actionType === 'profile_update' && context?.updatedFields) {
-      relevantAchievements = relevantAchievements.filter((achievement) => {
-        if (achievement.criteriaType === 'profile_field') {
-          const shouldCheck = context.updatedFields!.includes(achievement.criteriaValue);
-          if (!shouldCheck) {
-            console.log(`⏭️  Skipping ${achievement.name} - field '${achievement.criteriaValue}' was not updated`);
-          }
-          return shouldCheck;
-        }
-        return true;
-      });
-    }
-
-    console.log('🎯 [ACHIEVEMENT CHECK] Relevant achievements for', actionType, ':', relevantAchievements.length);
+    console.log('🎯 [ACHIEVEMENT CHECK] Relevant achievements:', relevantAchievements.length);
     console.log('📋 [ACHIEVEMENT CHECK] Checking:', relevantAchievements.map(a => a.name));
 
     // Check each relevant achievement
@@ -95,7 +82,6 @@ export async function checkAndAwardAchievements(
       console.log('   - Code:', achievement.code);
       console.log('   - Criteria Type:', achievement.criteriaType);
       console.log('   - Criteria Value:', achievement.criteriaValue);
-      console.log('   - Criteria Data:', achievement.criteriaData);
       
       // Skip if user already has this achievement
       const alreadyEarned = user.achievementsEarned.some(
@@ -108,7 +94,7 @@ export async function checkAndAwardAchievements(
       }
 
       // Check if user meets criteria
-      const meetsRequirement = await checkAchievementCriteria(user, achievement);
+      const meetsRequirement = await checkAchievementCriteria(user, achievement, context);
       console.log('   - Meets requirement:', meetsRequirement);
 
       if (meetsRequirement) {
@@ -128,17 +114,21 @@ export async function checkAndAwardAchievements(
           },
         });
 
-        // Award XP to user
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            totalXP: {
-              increment: achievement.xpReward,
+        // Award XP to user (if achievement has XP reward)
+        if (achievement.xpReward > 0) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              totalXP: {
+                increment: achievement.xpReward,
+              },
             },
-          },
-        });
+          });
+          console.log('   🎉 Achievement awarded! XP:', achievement.xpReward);
+        } else {
+          console.log('   🎉 Achievement awarded! (No XP)');
+        }
 
-        console.log('   🎉 Achievement awarded! XP:', achievement.xpReward);
         newAchievements.push(userAchievement);
         totalXpAwarded += achievement.xpReward;
       } else {
@@ -164,21 +154,85 @@ export async function checkAndAwardAchievements(
 }
 
 // ============================================
+// HELPER: Filter relevant achievements
+// ============================================
+function filterRelevantAchievements(
+  allAchievements: Achievement[],
+  actionType: string,
+  context?: AchievementCheckContext
+): Achievement[] {
+  let filtered = allAchievements;
+
+  // Filter by action type
+  if (actionType === 'profile_update') {
+    filtered = filtered.filter(a => a.type === 'profile');
+    
+    // Further filter by updated fields
+    if (context?.updatedFields) {
+      filtered = filtered.filter((achievement) => {
+        if (achievement.criteriaType === 'profile_field') {
+          return context.updatedFields!.includes(achievement.criteriaValue);
+        }
+        return true;
+      });
+    }
+  } else if (actionType === 'rank_promotion') {
+    filtered = filtered.filter(a => a.type === 'rank' && a.criteriaType === 'xp_threshold');
+    
+    // Filter to specific rank if provided
+    if (context?.rank) {
+      filtered = filtered.filter(a => a.criteriaValue === context.rank);
+    }
+  } else if (actionType === 'star_rank_achieved') {
+    filtered = filtered.filter(a => a.type === 'star_rank');
+    
+    // Filter to specific rank if provided
+    if (context?.rank) {
+      filtered = filtered.filter(a => a.criteriaValue === context.rank);
+    }
+  } else if (actionType === 'special_achievement') {
+    filtered = filtered.filter(a => a.type === 'special_achievement');
+    
+    // Filter to specific code if provided
+    if (context?.code) {
+      filtered = filtered.filter(a => a.code === context.code);
+    }
+  } else if (actionType === 'badge_earned') {
+    filtered = filtered.filter(a => a.type === 'badge_milestone');
+  }
+
+  return filtered;
+}
+
+// ============================================
 // HELPER: Check if user meets achievement criteria
 // ============================================
 async function checkAchievementCriteria(
   user: User & { badgeEarned: any[] },
-  achievement: Achievement
+  achievement: Achievement,
+  context?: AchievementCheckContext
 ): Promise<boolean> {
   console.log('      🔍 Checking criteria type:', achievement.criteriaType);
   
   switch (achievement.criteriaType) {
     case 'profile_field':
       return checkProfileField(user, achievement.criteriaValue);
+    
+    case 'xp_threshold':
+      return checkXPThreshold(user, achievement.criteriaValue);
+    
     case 'rank_achieved':
       return checkRankAchieved(user, achievement.criteriaValue);
+    
+    case 'competitive_rank':
+      return checkCompetitiveRank(user, achievement.criteriaValue);
+    
+    case 'special_badge':
+      return checkSpecialBadge(user, achievement.criteriaValue, context);
+    
     case 'badge_count':
       return await checkBadgeCount(user, achievement);
+    
     default:
       console.log('      ⚠️ Unknown criteria type:', achievement.criteriaType);
       return false;
@@ -195,13 +249,11 @@ function checkProfileField(user: User, fieldName: string): boolean {
   
   if (fieldName === 'name') {
     const hasName = !!user.name && user.name.trim().length > 0;
-    console.log('         - User name:', user.name);
     console.log('         - Has valid name:', hasName);
     return hasName;
   }
   if (fieldName === 'image') {
     const hasImage = !!user.image && user.image.trim().length > 0;
-    console.log('         - User image:', user.image ? 'Set' : 'Not set');
     console.log('         - Has valid image:', hasImage);
     return hasImage;
   }
@@ -210,28 +262,28 @@ function checkProfileField(user: User, fieldName: string): boolean {
   return false;
 }
 
-// Check if user has achieved a rank
-function checkRankAchieved(user: User, targetRank: string): boolean {
-  console.log('      🎖️ Checking rank:', targetRank);
+// Check if user has reached XP threshold (for sequential ranks)
+function checkXPThreshold(user: User, thresholdValue: string): boolean {
+  console.log('      💎 Checking XP threshold:', thresholdValue);
   
-  // Define rank order (update this based on your actual rank system)
+  const requiredXP = parseInt(thresholdValue, 10);
+  const hasEnoughXP = user.totalXP >= requiredXP;
+  
+  console.log('         - User XP:', user.totalXP);
+  console.log('         - Required XP:', requiredXP);
+  console.log('         - Qualifies:', hasEnoughXP);
+  
+  return hasEnoughXP;
+}
+
+// Check if user has achieved a rank (legacy - for old system)
+function checkRankAchieved(user: User, targetRank: string): boolean {
+  console.log('      🎖️ Checking rank achieved:', targetRank);
+  
   const rankOrder: Record<string, number> = {
-    'Pat': 1,
-    'PCpl': 2,
-    'PSSg': 3,
-    'PMSg': 4,
-    'PSMS': 5,
-    'PCMS': 6,
-    'PEMS': 7,
-    'PLT': 8,
-    'PCPT': 9,
-    'PMAJ': 10,
-    'PLTCOL': 11,
-    'PCOL': 12,
-    'PBGEN': 13,
-    'PMGEN': 14,
-    'PLTGEN': 15,
-    'PGEN': 16,
+    'Pat': 1, 'PCpl': 2, 'PSSg': 3, 'PMSg': 4, 'PSMS': 5, 'PCMS': 6,
+    'PEMS': 7, 'PLT': 8, 'PCPT': 9, 'PMAJ': 10, 'PLTCOL': 11, 'PCOL': 12,
+    'PBGEN': 13, 'PMGEN': 14, 'PLTGEN': 15, 'PGEN': 16,
   };
 
   const currentRankOrder = rankOrder[user.currentRank] || 0;
@@ -239,12 +291,57 @@ function checkRankAchieved(user: User, targetRank: string): boolean {
 
   console.log('         - Current rank:', user.currentRank, '(order:', currentRankOrder, ')');
   console.log('         - Target rank:', targetRank, '(order:', targetRankOrder, ')');
-  console.log('         - Qualifies:', currentRankOrder >= targetRankOrder);
+  
+  const qualifies = currentRankOrder >= targetRankOrder;
+  console.log('         - Qualifies:', qualifies);
 
-  return currentRankOrder >= targetRankOrder;
+  return qualifies;
 }
 
-// Check badge count achievements - FIXED VERSION
+// Check if user currently holds a competitive rank
+function checkCompetitiveRank(user: User, targetRank: string): boolean {
+  console.log('      ⭐ Checking competitive rank:', targetRank);
+  
+  const currentlyHolds = user.currentRank === targetRank;
+  
+  console.log('         - Current rank:', user.currentRank);
+  console.log('         - Target rank:', targetRank);
+  console.log('         - Currently holds:', currentlyHolds);
+  
+  return currentlyHolds;
+}
+
+// Check special badge criteria (for Former Chief/Deputy)
+function checkSpecialBadge(
+  user: User,
+  criteriaValue: string,
+  context?: AchievementCheckContext
+): boolean {
+  console.log('      👑 Checking special badge:', criteriaValue);
+  
+  if (criteriaValue === 'reached_pgen') {
+    // User must currently be PGEN or have it as highest rank ever
+    const qualifies = user.currentRank === 'PGEN' || user.highestRankEver === 'PGEN';
+    console.log('         - Current rank:', user.currentRank);
+    console.log('         - Highest ever:', user.highestRankEver);
+    console.log('         - Qualifies for Former Chief:', qualifies);
+    return qualifies;
+  }
+  
+  if (criteriaValue === 'reached_pltgen') {
+    // Check if user ever reached PLTGEN
+    const qualifies = user.currentRank === 'PLTGEN' || user.highestRankEver === 'PLTGEN';
+    console.log('         - Current rank:', user.currentRank);
+    console.log('         - Highest ever:', user.highestRankEver);
+    console.log('         - Qualifies for Former Deputy:', qualifies);
+    return qualifies;
+  }
+  
+  console.log('         ⚠️ Unknown special badge criteria:', criteriaValue);
+  return false;
+}
+
+// Check badge count achievements (for milestones)
 async function checkBadgeCount(
   user: User & { badgeEarned: any[] },
   achievement: Achievement
@@ -262,26 +359,20 @@ async function checkBadgeCount(
   
   console.log('         - Badge type filter:', badgeType);
   console.log('         - Target count:', targetCount);
-  console.log('         - Total user badges:', user.badgeEarned.length);
 
   // Get badges from user
   const allUserBadges = user.badgeEarned || [];
   
-  // Get full badge details to check trigger types
-  const badgeIds = allUserBadges.map((ub: any) => ub.badgeId);
-  
-  if (badgeIds.length === 0) {
+  if (allUserBadges.length === 0) {
     console.log('         - No badges earned yet');
     return false;
   }
 
+  // Get full badge details to check trigger types
+  const badgeIds = allUserBadges.map((ub: any) => ub.badgeId);
   const badges = await prisma.badge.findMany({
-    where: {
-      id: { in: badgeIds },
-    },
+    where: { id: { in: badgeIds } },
   });
-
-  console.log('         - Fetched badge details:', badges.length);
 
   // Filter badges based on type
   let relevantBadges = badges;
@@ -289,41 +380,18 @@ async function checkBadgeCount(
     relevantBadges = badges.filter(
       (b) => b.triggerType === 'lesson_complete' || b.triggerType === 'module_complete'
     );
-    console.log('         - Filtering for learning badges (lesson_complete, module_complete)');
   } else if (badgeType === 'quiz') {
     relevantBadges = badges.filter(
       (b) => b.triggerType === 'quiz_mastery' || b.triggerType === 'parent_quiz_mastery'
     );
-    console.log('         - Filtering for quiz badges (quiz_mastery, parent_quiz_mastery)');
   }
 
   const currentCount = relevantBadges.length;
-  console.log('         - User has', currentCount, badgeType, 'badges');
-  console.log('         - Badge names:', relevantBadges.map(b => b.name).join(', '));
+  console.log('         - Current count:', currentCount, badgeType, 'badges');
 
-  // 🔥 FIX: Check if "all" badges requirement
-  if (targetCount === 'all') {
-    // Get total possible badges of this type
-    const totalBadgesQuery: any = {};
-    
-    if (badgeType === 'learning') {
-      totalBadgesQuery.triggerType = { in: ['lesson_complete', 'module_complete'] };
-    } else if (badgeType === 'quiz') {
-      totalBadgesQuery.triggerType = { in: ['quiz_mastery', 'parent_quiz_mastery'] };
-    }
-
-    const totalBadges = await prisma.badge.count({ where: totalBadgesQuery });
-    
-    console.log('         - Total available badges:', totalBadges);
-    console.log('         - Current count:', currentCount);
-    console.log('         - Need ALL badges:', totalBadges);
-    
-    // 🎯 KEY FIX: User must have earned ALL available badges
-    const qualifies = currentCount >= totalBadges && totalBadges > 0;
-    
-    console.log('         - Qualifies (has all):', qualifies);
-    
-    return qualifies;
+  // Handle dynamic targets (Starter/Master/Legend)
+  if (targetCount === 'dynamic') {
+    return await checkDynamicBadgeMilestone(achievement.code, badgeType, currentCount);
   }
 
   // Numeric comparison
@@ -331,15 +399,64 @@ async function checkBadgeCount(
   const qualifies = currentCount >= requiredCount;
   
   console.log('         - Required:', requiredCount);
-  console.log('         - Current:', currentCount);
   console.log('         - Qualifies:', qualifies);
   
   return qualifies;
 }
 
+// Check dynamic badge milestones (Starter/Master/Legend)
+async function checkDynamicBadgeMilestone(
+  achievementCode: string,
+  badgeType: string,
+  currentCount: number
+): Promise<boolean> {
+  console.log('         - Checking DYNAMIC milestone for:', achievementCode);
+  
+  // Get total available badges of this type
+  const totalBadgesQuery: any = {};
+  
+  if (badgeType === 'learning') {
+    totalBadgesQuery.triggerType = { in: ['lesson_complete', 'module_complete'] };
+  } else if (badgeType === 'quiz') {
+    totalBadgesQuery.triggerType = { in: ['quiz_mastery', 'parent_quiz_mastery'] };
+  }
+
+  const totalBadges = await prisma.badge.count({ where: totalBadgesQuery });
+  
+  console.log('         - Total available badges:', totalBadges);
+  console.log('         - User has:', currentCount);
+
+  // Determine milestone type from achievement code
+  if (achievementCode.includes('-starter')) {
+    // Starter: 1 badge
+    const qualifies = currentCount >= 1;
+    console.log('         - STARTER milestone: Need 1, qualifies:', qualifies);
+    return qualifies;
+  }
+  
+  if (achievementCode.includes('-master')) {
+    // Master: 50% of total
+    const required = Math.ceil(totalBadges / 2);
+    const qualifies = currentCount >= required;
+    console.log('         - MASTER milestone: Need', required, '(50%), qualifies:', qualifies);
+    return qualifies;
+  }
+  
+  if (achievementCode.includes('-legend')) {
+    // Legend: 100% of total
+    const qualifies = currentCount >= totalBadges && totalBadges > 0;
+    console.log('         - LEGEND milestone: Need', totalBadges, '(100%), qualifies:', qualifies);
+    return qualifies;
+  }
+
+  console.log('         ⚠️ Unknown dynamic milestone type');
+  return false;
+}
+
 // ============================================
-// UTILITY: Get user's achievements
+// UTILITY FUNCTIONS
 // ============================================
+
 export async function getUserAchievements(userId: string) {
   try {
     const userAchievements = await prisma.userAchievement.findMany({
@@ -359,9 +476,6 @@ export async function getUserAchievements(userId: string) {
   }
 }
 
-// ============================================
-// UTILITY: Get all achievements with user progress
-// ============================================
 export async function getAllAchievementsWithProgress(userId: string) {
   try {
     const [allAchievements, userAchievements, user] = await Promise.all([
@@ -391,7 +505,7 @@ export async function getAllAchievementsWithProgress(userId: string) {
       return [];
     }
 
-    // Get actual badge counts for progress tracking
+    // Get badge counts
     const learningBadges = user.badgeEarned.filter(
       (ub) => ub.badge.triggerType === 'lesson_complete' || ub.badge.triggerType === 'module_complete'
     );
@@ -413,42 +527,41 @@ export async function getAllAchievementsWithProgress(userId: string) {
       }),
     ]);
 
-    console.log('📊 Badge counts for user:', {
-      learningBadges: learningBadges.length,
-      totalLearningBadges,
-      quizBadges: quizBadges.length,
-      totalQuizBadges,
-    });
-
-    // Map achievements with unlock status and progress
+    // Map achievements with progress
     const achievementsWithProgress = allAchievements.map((achievement) => {
       const userAchievement = userAchievements.find(
         (ua) => ua.achievementId === achievement.id
       );
 
-      // Add progress information for badge milestone achievements
+      // Add progress for badge milestones
       let progress = undefined;
       if (achievement.type === 'badge_milestone' && achievement.criteriaData) {
         const criteriaData = achievement.criteriaData as any;
         const badgeType = criteriaData.badgeType;
-        const targetCount = achievement.criteriaValue;
 
         let currentCount = 0;
         let totalCount = 0;
 
         if (badgeType === 'learning') {
           currentCount = learningBadges.length;
-          if (targetCount === 'all') {
+          
+          // Determine target based on achievement code
+          if (achievement.code.includes('-starter')) {
+            totalCount = 1;
+          } else if (achievement.code.includes('-master')) {
+            totalCount = Math.ceil(totalLearningBadges / 2);
+          } else if (achievement.code.includes('-legend')) {
             totalCount = totalLearningBadges;
-          } else {
-            totalCount = parseInt(targetCount, 10);
           }
         } else if (badgeType === 'quiz') {
           currentCount = quizBadges.length;
-          if (targetCount === 'all') {
+          
+          if (achievement.code.includes('-starter')) {
+            totalCount = 1;
+          } else if (achievement.code.includes('-master')) {
+            totalCount = Math.ceil(totalQuizBadges / 2);
+          } else if (achievement.code.includes('-legend')) {
             totalCount = totalQuizBadges;
-          } else {
-            totalCount = parseInt(targetCount, 10);
           }
         }
 
@@ -475,9 +588,6 @@ export async function getAllAchievementsWithProgress(userId: string) {
   }
 }
 
-// ============================================
-// UTILITY: Mark achievement notification as seen
-// ============================================
 export async function markAchievementNotificationSeen(
   userId: string,
   achievementId: string

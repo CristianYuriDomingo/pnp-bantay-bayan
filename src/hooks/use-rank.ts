@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useCurrentUser } from './use-current-user'
 import { PNPRank, UserRankData } from '@/types/rank'
-import { getRankInfo, getNextRank } from '@/lib/rank-config'
+import { getRankInfo, getNextRank, isStarRank } from '@/lib/rank-config'
 
 function createCacheBustingFetch(url: string, options: RequestInit = {}) {
   const separator = url.includes('?') ? '&' : '?'
@@ -21,7 +21,7 @@ function createCacheBustingFetch(url: string, options: RequestInit = {}) {
 }
 
 /**
- * Hook for getting current user's rank data
+ * Hook for getting current user's rank data (with dual-track support)
  */
 export function useUserRank() {
   const { user } = useCurrentUser()
@@ -44,7 +44,10 @@ export function useUserRank() {
 
       if (result.success) {
         setRankData(result.data)
-        console.log(`✅ User rank loaded: ${result.data.currentRank} (#${result.data.leaderboardPosition})`)
+        const starIndicator = isStarRank(result.data.currentRank) ? '⭐' : ''
+        console.log(
+          `✅ User rank loaded: ${result.data.currentRank}${starIndicator} (#${result.data.leaderboardPosition}) | Base: ${result.data.baseRank}`
+        )
       } else {
         setError(result.error || 'Failed to fetch rank data')
       }
@@ -72,14 +75,18 @@ export function useUserRank() {
   }, [fetchRankData])
 
   const rankInfo = rankData ? getRankInfo(rankData.currentRank) : null
+  const baseRankInfo = rankData?.baseRank ? getRankInfo(rankData.baseRank) : null
   const nextRank = rankData ? getNextRank(rankData.currentRank) : null
   const nextRankInfo = nextRank ? getRankInfo(nextRank) : null
+  const isCurrentlyStarRank = rankData ? isStarRank(rankData.currentRank) : false
 
   return {
     rankData,
     rankInfo,
+    baseRankInfo,
     nextRank,
     nextRankInfo,
+    isStarRank: isCurrentlyStarRank,
     loading,
     error,
     refresh: fetchRankData
@@ -87,7 +94,7 @@ export function useUserRank() {
 }
 
 /**
- * Hook for getting rank progress (XP to next rank)
+ * Hook for getting rank progress (XP to next rank) - UPDATED for dual-track
  */
 export function useRankProgress() {
   const { user } = useCurrentUser()
@@ -110,7 +117,14 @@ export function useRankProgress() {
 
       if (result.success) {
         setProgress(result.data)
-        console.log(`✅ Rank progress loaded: ${result.data.xpNeeded} XP to overtake ${result.data.targetUser}`)
+        
+        if (result.data.type === 'sequential') {
+          console.log(`✅ Learning progress: ${result.data.xpNeeded} XP to ${result.data.nextRank}`)
+        } else if (result.data.type === 'star_rank') {
+          console.log(`✅ Competitive progress: ${result.data.xpNeeded} XP to overtake ${result.data.targetUser}`)
+        } else {
+          console.log(`✅ Rank progress: ${result.data.message}`)
+        }
       } else {
         setError(result.error || 'Failed to fetch rank progress')
       }

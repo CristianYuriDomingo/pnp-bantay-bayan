@@ -4,7 +4,7 @@ import { createSuccessResponse, createAuthErrorResponse, getApiUser } from '@/li
 import { prisma } from '@/lib/prisma'
 import { LeaderboardResponse, LeaderboardPaginationLimit } from '@/types/leaderboard'
 import { PNPRank } from '@/types/rank'
-import { getRankByPosition } from '@/lib/rank-config'
+import { getRankByXP, getBaseRankByXP, getRankInfo, compareRanks } from '@/lib/rank-config'
 
 // Cache configuration
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes in milliseconds
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '25') as LeaderboardPaginationLimit
     const page = parseInt(searchParams.get('page') || '1')
     const forceRefresh = searchParams.get('refresh') === 'true'
-    const forceRecalculate = searchParams.get('recalculate') === 'true' // New parameter
+    const forceRecalculate = searchParams.get('recalculate') === 'true'
 
     // Validate pagination
     if (![10, 25, 50, 100].includes(limit)) {
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     // Fetch all users with their stats
     const allUsers = await prisma.user.findMany({
       where: {
-        status: 'active' // Only active users
+        status: 'active'
       },
       select: {
         id: true,
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
         level: true,
         currentRank: true,
         leaderboardPosition: true,
+        highestRankEver: true,
         createdAt: true,
         badgeEarned: {
           select: {
@@ -87,38 +88,48 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    // Count total badges available (for stats)
+    // Count total badges available
     const totalBadgesCount = await prisma.badge.count()
-
-    // Calculate total users for rank calculation
     const totalUsers = allUsers.length
 
-    // Transform to leaderboard entries with ranks AND update database
+    // Transform to leaderboard entries with NEW DUAL-TRACK RANKS
     const leaderboard = await Promise.all(allUsers.map(async (user, index) => {
       const position = index + 1
-      // Calculate the correct rank based on position
-      const calculatedRank = getRankByPosition(position, totalUsers)
       
-      // Use calculated rank or stored rank
+      // ✅ NEW: Calculate rank using dual-track system (XP + Position)
+      const calculatedRank = getRankByXP(user.totalXP, position, totalUsers)
+      const baseRank = getBaseRankByXP(user.totalXP)
+      
       let pnpRank = calculatedRank
       
-      // Update database if rank is missing, position changed, or force recalculate is enabled
-      if (!user.currentRank || user.leaderboardPosition !== position || forceRecalculate) {
-        // Update user's rank in database (fire and forget for performance)
-        prisma.user.update({
+      // Update database if rank changed or force recalculate
+      if (!user.currentRank || user.currentRank !== calculatedRank || user.leaderboardPosition !== position || forceRecalculate) {
+        
+        // Determine new highest rank ever
+        let newHighestRank = user.highestRankEver as PNPRank || 'Cadet'
+        if (user.highestRankEver) {
+          const comparison = compareRanks(calculatedRank, user.highestRankEver as PNPRank)
+          if (comparison > 0) {
+            newHighestRank = calculatedRank
+          }
+        } else {
+          newHighestRank = calculatedRank
+        }
+        
+        // Update user's rank in database
+        await prisma.user.update({
           where: { id: user.id },
           data: {
             currentRank: calculatedRank,
             leaderboardPosition: position,
             rankAchievedAt: user.currentRank !== calculatedRank ? new Date() : undefined,
-            highestRankEver: user.currentRank ? 
-              (getRankOrder(calculatedRank) > getRankOrder(user.currentRank as PNPRank) ? calculatedRank : user.currentRank) 
-              : calculatedRank
+            highestRankEver: newHighestRank,
+            lastActiveDate: new Date()
           }
         }).catch(err => console.error(`Failed to update rank for ${user.email}:`, err))
         
         if (user.currentRank !== calculatedRank) {
-          console.log(`🔄 Updated ${user.email}: Position #${position} → Rank ${calculatedRank} (was ${user.currentRank})`)
+          console.log(`🔄 Updated ${user.email}: Position #${position} → Rank ${calculatedRank} (was ${user.currentRank || 'none'})`)
         }
       }
       
@@ -130,7 +141,8 @@ export async function GET(request: NextRequest) {
         totalXP: user.totalXP,
         level: user.level,
         rank: position,
-        pnpRank,
+        pnpRank, // ✅ This is the current competitive/sequential rank
+        baseRank, // ✅ NEW: XP-based learning progression rank
         createdAt: user.createdAt,
         totalBadges: totalBadgesCount,
         earnedBadges: user.badgeEarned.length
@@ -179,7 +191,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Cache the full leaderboard (unless recalculating)
+    // Cache the full leaderboard
     if (!forceRecalculate) {
       cachedData = {
         data: {
@@ -189,7 +201,7 @@ export async function GET(request: NextRequest) {
         timestamp: now
       }
     } else {
-      cachedData = null // Clear cache after recalculation
+      cachedData = null
       console.log('🗑️ Cache cleared due to recalculation')
     }
 
@@ -203,31 +215,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to get rank order for comparison
-function getRankOrder(rank: PNPRank): number {
-  const rankOrder: Record<PNPRank, number> = {
-    'Cadet': 0,
-    'Pat': 1,
-    'PCpl': 2,
-    'PSSg': 3,
-    'PMSg': 4,
-    'PSMS': 5,
-    'PCMS': 6,
-    'PEMS': 7,
-    'PLT': 8,
-    'PCPT': 9,
-    'PMAJ': 10,
-    'PLTCOL': 11,
-    'PCOL': 12,
-    'PBGEN': 13,
-    'PMGEN': 14,
-    'PLTGEN': 15,
-    'PGEN': 16
-  }
-  return rankOrder[rank] || 0
-}
-
-// Endpoint to invalidate cache (for admin use or after major events)
+// Endpoint to invalidate cache (for admin use)
 export async function POST(request: NextRequest) {
   try {
     const user = await getApiUser(request)
@@ -236,7 +224,6 @@ export async function POST(request: NextRequest) {
       return createAuthErrorResponse('Authentication required', 401)
     }
 
-    // Optional: Check if user is admin
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: { role: true }
