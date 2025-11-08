@@ -1,22 +1,82 @@
-// app/users/achievements/page.tsx - Themed to match your app
+// app/users/achievements/page.tsx - WITH AUTOMATIC VERIFICATION
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useUserAchievements } from '@/hooks/use-user-achievements';
-import { Loader2, Trophy, ChevronDown } from 'lucide-react';
+import { Loader2, Trophy, ChevronDown, Sparkles } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AchievementsPage() {
-  const { achievements, loading, error } = useUserAchievements();
+  const { achievements, loading, error, refetch } = useUserAchievements();
   const [selectedCategory, setSelectedCategory] = useState<string>('All Achievements');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [hoveredAchievementId, setHoveredAchievementId] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
-  // Get unique categories - map "Learning Badges" to separate categories
+  // 🔥 AUTOMATIC VERIFICATION ON PAGE LOAD
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyAchievements = async () => {
+      try {
+        setIsVerifying(true);
+        console.log('🔍 Auto-verifying achievements...');
+
+        const response = await fetch('/api/achievements/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Verification failed');
+        }
+
+        const data = await response.json();
+
+        if (isMounted && data.success) {
+          console.log(`✅ Verification complete. Unlocked: ${data.rankAchievementsUnlocked}`);
+          
+          // Show toast if new achievements were unlocked
+          if (data.rankAchievementsUnlocked > 0) {
+            setToastMessage(`🎉 ${data.rankAchievementsUnlocked} new achievement${data.rankAchievementsUnlocked > 1 ? 's' : ''} unlocked!`);
+            setShowToast(true);
+            setTimeout(() => {
+              if (isMounted) setShowToast(false);
+            }, 4000);
+          }
+
+          // Refresh achievements list
+          await refetch();
+        }
+      } catch (error) {
+        console.error('❌ Auto-verification error:', error);
+      } finally {
+        if (isMounted) {
+          setIsVerifying(false);
+        }
+      }
+    };
+
+    // Run verification after a short delay
+    const timer = setTimeout(() => {
+      verifyAchievements();
+    }, 500);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []); // Run once on mount
+
+  // Get unique categories
   const categories = useMemo(() => {
     const achievementCategories = achievements.map(a => {
-      // Check if it's a badge milestone achievement and separate by type
       if (a.category === 'Learning Badges' && (a as any).criteriaData) {
         const badgeType = (a as any).criteriaData.badgeType;
         if (badgeType === 'learning') {
@@ -39,7 +99,6 @@ export default function AchievementsPage() {
     }
     
     return achievements.filter(a => {
-      // Handle Learning Badges and Quiz Badges separation
       if (selectedCategory === 'Learning Badges' && a.category === 'Learning Badges') {
         return (a as any).criteriaData?.badgeType === 'learning';
       }
@@ -47,7 +106,6 @@ export default function AchievementsPage() {
         return (a as any).criteriaData?.badgeType === 'quiz';
       }
       
-      // For other categories, just match normally
       return a.category === selectedCategory;
     });
   }, [achievements, selectedCategory]);
@@ -70,10 +128,8 @@ export default function AchievementsPage() {
   }, [achievements]);
 
   const renderIcon = (achievement: any) => {
-    // If it's an emoji icon (stored as string)
     if (achievement.icon && typeof achievement.icon === 'string') {
       if (achievement.icon.startsWith('http') || achievement.icon.startsWith('/')) {
-        // It's an image URL (rank icons)
         return (
           <div className={`w-20 h-20 rounded-xl border-2 p-3 flex items-center justify-center overflow-hidden ${
             achievement.isUnlocked
@@ -91,7 +147,6 @@ export default function AchievementsPage() {
           </div>
         );
       } else {
-        // It's an emoji or text icon
         return (
           <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
             achievement.isUnlocked
@@ -106,7 +161,6 @@ export default function AchievementsPage() {
       }
     }
     
-    // Default trophy icon
     return (
       <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
         achievement.isUnlocked
@@ -118,12 +172,13 @@ export default function AchievementsPage() {
     );
   };
 
-  if (loading) {
+  if (loading && !isVerifying) {
     return (
       <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
         <div className="px-4 md:px-20 py-6">
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <div className="flex flex-col justify-center items-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-4" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading achievements...</p>
           </div>
         </div>
       </div>
@@ -148,6 +203,28 @@ export default function AchievementsPage() {
 
   return (
     <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3">
+            <Sparkles className="w-5 h-5" />
+            <span className="font-semibold">{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Verification Loading Overlay */}
+      {isVerifying && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40">
+          <div className="bg-white dark:bg-gray-800 px-6 py-3 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Checking for new achievements...
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
         {/* Header */}
         <div className="mb-6">
@@ -203,11 +280,9 @@ export default function AchievementsPage() {
             />
           </button>
 
-          {/* Dropdown Menu */}
           {isDropdownOpen && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
               {categories.map((category) => {
-                // Calculate counts based on the separated categories
                 let categoryCount = 0;
                 let categoryUnlocked = 0;
 
@@ -282,13 +357,10 @@ export default function AchievementsPage() {
                 onMouseEnter={() => setHoveredAchievementId(achievement.id)}
                 onMouseLeave={() => setHoveredAchievementId(null)}
               >
-
-
-                {/* Achievement Icon - Centered */}
+                {/* Achievement Icon */}
                 <div className="flex justify-center mb-4">
                   <div className="relative">
                     {renderIcon(achievement)}
-                    {/* Lock/Unlock Badge - Overlay */}
                     <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-white dark:bg-gray-700">
                       <Image
                         src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
@@ -318,7 +390,7 @@ export default function AchievementsPage() {
                     {achievement.description}
                   </p>
 
-                  {/* Progress Bar for Badge Milestones */}
+                  {/* Progress Bar */}
                   {hasProgress && !achievement.isUnlocked && (
                     <div className="mb-3">
                       <div className="flex items-center justify-between text-xs mb-1">
@@ -336,7 +408,7 @@ export default function AchievementsPage() {
                     </div>
                   )}
 
-                  {/* XP Reward - Only show if greater than 0 */}
+                  {/* XP Reward */}
                   {achievement.xpReward > 0 && (
                     <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full mb-2 ${
                       achievement.isUnlocked
@@ -354,7 +426,7 @@ export default function AchievementsPage() {
                   )}
                 </div>
 
-                {/* Tooltip - Unlock Date */}
+                {/* Tooltip */}
                 {unlockedDate && (
                   <div className={`absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-950 text-white text-xs rounded-lg whitespace-nowrap pointer-events-none transition-opacity duration-200 ${
                     hoveredAchievementId === achievement.id ? 'opacity-100' : 'opacity-0'

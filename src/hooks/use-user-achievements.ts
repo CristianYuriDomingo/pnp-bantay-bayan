@@ -1,6 +1,6 @@
-// hooks/use-user-achievements.ts - WITH PROGRESS DATA
+// hooks/use-user-achievements.ts - ENHANCED WITH AUTO-VERIFICATION
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export interface AchievementProgress {
   current: number;
@@ -20,8 +20,8 @@ export interface Achievement {
   isUnlocked: boolean;
   earnedAt: Date | null;
   xpAwarded: number;
-  progress?: AchievementProgress; // Add progress tracking
-  criteriaData?: any; // Include criteriaData for badge type filtering
+  progress?: AchievementProgress;
+  criteriaData?: any;
 }
 
 interface UseUserAchievementsResult {
@@ -36,7 +36,7 @@ export function useUserAchievements(): UseUserAchievementsResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAchievements = async () => {
+  const fetchAchievements = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -45,6 +45,9 @@ export function useUserAchievements(): UseUserAchievementsResult {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         credentials: 'include',
       });
@@ -57,20 +60,42 @@ export function useUserAchievements(): UseUserAchievementsResult {
       
       if (data.success && data.achievements) {
         setAchievements(data.achievements);
+        console.log(`✅ Loaded ${data.achievements.length} achievements`);
       } else {
         throw new Error('Invalid response format');
       }
     } catch (err) {
-      console.error('Error fetching achievements:', err);
+      console.error('❌ Error fetching achievements:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAchievements();
-  }, []);
+  }, [fetchAchievements]);
+
+  // Listen for XP gain events to refetch achievements
+  useEffect(() => {
+    const handleXPGained = () => {
+      console.log('🎯 XP gained - refreshing achievements');
+      fetchAchievements();
+    };
+
+    const handleBadgesAwarded = () => {
+      console.log('🏅 Badges awarded - refreshing achievements');
+      fetchAchievements();
+    };
+
+    window.addEventListener('xpGained', handleXPGained);
+    window.addEventListener('badgesAwarded', handleBadgesAwarded);
+
+    return () => {
+      window.removeEventListener('xpGained', handleXPGained);
+      window.removeEventListener('badgesAwarded', handleBadgesAwarded);
+    };
+  }, [fetchAchievements]);
 
   return {
     achievements,
