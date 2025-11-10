@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import Image from 'next/image'
 import { PNPRank } from '@/types/rank'
 import { getRankInfo } from '@/lib/rank-config'
-import { Crown, TrendingUp, Trophy } from 'lucide-react'
+import { Crown, TrendingUp } from 'lucide-react'
 
 interface RankBadgeProps {
   rank?: PNPRank | string | null
@@ -225,7 +225,7 @@ export const RankCard: React.FC<RankCardProps> = ({
             <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
               <div 
                 className="bg-blue-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${percentToNextLevel}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, percentToNextLevel))}%` }}
               ></div>
             </div>
             {xpToNextLevel > 0 && (
@@ -237,7 +237,7 @@ export const RankCard: React.FC<RankCardProps> = ({
         )}
 
         {/* Next Rank - Clean Style */}
-        {nextPNPRank && xpToNextRank && nextRankInfo && (
+        {nextPNPRank && xpToNextRank && xpToNextRank > 0 && nextRankInfo && (
           <div className="bg-blue-50 rounded-2xl p-5 border border-blue-200">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold text-gray-700 flex items-center">
@@ -252,12 +252,11 @@ export const RankCard: React.FC<RankCardProps> = ({
           </div>
         )}
 
-        {/* Badge Stats - Yellow Style like Duolingo */}
+        {/* Badge Stats - Yellow Style like Duolingo - NO TROPHY ICON */}
         {totalBadges > 0 && (
           <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-200">
             <div className="flex items-center justify-between">
-              <span className="flex items-center text-base font-bold text-gray-700">
-                <Trophy size={20} className="mr-2 text-yellow-600" />
+              <span className="text-base font-bold text-gray-700">
                 Badges
               </span>
               <span className="font-black text-3xl text-gray-800">

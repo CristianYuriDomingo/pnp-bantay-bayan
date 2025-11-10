@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useLeaderboard, useUserRank as useUserLeaderboardRank } from '@/hooks/use-leaderboard'
 import { useUserRank } from '@/hooks/use-rank'
 import { LeaderboardEntry, LeaderboardPaginationLimit } from '@/types/leaderboard'
-import { Trophy, TrendingUp, Zap, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { TrendingUp, Zap, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import { useCurrentUser } from '@/hooks/use-current-user'
 import { useRightColumn } from '../layout'
@@ -276,7 +276,7 @@ const LeaderboardInfoCard: React.FC = () => {
   )
 }
 
-// Simplified User Rank Card (Duolingo style - NO profile picture)
+// Simplified User Rank Card (Duolingo style - NO profile picture, NO trophy icon)
 const UserRankCard: React.FC = () => {
   const { rankData, rankInfo } = useUserRank()
   const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank()
@@ -293,6 +293,9 @@ const UserRankCard: React.FC = () => {
   if (error || !leaderboardRankInfo || !rankData) {
     return null
   }
+
+  // Ensure percentToNextLevel is valid
+  const validPercentage = Math.min(100, Math.max(0, leaderboardRankInfo.percentToNextLevel || 0))
 
   return (
     <div className="bg-white rounded-3xl p-5 mb-4">
@@ -324,16 +327,18 @@ const UserRankCard: React.FC = () => {
         <div className="w-full bg-gray-300 rounded-full h-3">
           <div 
             className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all"
-            style={{ width: `${leaderboardRankInfo.percentToNextLevel}%` }}
+            style={{ width: `${validPercentage}%` }}
           ></div>
         </div>
-        <p className="text-xs text-gray-600 mt-2 font-medium">
-          {leaderboardRankInfo.xpToNextLevel} XP to Level {leaderboardRankInfo.level + 1}
-        </p>
+        {leaderboardRankInfo.xpToNextLevel > 0 && (
+          <p className="text-xs text-gray-600 mt-2 font-medium">
+            {leaderboardRankInfo.xpToNextLevel} XP to Level {leaderboardRankInfo.level + 1}
+          </p>
+        )}
       </div>
 
       {/* Next Rank Card */}
-      {leaderboardRankInfo.nextPNPRank && leaderboardRankInfo.xpToNextRank && (
+      {leaderboardRankInfo.nextPNPRank && leaderboardRankInfo.xpToNextRank && leaderboardRankInfo.xpToNextRank > 0 && (
         <div className="bg-blue-50 rounded-2xl p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -348,13 +353,10 @@ const UserRankCard: React.FC = () => {
         </div>
       )}
 
-      {/* Badges Card */}
+      {/* Badges Card - NO TROPHY ICON */}
       <div className="bg-yellow-50 rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy size={18} className="text-yellow-600" />
-            <span className="text-sm font-bold text-gray-700">Badges</span>
-          </div>
+          <span className="text-sm font-bold text-gray-700">Badges</span>
           <span className="text-2xl font-black text-gray-900">
             {leaderboardRankInfo.earnedBadges}/{leaderboardRankInfo.totalBadges}
           </span>
@@ -412,14 +414,10 @@ export default function LeaderboardPage() {
 
   if (loading && !leaderboard.length) {
     return (
-      <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <RefreshCw className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
-              <p className="text-gray-600 font-medium">Loading leaderboard...</p>
-            </div>
-          </div>
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading leaderboard...</p>
         </div>
       </div>
     )

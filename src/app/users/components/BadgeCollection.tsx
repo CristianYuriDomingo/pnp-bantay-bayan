@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
-import { Trophy, Star, Award, Crown, Zap, TrendingUp, Share2 } from 'lucide-react';
+import { Trophy, Star, Award, Crown, Zap, TrendingUp } from 'lucide-react';
 
 // Import your actual hooks and types
 import { useAllBadges, BadgeWithProgress } from '@/hooks/use-all-badges';
@@ -54,7 +54,6 @@ interface BadgeModalProps {
 }
 
 const BadgeDetailModal: React.FC<BadgeModalProps> = ({ badge, isOpen, onClose }) => {
-  const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -62,13 +61,6 @@ const BadgeDetailModal: React.FC<BadgeModalProps> = ({ badge, isOpen, onClose })
   }, []);
 
   if (!isOpen || !badge || !mounted) return null;
-
-  const handleShare = () => {
-    const text = `I just earned the "${badge.name}" badge! 🏆`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return createPortal(
     <>
@@ -206,23 +198,12 @@ const BadgeDetailModal: React.FC<BadgeModalProps> = ({ badge, isOpen, onClose })
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg transition-colors"
-              >
-                Close
-              </button>
-              {badge.isEarned && (
-                <button
-                  onClick={handleShare}
-                  className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <Share2 size={16} />
-                  {copied ? 'Copied!' : 'Share'}
-                </button>
-              )}
-            </div>
+            <button
+              onClick={onClose}
+              className="w-full px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>

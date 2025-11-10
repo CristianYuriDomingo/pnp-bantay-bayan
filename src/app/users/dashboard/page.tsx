@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - Updated without Welcome Header
+// app/users/dashboard/page.tsx - Updated with Profile-style sticky right column
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -26,7 +26,7 @@ export default function DashboardPage() {
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full">
         {/* Learning Modules Explanation Card with Rank Info */}
         <div className="border-b border-gray-100 dark:border-gray-700">
           <LearnCard2 />
