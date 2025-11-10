@@ -1,19 +1,19 @@
-// app/users/layout.tsx
 'use client';
 
-import { ReactNode, useState, createContext, useContext } from 'react';
+import { ReactNode, useState, createContext, useContext, useEffect, useRef } from 'react';
 import { signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Loader2 } from 'lucide-react';
+import { checkAndNotifyNewAchievements } from '@/lib/achievement-notifier';
+import { useAchievementNotification } from '@/contexts/achievement-notification-context';
 
 interface UsersLayoutProps {
   children: ReactNode;
 }
 
-// Context for right column content
 const RightColumnContext = createContext<{
   rightColumnContent: ReactNode | null;
   setRightColumnContent: (content: ReactNode | null) => void;
@@ -29,13 +29,51 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   const pathname = usePathname();
   const [isDropdownVisible, setDropdownVisible] = useState(true);
   const [rightColumnContent, setRightColumnContent] = useState<ReactNode | null>(null);
+  const { isReady } = useAchievementNotification(); // NEW: Check if notification system is ready
+  const hasCheckedInitial = useRef(false);
+  const lastPathname = useRef(pathname);
 
-  // Check if current page should render without sidebar
+  // 🔥 IMPROVED: Check for achievements only when notification system is ready
+  useEffect(() => {
+    if (!user || !isReady) return;
+
+    // Initial check on mount
+    if (!hasCheckedInitial.current) {
+      console.log('🚀 Initial achievement check');
+      hasCheckedInitial.current = true;
+      // Small delay to ensure everything is mounted
+      setTimeout(() => {
+        checkAndNotifyNewAchievements();
+      }, 300);
+    }
+  }, [user, isReady]);
+
+  // 🔥 IMPROVED: Check on route changes (but not on initial mount)
+  useEffect(() => {
+    if (!user || !isReady) return;
+    
+    if (hasCheckedInitial.current && lastPathname.current !== pathname) {
+      console.log('🔄 Route changed, checking achievements');
+      lastPathname.current = pathname;
+      checkAndNotifyNewAchievements();
+    }
+  }, [pathname, user, isReady]);
+
+  // 🔥 IMPROVED: Faster periodic checks (every 15 seconds instead of 30)
+  useEffect(() => {
+    if (!user || !isReady) return;
+
+    const interval = setInterval(() => {
+      console.log('⏰ Periodic achievement check');
+      checkAndNotifyNewAchievements();
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
+  }, [user, isReady]);
+
   const isLessonPage = pathname.includes('/lessons/');
   const isQuizStartPage = pathname.includes('/quizStart/');
   const isFullPageLayout = isLessonPage || isQuizStartPage;
-
-  // Check if right column should be hidden (for full-width pages)
   const shouldHideRightColumn = rightColumnContent === null;
 
   const handleSignOut = async () => {
@@ -59,12 +97,11 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       alt: 'Quiz'
     },
     { 
-    name: 'Leaderboard',
-    href: '/users/leaderboard', 
-    icon: '/DashboardImage/leaderboard.png', 
-    alt: 'Leaderboard',
-    type: 'lucide'
-  },
+      name: 'Leaderboard',
+      href: '/users/leaderboard', 
+      icon: '/DashboardImage/leaderboard.png', 
+      alt: 'Leaderboard',
+    },
     { 
       name: 'Profile', 
       href: '/users/profile', 
@@ -118,7 +155,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   return (
     <RightColumnContext.Provider value={{ rightColumnContent, setRightColumnContent }}>
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
-        {/* Decorative fixed blobs */}
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full opacity-30 transform translate-x-1/3 -translate-y-1/4"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4"></div>
@@ -127,16 +163,13 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
         </div>
 
         <div className="flex h-screen relative z-10">
-          {/* Sidebar - Responsive width */}
           <aside
             className="fixed top-0 left-0 z-40 h-full bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 transition-all duration-300 ease-in-out
                        w-16 md:w-72 border-r border-gray-200 dark:border-gray-700"
             aria-label="Sidebar"
           >
             <div className="h-full px-2 md:px-3 py-4 overflow-y-auto flex flex-col">
-              {/* Logo - Enhanced size */}
               <div className="flex justify-center items-center mb-4">
-                {/* Small screen logo - only visible on small screens */}
                 <Image
                   src="/MainImage/Pibi.png"
                   className="h-10 w-auto md:hidden"
@@ -144,7 +177,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   width={40}
                   height={40}
                 />
-                {/* Large screen logo - enhanced size for medium+ screens */}
                 <Image
                   src="/DashboardImage/logo.png"
                   className="hidden md:block h-20 w-auto"
@@ -154,7 +186,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                 />
               </div>
 
-              {/* Navigation Menu */}
               <nav className="flex-1">
                 <ul className="space-y-2 md:space-y-4 font-medium">
                   {navigation.map((item) => {
@@ -179,12 +210,10 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                               height={24}
                             />
                           </div>
-                          {/* Text only visible on medium screens and up */}
                           <span className="hidden md:block ml-3 text-lg uppercase">
                             {item.name}
                           </span>
                           
-                          {/* Tooltip for small screens */}
                           <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
                             {item.name}
                           </div>
@@ -193,10 +222,8 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                     );
                   })}
                   
-                  {/* Divider */}
                   <hr className="border-t-2 border-gray-200 dark:border-gray-700 my-4" />
                   
-                  {/* Remember Alert - Positioned above Sign Out */}
                   {isDropdownVisible && (
                     <li className="hidden md:block mb-4">
                       <div
@@ -243,7 +270,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                     </li>
                   )}
                   
-                  {/* Sign Out */}
                   <li>
                     <button
                       onClick={handleSignOut}
@@ -263,7 +289,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                         Sign Out
                       </span>
                       
-                      {/* Tooltip for small screens */}
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
                         Sign Out
                       </div>
@@ -274,28 +299,22 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
             </div>
           </aside>
 
-          {/* Main content - Responsive margin */}
           <div className="flex-1 ml-16 md:ml-72 transition-all duration-300 ease-in-out">
             <div className="p-4">
-              {/* Conditional layout based on right column visibility */}
               {shouldHideRightColumn ? (
-                // Full width layout when right column is hidden
                 <div className="w-full">
                   <div className="h-full overflow-hidden">
                     {children}
                   </div>
                 </div>
               ) : (
-                // Two-column layout when right column has content
                 <div className="flex flex-col lg:flex-row w-full gap-4">
-                  {/* Left column - 70% with no background */}
                   <div className="w-full lg:w-[70%]">
                     <div className="h-full overflow-hidden">
                       {children}
                     </div>
                   </div>
                   
-                  {/* Right column - 30% */}
                   <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit flex flex-col gap-4">
                     {rightColumnContent}
                   </div>

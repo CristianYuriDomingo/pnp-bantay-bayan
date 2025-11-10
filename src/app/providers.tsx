@@ -3,6 +3,7 @@
 
 import { SessionProvider } from 'next-auth/react'
 import { UserProvider } from '@/contexts/user-context'
+import { AchievementNotificationProvider } from '@/contexts/achievement-notification-context'
 import { ReactNode } from 'react'
 
 interface ProvidersProps {
@@ -13,7 +14,9 @@ export function Providers({ children }: ProvidersProps) {
   return (
     <SessionProvider>
       <UserProvider>
-        {children}
+        <AchievementNotificationProvider>
+          {children}
+        </AchievementNotificationProvider>
       </UserProvider>
     </SessionProvider>
   )
