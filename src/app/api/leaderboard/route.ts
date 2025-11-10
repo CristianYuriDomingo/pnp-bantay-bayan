@@ -60,10 +60,11 @@ export async function GET(request: NextRequest) {
       }))
     }
 
-    // Fetch all users with their stats
+    // ✅ SOLUTION: Fetch only NON-ADMIN users
     const allUsers = await prisma.user.findMany({
       where: {
-        status: 'active'
+        status: 'active',
+        role: { not: 'admin' } // ⭐ Exclude admins from leaderboard
       },
       select: {
         id: true,
@@ -149,10 +150,19 @@ export async function GET(request: NextRequest) {
       }
     }))
 
-    // Find current user's entry
-    const currentUserEntry = currentUser 
-      ? leaderboard.find(entry => entry.userId === currentUser.id) || null
-      : null
+    // ✅ IMPORTANT: Don't show admin in currentUser entry
+    let currentUserEntry = null
+    if (currentUser) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: currentUser.id },
+        select: { role: true }
+      })
+      
+      // Only show entry if user is NOT admin
+      if (dbUser?.role !== 'admin') {
+        currentUserEntry = leaderboard.find(entry => entry.userId === currentUser.id) || null
+      }
+    }
 
     // Calculate rank distribution
     const rankDistribution: Record<string, number> = {}
@@ -205,7 +215,7 @@ export async function GET(request: NextRequest) {
       console.log('🗑️ Cache cleared due to recalculation')
     }
 
-    console.log(`✅ Leaderboard generated: ${leaderboard.length} users, showing ${paginatedLeaderboard.length}`)
+    console.log(`✅ Leaderboard generated: ${leaderboard.length} users (admins excluded), showing ${paginatedLeaderboard.length}`)
 
     return addCacheHeaders(createSuccessResponse(responseData))
 

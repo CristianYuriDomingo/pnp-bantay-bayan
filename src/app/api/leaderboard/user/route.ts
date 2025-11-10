@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
       where: { id: user.id },
       select: {
         id: true,
+        role: true,
         totalXP: true,
         level: true,
         currentRank: true,
@@ -40,15 +41,46 @@ export async function GET(request: NextRequest) {
       return addCacheHeaders(createAuthErrorResponse('User not found', 404))
     }
 
-    // Get total number of active users
+    // ✅ SOLUTION: Special handling for admins
+    if (currentUser.role === 'admin') {
+      console.log('👑 Admin user detected - returning special admin stats')
+      
+      // Get total badges count
+      const totalBadges = await prisma.badge.count()
+      
+      // Return admin-specific response (no competitive rank)
+      const adminRankInfo: UserRankInfo = {
+        rank: 0, // Admins are not ranked
+        totalXP: currentUser.totalXP,
+        level: currentUser.level,
+        xpToNextLevel: 0,
+        percentToNextLevel: 100,
+        usersAhead: 0,
+        xpBehindNext: null,
+        totalBadges,
+        earnedBadges: currentUser.badgeEarned.length,
+        pnpRank: 'PGEN', // Admins get highest rank for display
+        baseRank: getBaseRankByXP(currentUser.totalXP),
+        nextPNPRank: null,
+        xpToNextRank: null
+      }
+
+      return addCacheHeaders(createSuccessResponse(adminRankInfo))
+    }
+
+    // ✅ For regular users: Calculate competitive rank (excluding admins)
     const totalUsers = await prisma.user.count({
-      where: { status: 'active' }
+      where: { 
+        status: 'active',
+        role: { not: 'admin' } // Don't count admins
+      }
     })
 
-    // Count users ahead (higher XP, or same XP but older account)
+    // Count users ahead (higher XP, or same XP but older account) - EXCLUDING ADMINS
     const usersAhead = await prisma.user.count({
       where: {
         status: 'active',
+        role: { not: 'admin' }, // ⭐ Don't count admins
         OR: [
           { totalXP: { gt: currentUser.totalXP } },
           {
@@ -85,10 +117,11 @@ export async function GET(request: NextRequest) {
     let xpToNextRank: number | null = null
     
     if (isStarRank(pnpRank)) {
-      // For star ranks, show competitive progression
+      // For star ranks, show competitive progression - EXCLUDING ADMINS
       const userAhead = await prisma.user.findFirst({
         where: {
           status: 'active',
+          role: { not: 'admin' }, // ⭐ Don't count admins
           OR: [
             { totalXP: { gt: currentUser.totalXP } },
             {
