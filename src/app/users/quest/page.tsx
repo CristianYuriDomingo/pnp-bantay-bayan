@@ -7,19 +7,17 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRightColumn } from '../layout';
 import QuestPath from '../components/QuestPath';
-import Image from 'next/image';
+import QuestCard from '../components/QuestCard';
 
 export default function QuestPage() {
   const { user, isLoading, isAuthenticated } = useCurrentUser();
   const { setRightColumnContent } = useRightColumn();
 
-  // Set right column content when component mounts (empty)
+  // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full">
-        <div className="p-6">
-          {/* Empty right column */}
-        </div>
+        <QuestCard />
       </div>
     );
     

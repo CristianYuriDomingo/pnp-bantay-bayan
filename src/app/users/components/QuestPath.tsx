@@ -19,6 +19,7 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
   const [currentLevel, setCurrentLevel] = useState(initialLevel);
   const [completedLevels, setCompletedLevels] = useState<number[]>(initialCompleted);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
+  const [rewardClaimed, setRewardClaimed] = useState(false);
 
   const levels: Level[] = [
     { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10 },
@@ -26,8 +27,6 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
     { id: 2, title: "Wednesday Quest", type: "daily", icon: Sparkles, color: "from-purple-400 to-purple-600", points: 20 },
     { id: 3, title: "Thursday Quest", type: "daily", icon: Flame, color: "from-orange-400 to-red-500", points: 25 },
     { id: 4, title: "Friday Quest", type: "daily", icon: Shield, color: "from-indigo-400 to-indigo-600", points: 30 },
-    { id: 5, title: "Saturday Quest", type: "weekend", icon: Trophy, color: "from-pink-400 to-rose-500", points: 40 },
-    { id: 6, title: "Sunday Quest", type: "weekend", icon: Crown, color: "from-yellow-400 to-amber-500", points: 50 },
   ];
 
   const handleLevelClick = (level: Level) => {
@@ -58,6 +57,15 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
     return sum + (level?.points || 0);
   }, 0);
 
+  const allQuestsComplete = completedLevels.length === levels.length;
+  const canClaimReward = allQuestsComplete && !rewardClaimed;
+
+  const handleChestClick = () => {
+    if (canClaimReward) {
+      setRewardClaimed(true);
+    }
+  };
+
   // Generate curved path positions
   const getPathPosition = (index: number) => {
     const baseY = index * 120;
@@ -73,20 +81,12 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-white">Weekly Quest</h1>
-              <p className="text-blue-100 text-sm mt-0.5">Complete all challenges this week</p>
+              <p className="text-blue-100 text-sm mt-0.5">Complete all daily challenges</p>
             </div>
-            <div className="flex gap-3">
-              <div className="bg-white rounded-2xl px-5 py-3 shadow-md">
-                <div className="flex items-center gap-2">
-                  <Flame size={20} className="text-orange-500" />
-                  <span className="text-gray-800 text-lg font-bold">{completedLevels.length}</span>
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl px-5 py-3 shadow-md">
-                <div className="flex items-center gap-2">
-                  <Trophy size={20} className="text-yellow-500" />
-                  <span className="text-gray-800 text-lg font-bold">{totalPoints}</span>
-                </div>
+            <div className="bg-white rounded-2xl px-5 py-3 shadow-md">
+              <div className="flex items-center gap-2">
+                <Flame size={20} className="text-orange-500" />
+                <span className="text-gray-800 text-lg font-bold">{completedLevels.length}</span>
               </div>
             </div>
           </div>
@@ -182,10 +182,10 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
                             borderRadius: (pressed && !locked) || completed ? '50%' : '50% 50% 45% 45%',
                             transform: (pressed && !locked) || completed ? 'translateY(6px) scale(0.96)' : 'translateY(0) scale(1)',
                             boxShadow: (pressed && !locked) || completed
-                              ? '0 2px 0 0 rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.08)'
+                              ? '0 2px 0 0 rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.15)'
                               : locked 
                               ? '0 6px 0 0 rgb(209, 213, 219), 0 2px 8px rgba(0,0,0,0.08)' 
-                              : '0 8px 0 0 rgba(0,0,0,0.15), 0 2px 12px rgba(0,0,0,0.1)'
+                              : '0 8px 0 0 rgba(0,0,0,0.3), 0 2px 12px rgba(0,0,0,0.2)'
                           }}
                         >
                           <div className="flex items-center justify-center h-full">
@@ -238,10 +238,10 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
                             borderRadius: (pressed && !locked) || completed ? '50%' : '50% 50% 45% 45%',
                             transform: (pressed && !locked) || completed ? 'translateY(6px) scale(0.96)' : 'translateY(0) scale(1)',
                             boxShadow: (pressed && !locked) || completed
-                              ? '0 2px 0 0 rgba(0,0,0,0.1), 0 2px 8px rgba(0,0,0,0.08)'
+                              ? '0 2px 0 0 rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.15)'
                               : locked 
                               ? '0 6px 0 0 rgb(209, 213, 219), 0 2px 8px rgba(0,0,0,0.08)' 
-                              : '0 8px 0 0 rgba(0,0,0,0.15), 0 2px 12px rgba(0,0,0,0.1)'
+                              : '0 8px 0 0 rgba(0,0,0,0.3), 0 2px 12px rgba(0,0,0,0.2)'
                           }}
                         >
                           <div className="flex items-center justify-center h-full">
@@ -276,6 +276,87 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
               </div>
             );
           })}
+
+          {/* Treasure Chest */}
+          <div style={{ marginTop: '60px', marginBottom: '120px' }}>
+            <div 
+              className="relative flex items-center justify-center"
+              style={{ 
+                transform: `translateX(${getPathPosition(levels.length).x}px)`,
+                transition: 'transform 0.5s ease-out'
+              }}
+            >
+              <div className="relative z-10">
+                <div
+                  onClick={handleChestClick}
+                  className={`relative w-28 h-28 flex items-center justify-center transition-all duration-300 ${
+                    canClaimReward ? 'cursor-pointer hover:scale-110' : allQuestsComplete ? 'opacity-70' : 'opacity-40'
+                  }`}
+                >
+                  {/* Chest SVG */}
+                  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
+                    {/* Chest base */}
+                    <rect x="20" y="45" width="60" height="40" rx="5" fill={rewardClaimed ? "#94a3b8" : allQuestsComplete ? "#fbbf24" : "#9ca3af"} />
+                    <rect x="20" y="45" width="60" height="40" rx="5" fill="url(#chestGradient)" opacity="0.8" />
+                    
+                    {/* Chest lid */}
+                    <ellipse cx="50" cy="45" rx="30" ry="12" fill={rewardClaimed ? "#94a3b8" : allQuestsComplete ? "#f59e0b" : "#9ca3af"} />
+                    <path d="M 20 45 Q 20 35, 50 30 Q 80 35, 80 45" fill={rewardClaimed ? "#cbd5e1" : allQuestsComplete ? "#fbbf24" : "#d1d5db"} />
+                    
+                    {/* Lock */}
+                    <circle cx="50" cy="55" r="8" fill={rewardClaimed ? "#64748b" : allQuestsComplete ? "#92400e" : "#6b7280"} />
+                    <rect x="47" y="55" width="6" height="12" rx="1" fill={rewardClaimed ? "#64748b" : allQuestsComplete ? "#92400e" : "#6b7280"} />
+                    
+                    {/* Gradient definition */}
+                    <defs>
+                      <linearGradient id="chestGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
+                        <stop offset="100%" stopColor="#000000" stopOpacity="0.2" />
+                      </linearGradient>
+                    </defs>
+                    
+                    {/* Sparkles when unlocked */}
+                    {allQuestsComplete && !rewardClaimed && (
+                      <>
+                        <circle cx="15" cy="30" r="2" fill="#fbbf24" opacity="0.8">
+                          <animate attributeName="opacity" values="0.8;0.2;0.8" dur="1.5s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="85" cy="35" r="2" fill="#fbbf24" opacity="0.6">
+                          <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" repeatCount="indefinite" />
+                        </circle>
+                        <circle cx="50" cy="20" r="2" fill="#fbbf24" opacity="0.7">
+                          <animate attributeName="opacity" values="0.7;0.2;0.7" dur="1.8s" repeatCount="indefinite" />
+                        </circle>
+                      </>
+                    )}
+                  </svg>
+
+                  {/* Claimed checkmark */}
+                  {rewardClaimed && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-green-500 rounded-full w-12 h-12 flex items-center justify-center shadow-lg">
+                        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Chest label */}
+                <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 text-center whitespace-nowrap">
+                  <div className="bg-white rounded-2xl px-5 py-3 shadow-sm border border-gray-100">
+                    <h3 className={`font-bold text-base ${rewardClaimed ? 'text-gray-400' : allQuestsComplete ? 'text-amber-600' : 'text-gray-400'}`}>
+                      {rewardClaimed ? 'Claimed!' : 'Reward Chest'}
+                    </h3>
+                    <span className="text-gray-400 text-xs font-medium">
+                      {rewardClaimed ? 'Come back next week' : allQuestsComplete ? 'Ready to claim' : 'Complete all quests'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -294,11 +375,7 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
             </div>
           </div>
           <div className="mt-4 text-center">
-            {completedLevels.length === levels.length ? (
-              <p className="text-blue-600 font-bold text-lg">🎉 Quest Complete! You&apos;re a champion!</p>
-            ) : (
-              <p className="text-gray-500 text-sm">Complete <span className="text-gray-800 font-semibold">{levels[currentLevel]?.title}</span> to unlock the next level</p>
-            )}
+            <p className="text-gray-500 text-sm">Complete <span className="text-gray-800 font-semibold">{levels[currentLevel]?.title || 'all quests'}</span> to unlock the next level</p>
           </div>
         </div>
       </div>
