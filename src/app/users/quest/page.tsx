@@ -16,9 +16,7 @@ export default function QuestPage() {
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full">
-        <QuestCard />
-      </div>
+      <QuestCard />
     );
     
     setRightColumnContent(rightColumnContent);

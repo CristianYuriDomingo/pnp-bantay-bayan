@@ -13,7 +13,7 @@ const QuestCard: React.FC = () => {
         <div className="mb-4 flex justify-center">
           <div className="w-20 h-20 relative">
             <Image
-              src="/QuestImage/QuestCard.png"
+              src="/Quest/QuestCard.png"
               alt="Quest mascot"
               fill
               sizes="80px"

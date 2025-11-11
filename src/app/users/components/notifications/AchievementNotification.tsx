@@ -63,14 +63,14 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Blue Header */}
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 relative">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 relative flex items-center justify-center">
             <button
               onClick={handleClose}
-              className="absolute top-4 right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition-colors"
+              className="absolute right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-colors"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
-            <h2 className="text-white text-center text-lg font-bold tracking-wide uppercase">
+            <h2 className="text-white text-lg font-bold tracking-wide uppercase">
               New Achievement Unlocked
             </h2>
           </div>
@@ -102,7 +102,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
 
               {/* XP Reward */}
               {achievement.xpReward > 0 && (
-                <div className="inline-block bg-gradient-to-r from-blue-400 to-blue-500 text-white px-5 py-2 rounded-full text-xl font-bold shadow-md">
+                <div className="inline-block bg-gradient-to-r from-blue-400 to-blue-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-md">
                   +{achievement.xpReward} XP
                 </div>
               )}
