@@ -85,10 +85,16 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
 
   const navigation = [
     { 
-      name: 'Learning Modules', 
+      name: 'Learn', 
       href: '/users/dashboard', 
       icon: '/DashboardImage/learn.png',
       alt: 'Dashboard'
+    },
+     { 
+      name: 'Quest', 
+      href: '/users/quest', 
+      icon: '/DashboardImage/quest.png',
+      alt: 'Quest'
     },
     { 
       name: 'Quiz', 
@@ -108,12 +114,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       icon: '/DashboardImage/profile.png',
       alt: 'Profile'
     },
-    { 
-      name: 'Settings', 
-      href: '/users/settings', 
-      icon: '/DashboardImage/setting.png',
-      alt: 'Settings'
-    },
+   
   ];
 
   if (isLoading) {
