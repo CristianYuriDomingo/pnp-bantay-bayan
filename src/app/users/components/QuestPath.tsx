@@ -1,6 +1,5 @@
-// app/users/components/QuestPath.tsx
 import React, { useState } from 'react';
-import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles } from 'lucide-react';
+import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles, Ticket } from 'lucide-react';
 
 interface Level {
   id: number;
@@ -15,15 +14,23 @@ interface Level {
 interface QuestPathProps {
   initialLevel?: number;
   initialCompleted?: number[];
+  initialDutyPasses?: number;
   onNavigate?: (route: string) => void;
 }
 
-export default function QuestPath({ initialLevel = 0, initialCompleted = [], onNavigate }: QuestPathProps) {
+export default function QuestPath({ 
+  initialLevel = 0, 
+  initialCompleted = [], 
+  initialDutyPasses = 0,
+  onNavigate 
+}: QuestPathProps) {
   const [currentLevel, setCurrentLevel] = useState(initialLevel);
   const [completedLevels, setCompletedLevels] = useState<number[]>(initialCompleted);
+  const [dutyPasses, setDutyPasses] = useState(initialDutyPasses);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [showDutyPassPopup, setShowDutyPassPopup] = useState(false);
 
 const levels: Level[] = [
   { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10, route: "/users/questMonday" },
@@ -35,11 +42,9 @@ const levels: Level[] = [
 
   const handleLevelClick = (level: Level) => {
     if (level.id <= currentLevel) {
-      // Navigate to the quest page route
       if (onNavigate) {
         onNavigate(level.route);
       } else {
-        // Fallback: you can use window.location or your router here
         console.log(`Navigate to: ${level.route}`);
         alert(`This would navigate to ${level.route}. Please implement your router!`);
       }
@@ -72,7 +77,6 @@ const levels: Level[] = [
     }
   };
 
-  // Generate curved path positions
   const getPathPosition = (index: number) => {
     const baseY = index * 120;
     const curve = Math.sin(index * 0.8) * 40;
@@ -89,72 +93,131 @@ const levels: Level[] = [
               <h1 className="text-2xl font-bold text-white">Weekly Quest</h1>
               <p className="text-blue-100 text-sm mt-0.5">Complete all daily challenges</p>
             </div>
-            <div 
-              className="bg-white rounded-2xl px-5 py-3 shadow-md cursor-pointer relative"
-              onMouseEnter={() => setShowStreakPopup(true)}
-              onMouseLeave={() => setShowStreakPopup(false)}
-            >
-              <div className="flex items-center gap-2">
-                <Flame size={20} className="text-orange-500" />
-                <span className="text-gray-800 text-lg font-bold">{completedLevels.length}</span>
+            
+            {/* Stats Container */}
+            <div className="flex items-center gap-3">
+              {/* Duty Pass Counter */}
+              <div 
+                className="bg-white rounded-2xl px-5 py-3 shadow-md cursor-pointer relative"
+                onMouseEnter={() => setShowDutyPassPopup(true)}
+                onMouseLeave={() => setShowDutyPassPopup(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <Ticket size={20} className="text-blue-500" />
+                  <span className="text-gray-800 text-lg font-bold">{dutyPasses}</span>
+                </div>
+
+                {/* Duty Pass Popup */}
+                {showDutyPassPopup && (
+                  <div className="absolute top-full right-0 mt-3 w-80 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-xl border border-blue-200 p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Arrow */}
+                    <div className="absolute -top-2 right-6 w-4 h-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-l border-t border-blue-200 transform rotate-45"></div>
+                    
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-blue-400 to-blue-500 p-2 rounded-xl shadow-md">
+                        <Ticket size={24} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-blue-600">{dutyPasses} Duty {dutyPasses === 1 ? 'Pass' : 'Passes'}</h3>
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          {dutyPasses === 0 
+                            ? "Claim one every Sunday!" 
+                            : "Protects your streak for 1 day"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Info Box */}
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                      <h4 className="font-semibold text-gray-800 mb-2">How it works:</h4>
+                      <ul className="space-y-2 text-sm text-gray-600">
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          <span>Duty Pass protects your streak for one full day of inactivity</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          <span>Claim a new pass every Sunday</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-500 mt-0.5">•</span>
+                          <span>Used automatically when needed</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Streak Popup */}
-              {showStreakPopup && (
-                <div className="absolute top-full right-0 mt-3 w-80 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-xl border border-amber-200 p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  {/* Arrow */}
-                  <div className="absolute -top-2 right-6 w-4 h-4 bg-gradient-to-br from-amber-50 to-orange-50 border-l border-t border-amber-200 transform rotate-45"></div>
-                  
-                  {/* Header */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-2 rounded-xl shadow-md">
-                      <Flame size={24} className="text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-amber-600">{completedLevels.length} day streak</h3>
-                      <p className="text-sm text-gray-600 mt-0.5">
-                        {completedLevels.length === 0 
-                          ? "Do a lesson today to start a new streak!" 
-                          : completedLevels.length === levels.length 
-                          ? "Amazing! You've completed all quests!" 
-                          : "Keep going! Complete today's quest!"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Week Days */}
-                  <div className="bg-white rounded-xl p-4 shadow-sm">
-                    <div className="flex justify-between items-center mb-3">
-                      {['M', 'T', 'W', 'T', 'F'].map((day, index) => (
-                        <div key={index} className="flex flex-col items-center gap-2">
-                          <span className={`text-xs font-semibold ${
-                            completedLevels.includes(index) 
-                              ? 'text-orange-500' 
-                              : index === currentLevel 
-                              ? 'text-orange-400' 
-                              : 'text-gray-400'
-                          }`}>
-                            {day}
-                          </span>
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                            completedLevels.includes(index)
-                              ? 'bg-gradient-to-br from-orange-400 to-orange-500 shadow-md'
-                              : index === currentLevel
-                              ? 'bg-gradient-to-br from-orange-200 to-orange-300'
-                              : 'bg-gray-200'
-                          }`}>
-                            {completedLevels.includes(index) ? (
-                              <Flame size={18} className="text-white" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-white/50"></div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+              {/* Streak Counter */}
+              <div 
+                className="bg-white rounded-2xl px-5 py-3 shadow-md cursor-pointer relative"
+                onMouseEnter={() => setShowStreakPopup(true)}
+                onMouseLeave={() => setShowStreakPopup(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <Flame size={20} className="text-orange-500" />
+                  <span className="text-gray-800 text-lg font-bold">{completedLevels.length}</span>
                 </div>
-              )}
+
+                {/* Streak Popup */}
+                {showStreakPopup && (
+                  <div className="absolute top-full right-0 mt-3 w-80 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-xl border border-amber-200 p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {/* Arrow */}
+                    <div className="absolute -top-2 right-6 w-4 h-4 bg-gradient-to-br from-amber-50 to-orange-50 border-l border-t border-amber-200 transform rotate-45"></div>
+                    
+                    {/* Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-2 rounded-xl shadow-md">
+                        <Flame size={24} className="text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-amber-600">{completedLevels.length} day streak</h3>
+                        <p className="text-sm text-gray-600 mt-0.5">
+                          {completedLevels.length === 0 
+                            ? "Do a lesson today to start a new streak!" 
+                            : completedLevels.length === levels.length 
+                            ? "Amazing! You've completed all quests!" 
+                            : "Keep going! Complete today's quest!"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Week Days */}
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                      <div className="flex justify-between items-center mb-3">
+                        {['M', 'T', 'W', 'T', 'F'].map((day, index) => (
+                          <div key={index} className="flex flex-col items-center gap-2">
+                            <span className={`text-xs font-semibold ${
+                              completedLevels.includes(index) 
+                                ? 'text-orange-500' 
+                                : index === currentLevel 
+                                ? 'text-orange-400' 
+                                : 'text-gray-400'
+                            }`}>
+                              {day}
+                            </span>
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                              completedLevels.includes(index)
+                                ? 'bg-gradient-to-br from-orange-400 to-orange-500 shadow-md'
+                                : index === currentLevel
+                                ? 'bg-gradient-to-br from-orange-200 to-orange-300'
+                                : 'bg-gray-200'
+                            }`}>
+                              {completedLevels.includes(index) ? (
+                                <Flame size={18} className="text-white" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-white/50"></div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
