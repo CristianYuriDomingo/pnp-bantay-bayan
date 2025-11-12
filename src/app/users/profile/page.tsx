@@ -62,12 +62,7 @@ export default function ProfilePage() {
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm w-full">
-        {/* Achievements Component with proper padding */}
-        <div className="p-6">
-          <AchievementsUI />
-        </div>
-      </div>
+      <AchievementsUI />
     );
     
     setRightColumnContent(rightColumnContent);

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useRightColumn } from '../layout';
 import QuestPath from '../components/QuestPath';
 import QuestCard from '../components/QuestCard';
+import DutyPass from '../components/DutyPass';
 
 export default function QuestPage() {
   const { user, isLoading, isAuthenticated } = useCurrentUser();
@@ -16,7 +17,10 @@ export default function QuestPage() {
   // Set right column content when component mounts
   useEffect(() => {
     const rightColumnContent = (
-      <QuestCard />
+      <div className="space-y-2">
+        <QuestCard />
+        <DutyPass />
+      </div>
     );
     
     setRightColumnContent(rightColumnContent);

@@ -96,7 +96,7 @@ const AchievementsUI = () => {
     <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
           Achievements
         </h2>
         <Link 
@@ -121,7 +121,7 @@ const AchievementsUI = () => {
           return (
             <div key={achievement.id}>
               <div 
-                className="p-4 flex items-start gap-4 relative group"
+                className="p-5 flex items-start gap-4 relative group"
                 onMouseEnter={() => setHoveredAchievementId(achievement.id)}
                 onMouseLeave={() => setHoveredAchievementId(null)}
               >
@@ -142,20 +142,18 @@ const AchievementsUI = () => {
 
                 {/* Achievement Details */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-1">
-                      {achievement.name}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                      {achievement.description}
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1.5">
+                    {achievement.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-2">
+                    {achievement.description}
+                  </p>
+                  
+                  {achievement.xpReward > 0 && (
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">
+                      +{achievement.xpReward} XP
                     </p>
-                    
-                    {achievement.xpReward > 0 && (
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400 font-semibold">
-                        +{achievement.xpReward} XP
-                      </p>
-                    )}
-                  </div>
+                  )}
                 </div>
 
                 {/* Tooltip - Unlock Date */}

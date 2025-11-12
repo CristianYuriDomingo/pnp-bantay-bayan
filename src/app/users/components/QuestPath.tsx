@@ -20,6 +20,7 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
   const [completedLevels, setCompletedLevels] = useState<number[]>(initialCompleted);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
   const [rewardClaimed, setRewardClaimed] = useState(false);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
 
   const levels: Level[] = [
     { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10 },
@@ -83,11 +84,72 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
               <h1 className="text-2xl font-bold text-white">Weekly Quest</h1>
               <p className="text-blue-100 text-sm mt-0.5">Complete all daily challenges</p>
             </div>
-            <div className="bg-white rounded-2xl px-5 py-3 shadow-md">
+            <div 
+              className="bg-white rounded-2xl px-5 py-3 shadow-md cursor-pointer relative"
+              onMouseEnter={() => setShowStreakPopup(true)}
+              onMouseLeave={() => setShowStreakPopup(false)}
+            >
               <div className="flex items-center gap-2">
                 <Flame size={20} className="text-orange-500" />
                 <span className="text-gray-800 text-lg font-bold">{completedLevels.length}</span>
               </div>
+
+              {/* Streak Popup */}
+              {showStreakPopup && (
+                <div className="absolute top-full right-0 mt-3 w-80 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl shadow-xl border border-amber-200 p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Arrow */}
+                  <div className="absolute -top-2 right-6 w-4 h-4 bg-gradient-to-br from-amber-50 to-orange-50 border-l border-t border-amber-200 transform rotate-45"></div>
+                  
+                  {/* Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-2 rounded-xl shadow-md">
+                      <Flame size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-amber-600">{completedLevels.length} day streak</h3>
+                      <p className="text-sm text-gray-600 mt-0.5">
+                        {completedLevels.length === 0 
+                          ? "Do a lesson today to start a new streak!" 
+                          : completedLevels.length === levels.length 
+                          ? "Amazing! You've completed all quests!" 
+                          : "Keep going! Complete today's quest!"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Week Days */}
+                  <div className="bg-white rounded-xl p-4 shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      {['M', 'T', 'W', 'T', 'F'].map((day, index) => (
+                        <div key={index} className="flex flex-col items-center gap-2">
+                          <span className={`text-xs font-semibold ${
+                            completedLevels.includes(index) 
+                              ? 'text-orange-500' 
+                              : index === currentLevel 
+                              ? 'text-orange-400' 
+                              : 'text-gray-400'
+                          }`}>
+                            {day}
+                          </span>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                            completedLevels.includes(index)
+                              ? 'bg-gradient-to-br from-orange-400 to-orange-500 shadow-md'
+                              : index === currentLevel
+                              ? 'bg-gradient-to-br from-orange-200 to-orange-300'
+                              : 'bg-gray-200'
+                          }`}>
+                            {completedLevels.includes(index) ? (
+                              <Flame size={18} className="text-white" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-white/50"></div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
