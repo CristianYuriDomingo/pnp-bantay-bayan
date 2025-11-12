@@ -1,3 +1,4 @@
+// app/users/components/QuestPath.tsx
 import React, { useState } from 'react';
 import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles } from 'lucide-react';
 
@@ -8,35 +9,39 @@ interface Level {
   icon: React.ElementType;
   color: string;
   points: number;
+  route: string;
 }
 
 interface QuestPathProps {
   initialLevel?: number;
   initialCompleted?: number[];
+  onNavigate?: (route: string) => void;
 }
 
-export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: QuestPathProps) {
+export default function QuestPath({ initialLevel = 0, initialCompleted = [], onNavigate }: QuestPathProps) {
   const [currentLevel, setCurrentLevel] = useState(initialLevel);
   const [completedLevels, setCompletedLevels] = useState<number[]>(initialCompleted);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
 
-  const levels: Level[] = [
-    { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10 },
-    { id: 1, title: "Tuesday Quest", type: "daily", icon: Target, color: "from-cyan-400 to-cyan-600", points: 15 },
-    { id: 2, title: "Wednesday Quest", type: "daily", icon: Sparkles, color: "from-purple-400 to-purple-600", points: 20 },
-    { id: 3, title: "Thursday Quest", type: "daily", icon: Flame, color: "from-orange-400 to-red-500", points: 25 },
-    { id: 4, title: "Friday Quest", type: "daily", icon: Shield, color: "from-indigo-400 to-indigo-600", points: 30 },
-  ];
+const levels: Level[] = [
+  { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10, route: "/users/questMonday" },
+  { id: 1, title: "Tuesday Quest", type: "daily", icon: Target, color: "from-cyan-400 to-cyan-600", points: 15, route: "/users/questTuesday" },
+  { id: 2, title: "Wednesday Quest", type: "daily", icon: Sparkles, color: "from-purple-400 to-purple-600", points: 20, route: "/users/questWednesday" },
+  { id: 3, title: "Thursday Quest", type: "daily", icon: Flame, color: "from-orange-400 to-red-500", points: 25, route: "/users/questThursday" },
+  { id: 4, title: "Friday Quest", type: "daily", icon: Shield, color: "from-indigo-400 to-indigo-600", points: 30, route: "/users/questFriday" },
+];
 
   const handleLevelClick = (level: Level) => {
     if (level.id <= currentLevel) {
-      if (!completedLevels.includes(level.id)) {
-        setCompletedLevels([...completedLevels, level.id]);
-        if (level.id === currentLevel && level.id < levels.length - 1) {
-          setCurrentLevel(currentLevel + 1);
-        }
+      // Navigate to the quest page route
+      if (onNavigate) {
+        onNavigate(level.route);
+      } else {
+        // Fallback: you can use window.location or your router here
+        console.log(`Navigate to: ${level.route}`);
+        alert(`This would navigate to ${level.route}. Please implement your router!`);
       }
     }
   };
@@ -236,8 +241,8 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
                             locked
                               ? 'bg-gray-200 cursor-not-allowed'
                               : completed
-                              ? 'bg-gradient-to-br from-blue-400 to-blue-500'
-                              : `bg-gradient-to-br ${level.color}`
+                              ? 'bg-gradient-to-br from-blue-400 to-blue-500 cursor-pointer'
+                              : `bg-gradient-to-br ${level.color} cursor-pointer hover:scale-105`
                           }`}
                           style={{
                             border: '5px solid white',
@@ -292,8 +297,8 @@ export default function QuestPath({ initialLevel = 0, initialCompleted = [] }: Q
                             locked
                               ? 'bg-gray-200 cursor-not-allowed'
                               : completed
-                              ? 'bg-gradient-to-br from-blue-400 to-blue-500'
-                              : `bg-gradient-to-br ${level.color}`
+                              ? 'bg-gradient-to-br from-blue-400 to-blue-500 cursor-pointer'
+                              : `bg-gradient-to-br ${level.color} cursor-pointer hover:scale-105`
                           }`}
                           style={{
                             border: '5px solid white',

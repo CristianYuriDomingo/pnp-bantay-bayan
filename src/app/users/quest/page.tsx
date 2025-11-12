@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -11,6 +12,7 @@ import QuestCard from '../components/QuestCard';
 import DutyPass from '../components/DutyPass';
 
 export default function QuestPage() {
+  const router = useRouter();
   const { user, isLoading, isAuthenticated } = useCurrentUser();
   const { setRightColumnContent } = useRightColumn();
 
@@ -30,6 +32,11 @@ export default function QuestPage() {
       setRightColumnContent(null);
     };
   }, [setRightColumnContent]);
+
+  // Navigation handler
+  const handleNavigate = (route: string) => {
+    router.push(route);
+  };
 
   // Show loading state
   if (isLoading) {
@@ -80,6 +87,7 @@ export default function QuestPage() {
             <QuestPath 
               initialLevel={0} 
               initialCompleted={[]} 
+              onNavigate={handleNavigate}
             />
           </div>
         </div>
