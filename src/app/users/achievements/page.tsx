@@ -131,29 +131,19 @@ export default function AchievementsPage() {
     if (achievement.icon && typeof achievement.icon === 'string') {
       if (achievement.icon.startsWith('http') || achievement.icon.startsWith('/')) {
         return (
-          <div className={`w-20 h-20 rounded-xl border-2 p-3 flex items-center justify-center overflow-hidden ${
-            achievement.isUnlocked
-              ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
-              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-          }`}>
-            <div className="relative w-full h-full">
-              <Image
-                src={achievement.icon}
-                alt={achievement.name}
-                fill
-                className={`object-contain ${!achievement.isUnlocked ? 'opacity-20 grayscale' : ''}`}
-              />
-            </div>
+          <div className="relative w-20 h-20">
+            <Image
+              src={achievement.icon}
+              alt={achievement.name}
+              fill
+              className={`object-contain ${!achievement.isUnlocked ? 'opacity-30 grayscale' : ''}`}
+            />
           </div>
         );
       } else {
         return (
-          <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
-            achievement.isUnlocked
-              ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
-              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-          }`}>
-            <span className={`text-4xl ${!achievement.isUnlocked ? 'opacity-20 grayscale' : ''}`}>
+          <div className="w-20 h-20 flex items-center justify-center">
+            <span className={`text-5xl ${!achievement.isUnlocked ? 'opacity-30 grayscale' : ''}`}>
               {achievement.icon}
             </span>
           </div>
@@ -162,12 +152,8 @@ export default function AchievementsPage() {
     }
     
     return (
-      <div className={`w-20 h-20 rounded-xl border-2 flex items-center justify-center ${
-        achievement.isUnlocked
-          ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'
-          : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-      }`}>
-        <Trophy className={`w-10 h-10 ${achievement.isUnlocked ? 'text-blue-500' : 'text-gray-300 dark:text-gray-600 opacity-30'}`} />
+      <div className="w-20 h-20 flex items-center justify-center">
+        <Trophy className={`w-12 h-12 ${achievement.isUnlocked ? 'text-blue-500' : 'text-gray-300 dark:text-gray-600 opacity-30'}`} />
       </div>
     );
   };
@@ -361,7 +347,7 @@ export default function AchievementsPage() {
                 <div className="flex justify-center mb-4">
                   <div className="relative">
                     {renderIcon(achievement)}
-                    <div className="absolute bottom-0 right-0 w-8 h-8 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-white dark:bg-gray-700">
+                    <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-white dark:bg-gray-700">
                       <Image
                         src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
                         alt={achievement.isUnlocked ? "Unlocked" : "Locked"}

@@ -50,30 +50,19 @@ const AchievementsUI = () => {
     if (achievement.icon && typeof achievement.icon === 'string') {
       if (achievement.icon.startsWith('http') || achievement.icon.startsWith('/')) {
         return (
-          <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 flex items-center justify-center">
+          <div className="relative w-16 h-16">
             <Image
               src={achievement.icon}
               alt={achievement.name}
-              width={48}
-              height={48}
-              className={`object-contain ${!achievement.isUnlocked ? 'grayscale opacity-50' : ''}`}
+              fill
+              className={`object-contain ${!achievement.isUnlocked ? 'grayscale opacity-30' : ''}`}
             />
           </div>
         );
       } else {
         return (
-          <div className={`w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center ${
-            achievement.isUnlocked 
-              ? achievement.category === 'Profile'
-                ? 'bg-gradient-to-br from-green-400 to-emerald-500'
-                : achievement.category === 'Rank Promotions'
-                ? 'bg-gradient-to-br from-yellow-400 to-orange-500'
-                : achievement.category === 'Learning Badges' || achievement.category === 'Quiz Badges'
-                ? 'bg-gradient-to-br from-blue-400 to-cyan-500'
-                : 'bg-gradient-to-br from-purple-400 to-pink-500'
-              : 'bg-gray-300 dark:bg-gray-700'
-          }`}>
-            <span className={`text-3xl ${!achievement.isUnlocked ? 'opacity-50 grayscale' : ''}`}>
+          <div className="w-16 h-16 flex items-center justify-center">
+            <span className={`text-4xl ${!achievement.isUnlocked ? 'opacity-30 grayscale' : ''}`}>
               {achievement.icon}
             </span>
           </div>
@@ -82,12 +71,8 @@ const AchievementsUI = () => {
     }
 
     return (
-      <div className={`w-16 h-16 rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center ${
-        achievement.isUnlocked 
-          ? 'bg-gradient-to-br from-purple-400 to-pink-500' 
-          : 'bg-gray-300 dark:bg-gray-700'
-      }`}>
-        <Trophy className={`w-8 h-8 text-white ${!achievement.isUnlocked ? 'opacity-50' : ''}`} />
+      <div className="w-16 h-16 flex items-center justify-center">
+        <Trophy className={`w-10 h-10 ${achievement.isUnlocked ? 'text-blue-500' : 'text-gray-300 dark:text-gray-600 opacity-30'}`} />
       </div>
     );
   };
@@ -129,7 +114,7 @@ const AchievementsUI = () => {
                 <div className="relative flex-shrink-0">
                   {renderIcon(achievement)}
                   {/* Lock/Unlock Badge - Overlay */}
-                  <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full overflow-hidden border border-white dark:border-gray-800 bg-white dark:bg-gray-700">
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 bg-white dark:bg-gray-700">
                     <Image
                       src={achievement.isUnlocked ? "/achievements/unlocked.png" : "/achievements/locked.png"}
                       alt={achievement.isUnlocked ? "Unlocked" : "Locked"}
