@@ -1,3 +1,4 @@
+// app/users/layout.tsx
 'use client';
 
 import { ReactNode, useState, createContext, useContext, useEffect, useRef } from 'react';
@@ -29,26 +30,22 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   const pathname = usePathname();
   const [isDropdownVisible, setDropdownVisible] = useState(true);
   const [rightColumnContent, setRightColumnContent] = useState<ReactNode | null>(null);
-  const { isReady } = useAchievementNotification(); // NEW: Check if notification system is ready
+  const { isReady } = useAchievementNotification();
   const hasCheckedInitial = useRef(false);
   const lastPathname = useRef(pathname);
 
-  // 🔥 IMPROVED: Check for achievements only when notification system is ready
   useEffect(() => {
     if (!user || !isReady) return;
 
-    // Initial check on mount
     if (!hasCheckedInitial.current) {
       console.log('🚀 Initial achievement check');
       hasCheckedInitial.current = true;
-      // Small delay to ensure everything is mounted
       setTimeout(() => {
         checkAndNotifyNewAchievements();
       }, 300);
     }
   }, [user, isReady]);
 
-  // 🔥 IMPROVED: Check on route changes (but not on initial mount)
   useEffect(() => {
     if (!user || !isReady) return;
     
@@ -59,14 +56,13 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
     }
   }, [pathname, user, isReady]);
 
-  // 🔥 IMPROVED: Faster periodic checks (every 15 seconds instead of 30)
   useEffect(() => {
     if (!user || !isReady) return;
 
     const interval = setInterval(() => {
       console.log('⏰ Periodic achievement check');
       checkAndNotifyNewAchievements();
-    }, 15000); // 15 seconds
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [user, isReady]);
@@ -90,7 +86,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       icon: '/DashboardImage/learn.png',
       alt: 'Dashboard'
     },
-     { 
+    { 
       name: 'Quest', 
       href: '/users/quest', 
       icon: '/DashboardImage/quest.png',
@@ -114,7 +110,6 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       icon: '/DashboardImage/profile.png',
       alt: 'Profile'
     },
-   
   ];
 
   if (isLoading) {
@@ -156,6 +151,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   return (
     <RightColumnContext.Provider value={{ rightColumnContent, setRightColumnContent }}>
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+        {/* Background decorations */}
         <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full opacity-30 transform translate-x-1/3 -translate-y-1/4"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-100 rounded-full opacity-20 transform -translate-x-1/3 translate-y-1/4"></div>
@@ -163,24 +159,17 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
           <div className="absolute top-3/4 right-1/4 w-24 h-24 bg-green-100 rounded-full opacity-20"></div>
         </div>
 
-        <div className="flex h-screen relative z-10">
+        <div className="flex flex-col lg:flex-row h-screen relative z-10">
+          {/* DESKTOP SIDEBAR - Hidden on mobile, visible on large screens */}
           <aside
-            className="fixed top-0 left-0 z-40 h-full bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 transition-all duration-300 ease-in-out
-                       w-16 md:w-72 border-r border-gray-200 dark:border-gray-700"
+            className="hidden lg:block fixed top-0 left-0 z-40 h-full bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 transition-all duration-300 ease-in-out w-64 border-r border-gray-200 dark:border-gray-700"
             aria-label="Sidebar"
           >
-            <div className="h-full px-2 md:px-3 py-4 overflow-y-auto flex flex-col">
+            <div className="h-full px-3 py-4 overflow-y-auto flex flex-col">
               <div className="flex justify-center items-center mb-4">
                 <Image
-                  src="/MainImage/Pibi.png"
-                  className="h-10 w-auto md:hidden"
-                  alt="Bantay Bayan Logo"
-                  width={40}
-                  height={40}
-                />
-                <Image
                   src="/DashboardImage/logo.png"
-                  className="hidden md:block h-20 w-auto"
+                  className="h-20 w-auto"
                   alt="Bantay Bayan Logo"
                   width={180}
                   height={130}
@@ -188,19 +177,18 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
               </div>
 
               <nav className="flex-1">
-                <ul className="space-y-2 md:space-y-4 font-medium">
+                <ul className="space-y-4 font-medium">
                   {navigation.map((item) => {
                     const isActive = pathname === item.href;
                     return (
                       <li key={item.name}>
                         <Link
                           href={item.href}
-                          className={`flex items-center p-3 md:p-4 rounded-lg transition-all duration-200 group relative
+                          className={`flex items-center p-4 rounded-lg transition-all duration-200 group
                             ${isActive
                               ? 'text-gray-900 dark:text-white bg-blue-100 dark:bg-gray-700 border border-blue-300 dark:border-gray-600'
                               : 'text-gray-900 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-700'
                             }`}
-                          title={item.name}
                         >
                           <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
                             <Image
@@ -211,13 +199,9 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                               height={24}
                             />
                           </div>
-                          <span className="hidden md:block ml-3 text-lg uppercase">
+                          <span className="ml-3 text-lg uppercase">
                             {item.name}
                           </span>
-                          
-                          <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
-                            {item.name}
-                          </div>
                         </Link>
                       </li>
                     );
@@ -226,7 +210,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   <hr className="border-t-2 border-gray-200 dark:border-gray-700 my-4" />
                   
                   {isDropdownVisible && (
-                    <li className="hidden md:block mb-4">
+                    <li className="mb-4">
                       <div
                         className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-800"
                         role="alert"
@@ -274,8 +258,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   <li>
                     <button
                       onClick={handleSignOut}
-                      className="w-full flex items-center p-3 md:p-4 rounded-lg text-gray-900 dark:text-white hover:bg-red-100 dark:hover:bg-red-700 transition-all duration-200 group relative"
-                      title="Sign Out"
+                      className="w-full flex items-center p-4 rounded-lg text-gray-900 dark:text-white hover:bg-red-100 dark:hover:bg-red-700 transition-all duration-200 group"
                     >
                       <div className="flex items-center justify-center w-6 h-6 flex-shrink-0">
                         <Image
@@ -286,12 +269,89 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                           height={24}
                         />
                       </div>
-                      <span className="hidden md:block ml-3 text-lg uppercase">
+                      <span className="ml-3 text-lg uppercase">
                         Sign Out
                       </span>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          </aside>
+
+          {/* TABLET SIDEBAR - Icon only with tooltips, visible on medium screens */}
+          <aside
+            className="hidden md:block lg:hidden fixed top-0 left-0 z-40 h-full bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 transition-all duration-300 ease-in-out w-20 border-r border-gray-200 dark:border-gray-700"
+            aria-label="Sidebar"
+          >
+            <div className="h-full px-2 py-4 overflow-y-auto flex flex-col">
+              <div className="flex justify-center items-center mb-6">
+                <Image
+                  src="/MainImage/Pibi.png"
+                  className="h-10 w-auto"
+                  alt="Bantay Bayan Logo"
+                  width={40}
+                  height={40}
+                />
+              </div>
+
+              <nav className="flex-1">
+                <ul className="space-y-3 font-medium">
+                  {navigation.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                      <li key={item.name}>
+                        <Link
+                          href={item.href}
+                          className={`flex items-center justify-center p-3 rounded-lg transition-all duration-200 group relative
+                            ${isActive
+                              ? 'text-gray-900 dark:text-white bg-blue-100 dark:bg-gray-700 border border-blue-300 dark:border-gray-600'
+                              : 'text-gray-900 dark:text-white hover:bg-blue-100 dark:hover:bg-gray-700'
+                            }`}
+                          title={item.name}
+                        >
+                          <div className="flex items-center justify-center w-7 h-7">
+                            <Image
+                              src={item.icon}
+                              className="w-7 h-7"
+                              alt={item.alt}
+                              width={28}
+                              height={28}
+                            />
+                          </div>
+                          
+                          {/* Tooltip */}
+                          <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 pointer-events-none">
+                            {item.name}
+                            <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                          </div>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                  
+                  <hr className="border-t-2 border-gray-200 dark:border-gray-700 my-3" />
+                  
+                  <li>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center justify-center p-3 rounded-lg text-gray-900 dark:text-white hover:bg-red-100 dark:hover:bg-red-700 transition-all duration-200 group relative"
+                      title="Sign Out"
+                    >
+                      <div className="flex items-center justify-center w-7 h-7">
+                        <Image
+                          src="/DashboardImage/sign-out.png"
+                          className="w-7 h-7"
+                          alt="Logout"
+                          width={28}
+                          height={28}
+                        />
+                      </div>
                       
-                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 md:hidden">
+                      {/* Tooltip */}
+                      <div className="absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50 pointer-events-none">
                         Sign Out
+                        <div className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
                       </div>
                     </button>
                   </li>
@@ -300,7 +360,8 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
             </div>
           </aside>
 
-          <div className="flex-1 ml-16 md:ml-72 transition-all duration-300 ease-in-out">
+          {/* MAIN CONTENT AREA */}
+          <div className="flex-1 md:ml-20 lg:ml-64 transition-all duration-300 ease-in-out pb-20 md:pb-0">
             <div className="p-4">
               {shouldHideRightColumn ? (
                 <div className="w-full">
@@ -309,20 +370,55 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col lg:flex-row w-full gap-4">
-                  <div className="w-full lg:w-[70%]">
+                <div className="flex flex-col xl:flex-row w-full gap-4">
+                  <div className="w-full xl:w-[70%]">
                     <div className="h-full overflow-hidden">
                       {children}
                     </div>
                   </div>
                   
-                  <div className="w-full lg:w-[30%] lg:sticky lg:top-4 h-fit flex flex-col gap-4">
+                  <div className="w-full xl:w-[30%] xl:sticky xl:top-4 h-fit flex flex-col gap-4">
                     {rightColumnContent}
                   </div>
                 </div>
               )}
             </div>
           </div>
+
+          {/* MOBILE BOTTOM NAVIGATION - Visible only on mobile */}
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 dark:bg-gray-800/95">
+            <ul className="flex justify-around items-center h-16 px-2">
+              {navigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <li key={item.name} className="flex-1">
+                    <Link
+                      href={item.href}
+                      className={`flex flex-col items-center justify-center h-full transition-all duration-200 rounded-lg mx-1
+                        ${isActive
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                    >
+                      <div className={`flex items-center justify-center w-7 h-7 mb-1 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
+                        <Image
+                          src={item.icon}
+                          className="w-7 h-7"
+                          alt={item.alt}
+                          width={28}
+                          height={28}
+                          style={{ filter: isActive ? 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(192deg) brightness(97%) contrast(89%)' : 'none' }}
+                        />
+                      </div>
+                      <span className={`text-xs font-medium ${isActive ? 'font-bold' : ''}`}>
+                        {item.name}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         </div>
       </div>
     </RightColumnContext.Provider>

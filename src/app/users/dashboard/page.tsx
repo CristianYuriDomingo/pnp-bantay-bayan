@@ -1,4 +1,4 @@
-// app/users/dashboard/page.tsx - Updated with Profile-style sticky right column
+// app/users/dashboard/page.tsx 
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -138,9 +138,12 @@ export default function DashboardPage() {
   // Main dashboard content
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-20 py-6">
+      {/* Responsive padding: consistent symmetrical margins on all screen sizes */}
+      <div className="px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-3 sm:py-4 md:py-6 max-w-[1600px] mx-auto">
         {/* Search Bar Section */}
-        <SearchBar />
+        <div className="mb-4 sm:mb-6">
+          <SearchBar />
+        </div>
 
         {/* Modules Grid */}
         {loading ? (
@@ -167,7 +170,7 @@ export default function DashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6 lg:gap-6 justify-items-center">
             {modules.map((module) => {
               console.log('Module data:', module);
               return (

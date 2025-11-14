@@ -426,7 +426,7 @@ export default function LeaderboardPage() {
   if (error) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
+        <div className="px-2 sm:px-4 md:px-8 lg:px-20 py-6">
           <div className="flex items-center justify-center py-12">
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center max-w-md">
               <p className="text-red-600 dark:text-red-400 font-semibold text-lg mb-2">Oops!</p>
@@ -446,7 +446,12 @@ export default function LeaderboardPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-20 py-6">
+      {/* Responsive padding: 
+          - sm: 8px (0.5rem) 
+          - md: 16px (1rem)
+          - lg: 32px (2rem)
+          - xl+: 80px (5rem/20) */}
+      <div className="px-2 sm:px-4 md:px-8 lg:px-20 py-6">
         {/* Top 3 Podium */}
         <PodiumDisplay topThree={topThree} currentUserId={user?.id} />
 

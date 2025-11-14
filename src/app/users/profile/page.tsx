@@ -77,8 +77,9 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
-          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
+        {/* Ultra responsive padding: minimal on small screens */}
+        <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
                 src="/ProfileImage/ProfileHeader.png"
@@ -88,7 +89,7 @@ export default function ProfilePage() {
                 className="w-full max-w-[400px] h-auto"
               />
             </div>
-            <div className="flex justify-center items-center py-10">
+            <div className="flex justify-center items-center py-8 sm:py-10">
               <div className="flex items-center gap-3">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
                 <div className="text-lg text-gray-600">Loading your profile...</div>
@@ -104,8 +105,9 @@ export default function ProfilePage() {
   if (!isAuthenticated || !user) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
-          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
+        {/* Ultra responsive padding: minimal on small screens */}
+        <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+          <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
                 src="/ProfileImage/ProfileHeader.png"
@@ -115,9 +117,9 @@ export default function ProfilePage() {
                 className="w-full max-w-[400px] h-auto"
               />
             </div>
-            <div className="flex flex-col items-center py-10">
-              <h1 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h1>
-              <p className="text-gray-600 mb-6 text-center">Please sign in to view your profile.</p>
+            <div className="flex flex-col items-center py-8 sm:py-10">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 text-center">Authentication Required</h1>
+              <p className="text-gray-600 mb-6 text-center text-sm sm:text-base">Please sign in to view your profile.</p>
               <Link 
                 href="/auth/signin"
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -133,8 +135,9 @@ export default function ProfilePage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-20 py-6">
-        <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
+      {/* Ultra responsive padding: minimal on small screens */}
+      <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+        <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-4">
           {/* Profile Settings Section - Main Content */}
           <div className="space-y-6">
             <ProfileSettings />
