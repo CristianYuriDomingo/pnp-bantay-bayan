@@ -39,7 +39,6 @@ export default function QuestMonday() {
   };
 
   const handleContinue = () => {
-    // Navigate to the next quest or back to quest page
     router.push('/users/quest');
   };
 
@@ -82,43 +81,44 @@ export default function QuestMonday() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Top Bar - Aligned with Quest Tuesday */}
+      {/* Top Bar */}
       <div className="bg-white border-b-2 border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.push('/users/quest')}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >
-              <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
+              <X size={24} className="text-gray-600 sm:w-7 sm:h-7 md:w-8 md:h-8" />
             </button>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">
               Code the Call
             </h1>
-            <div className="w-10 sm:w-14"></div> {/* Spacer for centering */}
+            <div className="w-9 sm:w-10 md:w-14"></div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-10">
         {/* Subtitle */}
-        <div className="text-center mb-8 md:mb-12">
-          <p className="text-base md:text-xl text-gray-500">
+        <div className="text-center mb-6 sm:mb-8 md:mb-12">
+          <p className="text-sm sm:text-base md:text-xl text-gray-500 px-2">
             Arrange the digits to form a valid PNP mobile number
           </p>
         </div>
 
         {/* Answer Slots */}
-        <div className="mb-8 md:mb-12">
-          <h2 className="text-lg md:text-xl font-bold text-gray-700 mb-4 md:mb-6">Build Your Number</h2>
-          <div className="flex justify-center gap-1.5 md:gap-3 mb-6 md:mb-8 flex-wrap">
+        <div className="mb-6 sm:mb-8 md:mb-12">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 md:mb-6 px-1">Build Your Number</h2>
+          <div className="flex justify-center gap-1 sm:gap-1.5 md:gap-3 mb-4 sm:mb-6 md:mb-8 flex-wrap px-1">
             {userAnswer.map((digit, index) => (
               <div
                 key={index}
                 onClick={() => digit === null && handleSlotClick(index)}
                 className={`
-                  relative w-10 h-12 md:w-16 md:h-20 rounded-lg md:rounded-xl flex items-center justify-center text-xl md:text-3xl font-bold
+                  relative w-8 h-11 sm:w-10 sm:h-12 md:w-16 md:h-20 rounded-md sm:rounded-lg md:rounded-xl 
+                  flex items-center justify-center text-lg sm:text-xl md:text-3xl font-bold
                   transition-all
                   ${digit === null 
                     ? 'bg-gray-100 border-2 border-b-4 border-gray-300 cursor-pointer hover:border-gray-400' 
@@ -138,7 +138,7 @@ export default function QuestMonday() {
                       e.stopPropagation();
                       handleSlotRemove(index);
                     }}
-                    className="absolute -top-1.5 -right-1.5 md:-top-2 md:-right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center text-xs md:text-sm font-bold shadow-md"
+                    className="absolute -top-1 -right-1 sm:-top-1.5 sm:-right-1.5 md:-top-2 md:-right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 flex items-center justify-center text-xs sm:text-sm font-bold shadow-md"
                   >
                     ×
                   </button>
@@ -149,9 +149,9 @@ export default function QuestMonday() {
         </div>
 
         {/* Shuffled Digits */}
-        <div className="mb-8 md:mb-12">
-          <h2 className="text-lg md:text-xl font-bold text-gray-700 mb-4 md:mb-6">Shuffled Digits</h2>
-          <div className="flex justify-center gap-2 md:gap-3 flex-wrap">
+        <div className="mb-6 sm:mb-8 md:mb-12">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 md:mb-6 px-1">Shuffled Digits</h2>
+          <div className="flex justify-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap px-1">
             {shuffledDigits.map((digit, index) => {
               const used = isDigitUsed(digit, index);
               return (
@@ -160,7 +160,8 @@ export default function QuestMonday() {
                   onClick={() => !used && handleDigitClick(digit, index)}
                   disabled={used}
                   className={`
-                    w-12 h-14 md:w-16 md:h-20 rounded-lg md:rounded-xl text-2xl md:text-3xl font-bold
+                    w-10 h-12 sm:w-12 sm:h-14 md:w-16 md:h-20 rounded-md sm:rounded-lg md:rounded-xl 
+                    text-xl sm:text-2xl md:text-3xl font-bold
                     transition-all border-2 border-b-4
                     ${used 
                       ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed' 
@@ -179,10 +180,10 @@ export default function QuestMonday() {
 
         {/* Feedback Message */}
         {showFeedback && isCorrect && (
-          <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-xl md:rounded-2xl bg-green-50 border-2 border-green-200">
-            <div className="flex items-center justify-center gap-2 md:gap-3 text-green-700 font-bold text-base md:text-xl">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-green-400 flex items-center justify-center">
-                <Check size={20} className="md:w-6 md:h-6 text-white" />
+          <div className="mb-4 sm:mb-6 md:mb-8 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl md:rounded-2xl bg-green-50 border-2 border-green-200">
+            <div className="flex items-center justify-center gap-2 md:gap-3 text-green-700 font-bold text-sm sm:text-base md:text-xl">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
+                <Check size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
               </div>
               <span>Excellent! You got it right!</span>
             </div>
@@ -190,10 +191,10 @@ export default function QuestMonday() {
         )}
         
         {showFeedback && !isCorrect && (
-          <div className="mb-6 md:mb-8 p-4 md:p-6 rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200">
-            <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-base md:text-xl">
-              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center">
-                <X size={20} className="md:w-6 md:h-6 text-white" />
+          <div className="mb-4 sm:mb-6 md:mb-8 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200">
+            <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-sm sm:text-base md:text-xl">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0">
+                <X size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
               </div>
               <span>Not quite. Try again!</span>
             </div>
@@ -201,12 +202,12 @@ export default function QuestMonday() {
         )}
 
         {/* Action Buttons */}
-        <div className="flex gap-3 md:gap-4 mb-8 md:mb-12">
+        <div className="flex gap-2 sm:gap-3 md:gap-4 mb-6 sm:mb-8 md:mb-12 px-1">
           {!isCorrect && (
             <>
               <button
                 onClick={handleReset}
-                className="flex-1 px-4 py-3 md:px-8 md:py-5 bg-white hover:bg-gray-50 border-2 border-b-4 border-gray-300 text-gray-700 rounded-xl font-bold text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
+                className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-white hover:bg-gray-50 border-2 border-b-4 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
               >
                 Reset
               </button>
@@ -214,7 +215,7 @@ export default function QuestMonday() {
               <button
                 onClick={handleCheckAnswer}
                 disabled={!isComplete}
-                className={`flex-1 px-4 py-3 md:px-8 md:py-5 rounded-xl font-bold text-base md:text-lg transition-all border-2 border-b-4
+                className={`flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all border-2 border-b-4
                   ${isComplete 
                     ? 'bg-green-400 hover:bg-green-500 border-green-600 text-white cursor-pointer hover:-translate-y-0.5 active:translate-y-0' 
                     : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed'
@@ -228,7 +229,7 @@ export default function QuestMonday() {
           {isCorrect && (
             <button
               onClick={handleContinue}
-              className="w-full px-4 py-3 md:px-8 md:py-5 bg-green-400 hover:bg-green-500 border-2 border-b-4 border-green-600 text-white rounded-xl font-bold text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-green-400 hover:bg-green-500 border-2 border-b-4 border-green-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
             >
               CONTINUE
             </button>
@@ -236,21 +237,21 @@ export default function QuestMonday() {
         </div>
 
         {/* Instructions Section with Mascot */}
-        <div className="bg-blue-50 rounded-xl md:rounded-2xl border-2 border-blue-200 p-4 md:p-6">
-          <div className="flex flex-col sm:flex-row gap-4 md:gap-6 items-center sm:items-start">
-            {/* Mascot Image */}
-            <div className="flex-shrink-0">
+        <div className="bg-blue-50 rounded-lg sm:rounded-xl md:rounded-2xl border-2 border-blue-200 p-3 sm:p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6 items-center sm:items-start">
+            {/* Mascot Image - Hidden on very small screens, visible from sm up */}
+            <div className="flex-shrink-0 hidden xs:block">
               <img 
                 src="/Quest/think.png" 
                 alt="Bantay Mascot" 
-                className="w-20 h-20 md:w-32 md:h-32 object-contain"
+                className="w-16 h-16 sm:w-20 sm:h-20 md:w-32 md:h-32 object-contain"
               />
             </div>
 
             {/* Instructions Text */}
-            <div className="flex-1">
-              <h3 className="font-bold text-gray-800 mb-2 md:mb-3 text-base md:text-lg text-center sm:text-left">How to Play:</h3>
-              <ul className="text-gray-700 space-y-1.5 md:space-y-2 text-sm md:text-base">
+            <div className="flex-1 w-full">
+              <h3 className="font-bold text-gray-800 mb-2 sm:mb-2 md:mb-3 text-sm sm:text-base md:text-lg text-center sm:text-left">How to Play:</h3>
+              <ul className="text-gray-700 space-y-1 sm:space-y-1.5 md:space-y-2 text-xs sm:text-sm md:text-base">
                 <li>• <strong>Click a digit</strong> from the "Shuffled Digits" section</li>
                 <li>• <strong>Click an empty slot</strong> in "Build Your Number" to place it</li>
                 <li>• <strong>Remove digits</strong> by clicking the × button on a slot</li>
@@ -262,14 +263,14 @@ export default function QuestMonday() {
 
         {/* Progress Indicator */}
         {attempts > 0 && (
-          <div className="text-center text-sm md:text-base text-gray-500 mt-6">
+          <div className="text-center text-xs sm:text-sm md:text-base text-gray-500 mt-4 sm:mt-6">
             {attempts} attempt{attempts !== 1 ? 's' : ''}
           </div>
         )}
       </div>
 
       {/* Bottom Safe Area */}
-      <div className="h-20" />
+      <div className="h-16 sm:h-20" />
     </div>
   );
 }

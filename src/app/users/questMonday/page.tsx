@@ -105,7 +105,7 @@ export default function GuessTheRank() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Top Bar - Matching Tuesday/Wednesday/Thursday style */}
+      {/* Top Bar */}
       <div className="bg-white border-b-2 border-gray-200 sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <div className="flex items-center justify-between">
@@ -115,21 +115,21 @@ export default function GuessTheRank() {
             >
               <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
             </button>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-800">
               Guess The Rank
             </h1>
-            <div className="w-10 sm:w-14"></div> {/* Spacer for centering */}
+            <div className="w-10 sm:w-14"></div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] sm:min-h-[calc(100vh-160px)]">
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-6 py-6 sm:py-10 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] sm:min-h-[calc(100vh-160px)]">
         <div className="w-full">
           {/* Game Area */}
-          <div className="flex flex-col items-center mb-12 relative">
+          <div className="flex flex-col items-center mb-8 sm:mb-12 relative">
             {/* Top Insignia Options Row */}
-            <div className="flex justify-center gap-12 md:gap-20 mb-12 relative z-10">
+            <div className="flex justify-center gap-4 sm:gap-8 md:gap-20 mb-8 sm:mb-10 md:mb-12 relative z-10 px-2">
               {rankOptions.map((option, index) => (
                 <div key={option.id} className="flex flex-col items-center relative">
                   <div
@@ -138,8 +138,9 @@ export default function GuessTheRank() {
                     onDrop={(e) => handleDrop(e, option.id)}
                     onClick={() => !showFeedback && handleAnswer(option.id)}
                     className={`
-                      relative w-32 h-32 md:w-40 md:h-40 bg-white rounded-2xl border-4 
-                      flex items-center justify-center p-4
+                      relative w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40
+                      bg-white rounded-xl sm:rounded-2xl border-3 sm:border-4 
+                      flex items-center justify-center p-2 sm:p-3 md:p-4
                       transition-all cursor-pointer shadow-md
                       ${draggedOver === option.id && !showFeedback
                         ? 'scale-110 shadow-2xl border-blue-400'
@@ -152,7 +153,6 @@ export default function GuessTheRank() {
                       ${showFeedback ? 'cursor-default' : ''}
                     `}
                   >
-                    {/* Insignia images */}
                     <img 
                       src={option.image}
                       alt={option.label}
@@ -162,23 +162,19 @@ export default function GuessTheRank() {
                     
                     {/* Check Icon for correct answer */}
                     {selectedOption === option.id && showFeedback && isCorrect && (
-                      <div className="absolute -right-3 -top-3 w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
-                        <Check size={28} className="text-white" strokeWidth={3} />
+                      <div className="absolute -right-2 -top-2 sm:-right-3 sm:-top-3 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+                        <Check size={20} className="sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" strokeWidth={3} />
                       </div>
                     )}
                   </div>
                   
-                  {/* Diagonal dotted line */}
+                  {/* Diagonal dotted line - Desktop/Tablet */}
                   <svg 
-                    className="absolute top-full left-1/2 pointer-events-none"
+                    className="absolute top-full left-1/2 pointer-events-none hidden sm:block"
                     style={{
                       width: index === 0 ? '180px' : index === 1 ? '120px' : '180px',
                       height: '180px',
-                      transform: index === 0 
-                        ? 'translateX(-50%) translateY(-10px)' 
-                        : index === 2 
-                        ? 'translateX(-50%) translateY(-10px)' 
-                        : 'translateX(-50%) translateY(-10px)'
+                      transform: 'translateX(-50%) translateY(-10px)'
                     }}
                   >
                     <line
@@ -192,14 +188,35 @@ export default function GuessTheRank() {
                       strokeLinecap="round"
                     />
                   </svg>
+
+                  {/* Mobile diagonal lines - smaller */}
+                  <svg 
+                    className="absolute top-full left-1/2 pointer-events-none block sm:hidden"
+                    style={{
+                      width: index === 0 ? '80px' : index === 1 ? '50px' : '80px',
+                      height: '100px',
+                      transform: 'translateX(-50%) translateY(-5px)'
+                    }}
+                  >
+                    <line
+                      x1={index === 0 ? "50%" : index === 1 ? "50%" : "50%"}
+                      y1="0"
+                      x2={index === 0 ? "100%" : index === 1 ? "50%" : "0%"}
+                      y2="85"
+                      stroke="#94a3b8"
+                      strokeWidth="2"
+                      strokeDasharray="5,5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
                 </div>
               ))}
             </div>
 
-            {/* Pibi Character */}
+            {/* Pibi Character - Responsive sizing */}
             <div 
-              className={`mb-8 relative z-20 ${
-                showFeedback ? 'opacity-50 cursor-not-allowed' : 'cursor-move hover:scale-105 transition-transform'
+              className={`mb-6 sm:mb-8 relative z-20 ${
+                showFeedback ? 'opacity-50 cursor-not-allowed' : 'cursor-move hover:scale-105 transition-transform active:scale-95'
               }`}
               draggable={!showFeedback}
               onDragStart={handleDragStart}
@@ -207,22 +224,23 @@ export default function GuessTheRank() {
               <img 
                 src="/Quest/questWednesday/pibiBack.png"
                 alt="Pibi Character"
-                className="w-40 h-40 md:w-52 md:h-52 object-contain select-none"
+                className="w-28 h-28 sm:w-36 sm:h-36 md:w-52 md:h-52 object-contain select-none"
                 draggable={false}
               />
             </div>
 
-            <p className="text-xl md:text-2xl text-gray-900 font-medium text-center">
+            {/* Instruction text - Responsive sizing */}
+            <p className="text-base sm:text-lg md:text-2xl text-gray-900 font-medium text-center px-4">
               Drag Pibi to the Police Corporal Rank
             </p>
           </div>
 
           {/* Feedback Message */}
           {showFeedback && !isCorrect && (
-            <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200">
-              <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-base md:text-xl">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center">
-                  <X size={20} className="md:w-6 md:h-6 text-white" />
+            <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200 max-w-2xl mx-auto">
+              <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-sm sm:text-base md:text-xl">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0">
+                  <X size={18} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
                 </div>
                 <span>Not quite right. Try again!</span>
               </div>
@@ -231,33 +249,35 @@ export default function GuessTheRank() {
 
           {/* Action Button */}
           {showFeedback && !isCorrect && (
-            <button
-              onClick={handleReset}
-              className="w-full px-8 py-5 bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
-            >
-              TRY AGAIN
-            </button>
+            <div className="max-w-md mx-auto px-4">
+              <button
+                onClick={handleReset}
+                className="w-full px-6 sm:px-8 py-4 sm:py-5 bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-bold text-base sm:text-lg shadow-lg transition-transform active:scale-95"
+              >
+                TRY AGAIN
+              </button>
+            </div>
           )}
         </div>
       </div>
 
       {/* Instructions */}
       <div className="max-w-4xl mx-auto px-4 pb-8">
-        <div className="bg-blue-50 rounded-2xl border-2 border-blue-200 p-6">
-          <div className="flex gap-6 items-start">
-            <div className="flex-shrink-0">
+        <div className="bg-blue-50 rounded-2xl border-2 border-blue-200 p-4 sm:p-6">
+          <div className="flex gap-4 sm:gap-6 items-start">
+            <div className="flex-shrink-0 hidden sm:block">
               <img 
                 src="/Quest/think.png" 
                 alt="Bantay Mascot" 
-                className="w-24 h-24 object-contain"
+                className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-gray-800 mb-3 text-lg">How to Play:</h3>
-              <ul className="text-gray-700 space-y-2">
+              <h3 className="font-bold text-gray-800 mb-2 sm:mb-3 text-base sm:text-lg">How to Play:</h3>
+              <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
                 <li>• <strong>Drag & Drop:</strong> Drag Pibi to one of the rank insignia</li>
                 <li>• <strong>Click:</strong> Or simply click on a rank insignia to select it</li>
                 <li>• <strong>Goal:</strong> Match Pibi with the correct Police Corporal rank</li>
@@ -268,7 +288,7 @@ export default function GuessTheRank() {
       </div>
 
       {/* Bottom Safe Area */}
-      <div className="h-20" />
+      <div className="h-16 sm:h-20" />
     </div>
   );
 }

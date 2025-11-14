@@ -102,15 +102,15 @@ export default function QuestTrueFalse() {
       <div className="min-h-screen bg-gradient-to-b from-red-400 to-red-500 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
-            <div className="w-32 h-32 mx-auto mb-6">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
               <img 
                 src="/Quest/questTuesday/jail.png" 
                 alt="Jail" 
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-4xl font-black text-gray-800 mb-2">Pibi goes to jail.</h1>
-            <p className="text-xl text-gray-600 mb-8">
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Pibi goes to jail.</h1>
+            <p className="text-lg sm:text-xl text-gray-600 mb-8">
               All bullets are gone!
             </p>
             <button
@@ -130,15 +130,15 @@ export default function QuestTrueFalse() {
       <div className="min-h-screen bg-gradient-to-b from-yellow-300 to-yellow-400 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
-            <div className="w-32 h-32 mx-auto mb-6">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
               <img 
                 src="/Quest/questTuesday/free.png" 
                 alt="Free" 
                 className="w-full h-full object-contain"
               />
             </div>
-            <h1 className="text-4xl font-black text-gray-800 mb-2">Pibi stays free</h1>
-            <p className="text-2xl text-gray-600 mb-8">You passed the safety test!</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Pibi stays free</h1>
+            <p className="text-xl sm:text-2xl text-gray-600 mb-8">You passed the safety test!</p>
             <div className="space-y-3">
               <button
                 onClick={() => window.history.back()}
@@ -163,29 +163,29 @@ export default function QuestTrueFalse() {
     <div className="min-h-screen bg-white">
       {/* Top Bar */}
       <div className="bg-white border-b-2 border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
             <button
               onClick={() => window.history.back()}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >
-              <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
+              <X size={24} className="text-gray-600 sm:w-7 sm:h-7 md:w-8 md:h-8" />
             </button>
-            <div className="flex-1 mx-4 sm:mx-6">
-              <div className="h-5 sm:h-6 bg-gray-200 rounded-full overflow-hidden">
+            <div className="flex-1 min-w-0">
+              <div className="h-4 sm:h-5 md:h-6 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
               {[...Array(3)].map((_, i) => (
                 <img
                   key={i}
                   src="/Quest/questTuesday/bullet.png"
                   alt="Life"
-                  className={`w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 object-contain ${i < lives ? "opacity-100" : "opacity-30 grayscale"}`}
+                  className={`w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 object-contain ${i < lives ? "opacity-100" : "opacity-30 grayscale"}`}
                 />
               ))}
             </div>
@@ -194,19 +194,19 @@ export default function QuestTrueFalse() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 flex flex-col items-center justify-center min-h-[calc(100vh-300px)] sm:min-h-[calc(100vh-340px)]">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 flex flex-col items-center justify-center min-h-[calc(100vh-220px)] sm:min-h-[calc(100vh-300px)] md:min-h-[calc(100vh-340px)]">
         {!showFeedback ? (
           <div className="w-full flex flex-col items-center justify-center">
             {/* Question */}
-            <div className="mb-12 sm:mb-16 md:mb-24 w-full">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 text-center px-4 leading-tight">
+            <div className="mb-8 sm:mb-12 md:mb-16 lg:mb-24 w-full">
+              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 text-center px-3 sm:px-4 leading-tight">
                 {questions[currentQuestion].question}
               </h2>
             </div>
 
-            {/* Answer Buttons */}
-            <div className="flex items-center justify-center gap-4 sm:gap-6 md:gap-8 lg:gap-12 w-full max-w-xl lg:max-w-2xl px-4">
-              <div className="flex-1 max-w-[180px] sm:max-w-[220px] md:max-w-[260px]">
+            {/* Answer Buttons - Always in same line */}
+            <div className="flex items-center justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-12 w-full px-3 sm:px-4">
+              <div className="flex-1 max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[260px]">
                 <img 
                   src="/Quest/questTuesday/true.png" 
                   alt="True" 
@@ -215,7 +215,7 @@ export default function QuestTrueFalse() {
                 />
               </div>
 
-              <div className="flex-1 max-w-[180px] sm:max-w-[220px] md:max-w-[260px]">
+              <div className="flex-1 max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[260px]">
                 <img 
                   src="/Quest/questTuesday/false.png"
                   alt="False"
@@ -226,16 +226,16 @@ export default function QuestTrueFalse() {
             </div>
           </div>
         ) : (
-          <div className="w-full max-w-2xl px-4">
+          <div className="w-full max-w-2xl px-3 sm:px-4">
             {/* Feedback Screen */}
-            <div className="text-center mb-8 sm:mb-12">
-              <div className={`w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-4 sm:mb-6 rounded-full flex items-center justify-center ${
+            <div className="text-center mb-6 sm:mb-8 md:mb-12">
+              <div className={`w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 mx-auto mb-4 sm:mb-6 rounded-full flex items-center justify-center ${
                 isCorrect ? 'bg-green-100' : 'bg-red-100'
               }`}>
                 {isCorrect ? (
-                  <Check size={56} className="text-green-500 sm:w-16 sm:h-16" />
+                  <Check size={40} className="sm:w-12 sm:h-12 md:w-16 md:h-16 text-green-500" />
                 ) : (
-                  <X size={56} className="text-red-500 sm:w-16 sm:h-16" />
+                  <X size={40} className="sm:w-12 sm:h-12 md:w-16 md:h-16 text-red-500" />
                 )}
               </div>
               
@@ -245,10 +245,10 @@ export default function QuestTrueFalse() {
                 {isCorrect ? 'Awesome!' : 'Not quite!'}
               </h2>
 
-              <div className={`max-w-xl mx-auto p-4 sm:p-6 rounded-2xl ${
+              <div className={`max-w-xl mx-auto p-4 sm:p-5 md:p-6 rounded-2xl ${
                 isCorrect ? 'bg-green-50' : 'bg-red-50'
               }`}>
-                <p className={`text-base sm:text-lg font-medium ${
+                <p className={`text-sm sm:text-base md:text-lg font-medium ${
                   isCorrect ? 'text-green-800' : 'text-red-800'
                 }`}>
                   {questions[currentQuestion].explanation}
@@ -260,7 +260,7 @@ export default function QuestTrueFalse() {
             <div className="w-full">
               <button
                 onClick={handleNext}
-                className={`w-full py-4 sm:py-5 rounded-2xl font-bold text-lg sm:text-xl text-white shadow-lg transition-transform active:scale-95 ${
+                className={`w-full py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg md:text-xl text-white shadow-lg transition-transform active:scale-95 ${
                   isCorrect 
                     ? 'bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600' 
                     : 'bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
@@ -274,22 +274,22 @@ export default function QuestTrueFalse() {
       </div>
 
       {/* Instructions */}
-      <div className="max-w-4xl mx-auto px-4 pb-8">
-        <div className="bg-blue-50 rounded-2xl border-2 border-blue-200 p-6">
-          <div className="flex gap-6 items-start">
-            <div className="flex-shrink-0">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 pb-6 sm:pb-8">
+        <div className="bg-blue-50 rounded-2xl border-2 border-blue-200 p-4 sm:p-6">
+          <div className="flex gap-3 sm:gap-4 md:gap-6 items-start">
+            <div className="flex-shrink-0 hidden sm:block">
               <img 
                 src="/Quest/think.png" 
                 alt="Bantay Mascot" 
-                className="w-24 h-24 object-contain"
+                className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
               />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-gray-800 mb-3 text-lg">How to Play: Free or Jail</h3>
-              <ul className="text-gray-700 space-y-2">
+              <h3 className="font-bold text-gray-800 mb-2 sm:mb-3 text-base sm:text-lg">How to Play: Free or Jail</h3>
+              <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
                 <li>• <strong>Answer Questions:</strong> Click TRUE or FALSE for each safety question</li>
                 <li>• <strong>Three Lives:</strong> You have 3 bullets - lose one for each wrong answer</li>
                 <li>• <strong>Goal:</strong> Answer all questions before running out of bullets</li>
@@ -301,7 +301,7 @@ export default function QuestTrueFalse() {
       </div>
 
       {/* Bottom Safe Area */}
-      <div className="h-20" />
+      <div className="h-16 sm:h-20" />
     </div>
   );
 }
