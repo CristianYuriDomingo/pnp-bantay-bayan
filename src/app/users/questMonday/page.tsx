@@ -2,87 +2,162 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, Star } from 'lucide-react';
 
-interface RankOption {
+interface Suspect {
   id: string;
-  label: string;
-  isCorrect: boolean;
   image: string;
+  isCorrect: boolean;
 }
 
-const rankOptions: RankOption[] = [
-  { id: '1', label: 'POLICE MASTER SERGEANT', isCorrect: false, image: '/Quest/insignia-1.png' },
-  { id: '2', label: 'POLICE CORPORAL', isCorrect: true, image: '/Quest/insignia-2.png' },
-  { id: '3', label: 'PATROLMAN', isCorrect: false, image: '/Quest/insignia-3.png' },
+interface Level {
+  level: number;
+  description: string;
+  suspects: Suspect[];
+}
+
+const levels: Level[] = [
+  {
+    level: 1,
+    description: "Wearing red cap, tattoo on right arm",
+    suspects: [
+      { id: '1', image: '/Quest/questFriday/suspect1.png', isCorrect: false },
+      { id: '2', image: '/Quest/questFriday/suspect2.png', isCorrect: true },
+      { id: '3', image: '/Quest/questFriday/suspect3.png', isCorrect: false },
+      { id: '4', image: '/Quest/questFriday/suspect4.png', isCorrect: false },
+    ]
+  },
+  {
+    level: 2,
+    description: "Wearing blue jacket, has glasses",
+    suspects: [
+      { id: '5', image: '/Quest/questFriday/suspect5.png', isCorrect: false },
+      { id: '6', image: '/Quest/questFriday/suspect6.png', isCorrect: false },
+      { id: '7', image: '/Quest/questFriday/suspect7.png', isCorrect: true },
+      { id: '8', image: '/Quest/questFriday/suspect8.png', isCorrect: false },
+    ]
+  },
+  {
+    level: 3,
+    description: "Wearing green shirt, has beard",
+    suspects: [
+      { id: '9', image: '/Quest/questFriday/suspect9.png', isCorrect: true },
+      { id: '10', image: '/Quest/questFriday/suspect10.png', isCorrect: false },
+      { id: '11', image: '/Quest/questFriday/suspect11.png', isCorrect: false },
+      { id: '12', image: '/Quest/questFriday/suspect12.png', isCorrect: false },
+    ]
+  }
 ];
 
-export default function GuessTheRank() {
-  const [draggedOver, setDraggedOver] = useState<string | null>(null);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+export default function QuestFriday() {
+  const [currentLevel, setCurrentLevel] = useState(0);
+  const [selectedSuspect, setSelectedSuspect] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [attempts, setAttempts] = useState(0);
   const [gameWon, setGameWon] = useState(false);
+  const [gameFailed, setGameFailed] = useState(false);
+  const [completedLevels, setCompletedLevels] = useState<number[]>([]);
 
-  const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.effectAllowed = 'move';
-  };
+  const currentLevelData = levels[currentLevel];
 
-  const handleDragOver = (e: React.DragEvent, optionId: string) => {
-    e.preventDefault();
-    setDraggedOver(optionId);
-  };
-
-  const handleDragLeave = () => {
-    setDraggedOver(null);
-  };
-
-  const handleDrop = (e: React.DragEvent, optionId: string) => {
-    e.preventDefault();
-    setDraggedOver(null);
-    handleAnswer(optionId);
-  };
-
-  const handleAnswer = (optionId: string) => {
+  const handleSuspectClick = (suspectImage: string) => {
     if (showFeedback) return;
+    setSelectedSuspect(suspectImage);
+  };
 
-    setSelectedOption(optionId);
-    const option = rankOptions.find(opt => opt.id === optionId);
-    const correct = option?.isCorrect || false;
+  const handleAccuse = () => {
+    if (!selectedSuspect || showFeedback) return;
+
+    const suspect = currentLevelData.suspects.find(s => s.image === selectedSuspect);
+    const correct = suspect?.isCorrect || false;
     
     setIsCorrect(correct);
     setShowFeedback(true);
-    setAttempts(attempts + 1);
 
     if (correct) {
-      setGameWon(true);
+      const newCompletedLevels = [...completedLevels, currentLevel + 1];
+      setCompletedLevels(newCompletedLevels);
+
+      setTimeout(() => {
+        if (currentLevel < levels.length - 1) {
+          // Move to next level
+          setCurrentLevel(currentLevel + 1);
+          setSelectedSuspect(null);
+          setShowFeedback(false);
+          setIsCorrect(false);
+        } else {
+          // All levels completed
+          setGameWon(true);
+        }
+      }, 1500);
+    } else {
+      // Wrong answer - show failed modal after delay
+      setTimeout(() => {
+        setGameFailed(true);
+      }, 1500);
     }
   };
 
-  const handleReset = () => {
-    setSelectedOption(null);
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setDraggedOver(null);
-  };
-
   const handleRestart = () => {
-    setSelectedOption(null);
+    setCurrentLevel(0);
+    setSelectedSuspect(null);
     setShowFeedback(false);
     setIsCorrect(false);
-    setAttempts(0);
     setGameWon(false);
-    setDraggedOver(null);
+    setGameFailed(false);
+    setCompletedLevels([]);
   };
 
+  // Game Failed Screen
+  if (gameFailed) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-400 to-red-500 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
+              <img 
+                src="/Quest/questFriday/jailed.png" 
+                alt="Jailed" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23ef4444" width="100" height="100" rx="10"/><text x="50" y="65" font-size="60" text-anchor="middle" fill="white">✕</text></svg>';
+                }}
+              />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">You're Jailed!</h1>
+            <p className="text-lg sm:text-xl text-gray-600 mb-8">
+              False accusation detected!
+            </p>
+            <button
+              onClick={handleRestart}
+              className="w-full py-4 bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
+            >
+              TRY AGAIN
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Game Won Screen
   if (gameWon) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-300 to-yellow-400 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
-            <h1 className="text-4xl font-black text-gray-800 mb-2">Perfect!</h1>
-            <p className="text-xl text-gray-600 mb-8">You identified the rank correctly!</p>
+            <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
+              <img 
+                src="/Quest/questFriday/detained.png" 
+                alt="Suspect Detained" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%2322c55e" width="100" height="100" rx="10"/><text x="50" y="70" font-size="60" text-anchor="middle" fill="white">✓</text></svg>';
+                }}
+              />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Congrats!</h1>
+            <p className="text-xl sm:text-2xl text-gray-600 mb-8">Suspects detained successfully!</p>
             <div className="space-y-3">
               <button
                 onClick={() => window.history.back()}
@@ -115,147 +190,225 @@ export default function GuessTheRank() {
             >
               <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
             </button>
-            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-800">
-              Guess The Rank
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">
+              Suspect Line-Up
             </h1>
-            <div className="w-10 sm:w-14"></div>
+            {/* Level Progress */}
+            <div className="flex gap-2">
+              {levels.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all ${
+                    completedLevels.includes(index + 1)
+                      ? 'bg-green-500 text-white'
+                      : index === currentLevel
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-300 text-gray-600'
+                  }`}
+                >
+                  {completedLevels.includes(index + 1) ? (
+                    <Check size={20} className="sm:w-6 sm:h-6" />
+                  ) : (
+                    index + 1
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-2 sm:px-4 md:px-6 py-6 sm:py-10 flex flex-col items-center justify-center min-h-[calc(100vh-140px)] sm:min-h-[calc(100vh-160px)]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="w-full">
-          {/* Game Area */}
-          <div className="flex flex-col items-center mb-8 sm:mb-12 relative">
-            {/* Top Insignia Options Row */}
-            <div className="flex justify-center gap-4 sm:gap-8 md:gap-20 mb-8 sm:mb-10 md:mb-12 relative z-10 px-2">
-              {rankOptions.map((option, index) => (
-                <div key={option.id} className="flex flex-col items-center relative">
-                  <div
-                    onDragOver={(e) => handleDragOver(e, option.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, option.id)}
-                    onClick={() => !showFeedback && handleAnswer(option.id)}
-                    className={`
-                      relative w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40
-                      bg-white rounded-xl sm:rounded-2xl border-3 sm:border-4 
-                      flex items-center justify-center p-2 sm:p-3 md:p-4
-                      transition-all cursor-pointer shadow-md
-                      ${draggedOver === option.id && !showFeedback
-                        ? 'scale-110 shadow-2xl border-blue-400'
-                        : selectedOption === option.id && showFeedback
-                        ? isCorrect
-                          ? 'border-green-500 shadow-xl'
-                          : 'border-red-500 shadow-xl'
-                        : 'border-gray-300 hover:scale-105 hover:border-blue-300'
-                      }
-                      ${showFeedback ? 'cursor-default' : ''}
-                    `}
-                  >
-                    <img 
-                      src={option.image}
-                      alt={option.label}
-                      className="w-full h-full object-contain select-none"
+          {/* Level Badge */}
+          <div className="text-center mb-4">
+            <span className="inline-block px-6 py-2 bg-blue-500 text-white rounded-full font-bold text-lg">
+              Level {currentLevel + 1} of {levels.length}
+            </span>
+          </div>
+
+          {/* Description Box */}
+          <div className="max-w-2xl mx-auto mb-6 sm:mb-8 bg-gray-100 rounded-2xl p-4 sm:p-6 border-2 border-gray-300">
+            <p className="text-base sm:text-lg md:text-xl text-gray-800 text-center font-medium">
+              <strong>Suspect Description:</strong> {currentLevelData.description}
+            </p>
+          </div>
+
+          {/* Suspects Line-Up */}
+          {/* Mobile: 2x2 Grid, Desktop: Horizontal Line with Height Chart */}
+          <div className="mb-8 sm:mb-12">
+            {/* Mobile Grid Layout */}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:hidden">
+              {currentLevelData.suspects.map((suspect, index) => (
+                <div
+                  key={suspect.id}
+                  onClick={() => handleSuspectClick(suspect.image)}
+                  className={`
+                    relative flex flex-col items-center justify-center cursor-pointer transition-all
+                    ${!showFeedback && 'hover:scale-105 active:scale-95'}
+                    ${showFeedback && selectedSuspect === suspect.image && isCorrect && 'scale-105'}
+                    ${showFeedback && selectedSuspect === suspect.image && !isCorrect && 'opacity-50'}
+                    ${showFeedback ? 'cursor-default' : ''}
+                  `}
+                >
+                  {/* Character Image with Border when Selected */}
+                  <div className={`
+                    relative rounded-2xl transition-all w-full
+                    ${selectedSuspect === suspect.image && !showFeedback
+                      ? 'ring-4 ring-blue-500 bg-blue-50 p-2'
+                      : 'bg-white p-2'
+                    }
+                  `}>
+                    <img
+                      src={suspect.image}
+                      alt={`Suspect ${index + 1}`}
+                      className="w-full h-auto aspect-[3/4] object-contain select-none"
                       draggable={false}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="%23f3f4f6" width="200" height="300"/><circle cx="100" cy="90" r="35" fill="%239ca3af"/><ellipse cx="100" cy="200" rx="60" ry="90" fill="%239ca3af"/></svg>';
+                      }}
                     />
-                    
-                    {/* Check Icon for correct answer */}
-                    {selectedOption === option.id && showFeedback && isCorrect && (
-                      <div className="absolute -right-2 -top-2 sm:-right-3 sm:-top-3 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
-                        <Check size={20} className="sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" strokeWidth={3} />
+
+                    {/* Correct Indicator */}
+                    {selectedSuspect === suspect.image && showFeedback && isCorrect && (
+                      <div className="absolute -right-2 -top-2 w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-xl animate-pulse z-10">
+                        <Check size={24} className="text-white" strokeWidth={3} />
+                      </div>
+                    )}
+
+                    {/* Wrong Indicator */}
+                    {selectedSuspect === suspect.image && showFeedback && !isCorrect && (
+                      <div className="absolute -right-2 -top-2 w-12 h-12 rounded-full bg-red-500 flex items-center justify-center shadow-xl z-10">
+                        <X size={24} className="text-white" strokeWidth={3} />
                       </div>
                     )}
                   </div>
-                  
-                  {/* Diagonal dotted line - Desktop/Tablet */}
-                  <svg 
-                    className="absolute top-full left-1/2 pointer-events-none hidden sm:block"
-                    style={{
-                      width: index === 0 ? '180px' : index === 1 ? '120px' : '180px',
-                      height: '180px',
-                      transform: 'translateX(-50%) translateY(-10px)'
-                    }}
-                  >
-                    <line
-                      x1={index === 0 ? "50%" : index === 1 ? "50%" : "50%"}
-                      y1="0"
-                      x2={index === 0 ? "100%" : index === 1 ? "50%" : "0%"}
-                      y2="160"
-                      stroke="#94a3b8"
-                      strokeWidth="2"
-                      strokeDasharray="6,6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
 
-                  {/* Mobile diagonal lines - smaller */}
-                  <svg 
-                    className="absolute top-full left-1/2 pointer-events-none block sm:hidden"
-                    style={{
-                      width: index === 0 ? '80px' : index === 1 ? '50px' : '80px',
-                      height: '100px',
-                      transform: 'translateX(-50%) translateY(-5px)'
-                    }}
-                  >
-                    <line
-                      x1={index === 0 ? "50%" : index === 1 ? "50%" : "50%"}
-                      y1="0"
-                      x2={index === 0 ? "100%" : index === 1 ? "50%" : "0%"}
-                      y2="85"
-                      stroke="#94a3b8"
-                      strokeWidth="2"
-                      strokeDasharray="5,5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  {/* Suspect Number Label */}
+                  <div className="mt-2 text-sm font-bold text-gray-600">
+                    Suspect {index + 1}
+                  </div>
                 </div>
               ))}
             </div>
 
-            {/* Pibi Character - Responsive sizing */}
-            <div 
-              className={`mb-6 sm:mb-8 relative z-20 ${
-                showFeedback ? 'opacity-50 cursor-not-allowed' : 'cursor-move hover:scale-105 transition-transform active:scale-95'
-              }`}
-              draggable={!showFeedback}
-              onDragStart={handleDragStart}
-            >
-              <img 
-                src="/Quest/questWednesday/pibiBack.png"
-                alt="Pibi Character"
-                className="w-28 h-28 sm:w-36 sm:h-36 md:w-52 md:h-52 object-contain select-none"
-                draggable={false}
-              />
-            </div>
+            {/* Desktop Horizontal Layout with Height Chart */}
+            <div className="hidden md:block relative px-4 py-8 lg:py-12 bg-gray-50 rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
+              {/* Height Chart Background Lines */}
+              <div className="absolute inset-0 flex flex-col justify-around py-12 pointer-events-none">
+                {['6ft', '5ft', '4ft', '3ft'].map((height, index) => (
+                  <div key={height} className="flex items-center w-full px-6 lg:px-8">
+                    <span className="text-base lg:text-lg font-semibold text-gray-600 w-16">{height}</span>
+                    <div className="flex-1" style={{
+                      height: index % 2 === 0 ? '3px' : '1.5px',
+                      backgroundColor: index % 2 === 0 ? '#000' : '#d1d5db'
+                    }}></div>
+                  </div>
+                ))}
+              </div>
 
-            {/* Instruction text - Responsive sizing */}
-            <p className="text-base sm:text-lg md:text-2xl text-gray-900 font-medium text-center px-4">
-              Drag Pibi to the Police Corporal Rank
-            </p>
+              {/* Suspects */}
+              <div className="relative flex justify-center items-end gap-8 lg:gap-12 z-10">
+                {currentLevelData.suspects.map((suspect, index) => (
+                  <div
+                    key={suspect.id}
+                    onClick={() => handleSuspectClick(suspect.image)}
+                    className={`
+                      relative flex flex-col items-center justify-end cursor-pointer transition-all
+                      ${!showFeedback && 'hover:scale-105'}
+                      ${showFeedback && selectedSuspect === suspect.image && isCorrect && 'scale-110'}
+                      ${showFeedback && selectedSuspect === suspect.image && !isCorrect && 'opacity-50'}
+                      ${showFeedback ? 'cursor-default' : ''}
+                    `}
+                    style={{ 
+                      minHeight: '350px',
+                      flex: '1 1 0',
+                      maxWidth: '200px'
+                    }}
+                  >
+                    {/* Character Image with Border when Selected */}
+                    <div className={`
+                      relative rounded-2xl transition-all w-full
+                      ${selectedSuspect === suspect.image && !showFeedback
+                        ? 'ring-4 ring-blue-500 bg-blue-50 p-2'
+                        : ''
+                      }
+                    `}>
+                      <img
+                        src={suspect.image}
+                        alt={`Suspect ${index + 1}`}
+                        className="w-full h-auto max-h-[350px] lg:max-h-[400px] object-contain object-bottom select-none"
+                        draggable={false}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="%23f3f4f6" width="200" height="300"/><circle cx="100" cy="90" r="35" fill="%239ca3af"/><ellipse cx="100" cy="200" rx="60" ry="90" fill="%239ca3af"/></svg>';
+                        }}
+                      />
+
+                      {/* Correct Indicator */}
+                      {selectedSuspect === suspect.image && showFeedback && isCorrect && (
+                        <div className="absolute -right-2 -top-2 w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-xl animate-pulse">
+                          <Check size={32} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+
+                      {/* Wrong Indicator */}
+                      {selectedSuspect === suspect.image && showFeedback && !isCorrect && (
+                        <div className="absolute -right-2 -top-2 w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow-xl">
+                          <X size={32} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* Accuse Button */}
+          {!showFeedback && (
+            <div className="flex justify-center mt-6 sm:mt-8">
+              <button
+                onClick={handleAccuse}
+                disabled={!selectedSuspect}
+                className={`
+                  px-12 sm:px-16 py-4 sm:py-5 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95
+                  ${selectedSuspect
+                    ? 'bg-blue-500 hover:bg-blue-600 cursor-pointer'
+                    : 'bg-gray-400 cursor-not-allowed opacity-50'
+                  }
+                `}
+              >
+                ACCUSE NOW
+              </button>
+            </div>
+          )}
 
           {/* Feedback Message */}
           {showFeedback && !isCorrect && (
             <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200 max-w-2xl mx-auto">
-              <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-sm sm:text-base md:text-xl">
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0">
-                  <X size={18} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+              <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-base md:text-xl">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-red-400 flex items-center justify-center">
+                  <X size={20} className="md:w-6 md:h-6 text-white" />
                 </div>
-                <span>Not quite right. Try again!</span>
+                <span>Wrong suspect! You'll be jailed for false accusation!</span>
               </div>
             </div>
           )}
 
-          {/* Action Button */}
-          {showFeedback && !isCorrect && (
-            <div className="max-w-md mx-auto px-4">
-              <button
-                onClick={handleReset}
-                className="w-full px-6 sm:px-8 py-4 sm:py-5 bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-2xl font-bold text-base sm:text-lg shadow-lg transition-transform active:scale-95"
-              >
-                TRY AGAIN
-              </button>
+          {/* Success Message */}
+          {showFeedback && isCorrect && (
+            <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-green-50 border-2 border-green-200 max-w-2xl mx-auto">
+              <div className="flex items-center justify-center gap-2 md:gap-3 text-green-700 font-bold text-base md:text-xl">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-green-400 flex items-center justify-center">
+                  <Check size={20} className="md:w-6 md:h-6 text-white" />
+                </div>
+                <span>
+                  {currentLevel < levels.length - 1 
+                    ? 'Correct! Moving to next suspect...' 
+                    : 'Correct! All suspects detained!'}
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -276,11 +429,14 @@ export default function GuessTheRank() {
               />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-gray-800 mb-2 sm:mb-3 text-base sm:text-lg">How to Play:</h3>
+              <h3 className="font-bold text-gray-800 mb-2 sm:mb-3 text-base sm:text-lg">How to Play: Catch the Right Suspects!</h3>
               <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
-                <li>• <strong>Drag & Drop:</strong> Drag Pibi to one of the rank insignia</li>
-                <li>• <strong>Click:</strong> Or simply click on a rank insignia to select it</li>
-                <li>• <strong>Goal:</strong> Match Pibi with the correct Police Corporal rank</li>
+                <li>• <strong>Read:</strong> Check the suspect description carefully</li>
+                <li>• <strong>Select:</strong> Click on the suspect that matches the description</li>
+                <li>• <strong>Accuse:</strong> Press the "ACCUSE NOW" button to confirm your choice</li>
+                <li>• <strong>Warning:</strong> One wrong accusation and you'll be jailed!</li>
+                <li>• <strong>Levels:</strong> Complete all 3 levels to win the game</li>
+                <li>• <strong>Goal:</strong> Identify all correct suspects without mistakes</li>
               </ul>
             </div>
           </div>

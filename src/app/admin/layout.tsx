@@ -60,6 +60,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       href: '/admin/content',
       description: 'Modules & Lessons'
     },
+     { 
+      id: 'quest', 
+      label: 'Quest Management', 
+      icon: '.l.', 
+      href: '/admin/quest',
+      description: 'Quest'
+    },
     { 
       id: 'quiz', 
       label: 'Quiz Management', 
