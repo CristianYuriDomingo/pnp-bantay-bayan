@@ -1,55 +1,41 @@
 // app/users/questMonday/page.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { X, Check, Star } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Loader2 } from 'lucide-react';
 
 interface Suspect {
   id: string;
-  image: string;
-  isCorrect: boolean;
+  imageUrl: string;
+  suspectNumber: number;
 }
 
 interface Level {
-  level: number;
+  id: string;
+  levelNumber: number;
   description: string;
   suspects: Suspect[];
 }
 
-const levels: Level[] = [
-  {
-    level: 1,
-    description: "Wearing red cap, tattoo on right arm",
-    suspects: [
-      { id: '1', image: '/Quest/questFriday/suspect1.png', isCorrect: false },
-      { id: '2', image: '/Quest/questFriday/suspect2.png', isCorrect: true },
-      { id: '3', image: '/Quest/questFriday/suspect3.png', isCorrect: false },
-      { id: '4', image: '/Quest/questFriday/suspect4.png', isCorrect: false },
-    ]
-  },
-  {
-    level: 2,
-    description: "Wearing blue jacket, has glasses",
-    suspects: [
-      { id: '5', image: '/Quest/questFriday/suspect5.png', isCorrect: false },
-      { id: '6', image: '/Quest/questFriday/suspect6.png', isCorrect: false },
-      { id: '7', image: '/Quest/questFriday/suspect7.png', isCorrect: true },
-      { id: '8', image: '/Quest/questFriday/suspect8.png', isCorrect: false },
-    ]
-  },
-  {
-    level: 3,
-    description: "Wearing green shirt, has beard",
-    suspects: [
-      { id: '9', image: '/Quest/questFriday/suspect9.png', isCorrect: true },
-      { id: '10', image: '/Quest/questFriday/suspect10.png', isCorrect: false },
-      { id: '11', image: '/Quest/questFriday/suspect11.png', isCorrect: false },
-      { id: '12', image: '/Quest/questFriday/suspect12.png', isCorrect: false },
-    ]
-  }
-];
+interface QuestData {
+  id: string;
+  title: string;
+  description: string | null;
+  levels: Level[];
+  userProgress: {
+    currentLevel: number;
+    completedLevels: number[];
+    isCompleted: boolean;
+    attempts: number;
+  } | null;
+}
 
-export default function QuestFriday() {
+export default function QuestMonday() {
+  const [questData, setQuestData] = useState<QuestData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const [currentLevel, setCurrentLevel] = useState(0);
   const [selectedSuspect, setSelectedSuspect] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -58,55 +44,209 @@ export default function QuestFriday() {
   const [gameFailed, setGameFailed] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<number[]>([]);
 
-  const currentLevelData = levels[currentLevel];
+  // Fetch quest data on mount
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
 
-  const handleSuspectClick = (suspectImage: string) => {
-    if (showFeedback) return;
-    setSelectedSuspect(suspectImage);
-  };
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const handleAccuse = () => {
-    if (!selectedSuspect || showFeedback) return;
+      const response = await fetch('/api/users/quest/monday');
+      
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please check if you are logged in.');
+      }
 
-    const suspect = currentLevelData.suspects.find(s => s.image === selectedSuspect);
-    const correct = suspect?.isCorrect || false;
-    
-    setIsCorrect(correct);
-    setShowFeedback(true);
+      const data = await response.json();
 
-    if (correct) {
-      const newCompletedLevels = [...completedLevels, currentLevel + 1];
-      setCompletedLevels(newCompletedLevels);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch quest data');
+      }
 
-      setTimeout(() => {
-        if (currentLevel < levels.length - 1) {
-          // Move to next level
-          setCurrentLevel(currentLevel + 1);
-          setSelectedSuspect(null);
-          setShowFeedback(false);
-          setIsCorrect(false);
-        } else {
-          // All levels completed
-          setGameWon(true);
+      if (data.success && data.data) {
+        setQuestData(data.data);
+        
+        // Restore user progress if exists
+        if (data.data.userProgress) {
+          const progress = data.data.userProgress;
+          setCompletedLevels(progress.completedLevels);
+          setCurrentLevel(progress.currentLevel - 1); // Convert to 0-based index
+          
+          if (progress.isCompleted) {
+            setGameWon(true);
+          }
         }
-      }, 1500);
-    } else {
-      // Wrong answer - show failed modal after delay
-      setTimeout(() => {
-        setGameFailed(true);
-      }, 1500);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('Error fetching quest data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quest data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRestart = () => {
-    setCurrentLevel(0);
-    setSelectedSuspect(null);
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setGameWon(false);
-    setGameFailed(false);
-    setCompletedLevels([]);
+  const handleSuspectClick = (suspectId: string) => {
+    if (showFeedback) return;
+    setSelectedSuspect(suspectId);
   };
+
+  const handleAccuse = async () => {
+    if (!selectedSuspect || showFeedback || !questData) return;
+
+    try {
+      setSubmitting(true);
+      const currentLevelData = questData.levels[currentLevel];
+
+      const response = await fetch('/api/users/quest/monday/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questMondayId: questData.id,
+          levelId: currentLevelData.id,
+          suspectId: selectedSuspect
+        }),
+      });
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please try again.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit answer');
+      }
+
+      const correct = data.data.correct;
+      setIsCorrect(correct);
+      setShowFeedback(true);
+
+      if (correct) {
+        const newCompletedLevels = [...completedLevels, currentLevel + 1];
+        setCompletedLevels(newCompletedLevels);
+
+        setTimeout(() => {
+          if (!data.data.isQuestCompleted) {
+            // Move to next level
+            setCurrentLevel(currentLevel + 1);
+            setSelectedSuspect(null);
+            setShowFeedback(false);
+            setIsCorrect(false);
+          } else {
+            // All levels completed
+            setGameWon(true);
+          }
+        }, 1500);
+      } else {
+        // Wrong answer - show failed modal after delay
+        setTimeout(() => {
+          setGameFailed(true);
+        }, 1500);
+      }
+
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit answer');
+      setShowFeedback(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!questData) return;
+
+    try {
+      const response = await fetch('/api/users/quest/monday/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questMondayId: questData.id
+        }),
+      });
+
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset progress');
+      }
+
+      // Reset all state
+      setCurrentLevel(0);
+      setSelectedSuspect(null);
+      setShowFeedback(false);
+      setIsCorrect(false);
+      setGameWon(false);
+      setGameFailed(false);
+      setCompletedLevels([]);
+
+    } catch (err) {
+      console.error('Error resetting progress:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reset progress');
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !questData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Quest</h2>
+          <p className="text-gray-600 mb-6">{error || 'No quest available'}</p>
+          <div className="space-y-3">
+            <button
+              onClick={fetchQuestData}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentLevelData = questData.levels[currentLevel];
 
   // Game Failed Screen
   if (gameFailed) {
@@ -191,13 +331,13 @@ export default function QuestFriday() {
               <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
             </button>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">
-              Suspect Line-Up
+              {questData.title}
             </h1>
             {/* Level Progress */}
             <div className="flex gap-2">
-              {levels.map((_, index) => (
+              {questData.levels.map((level, index) => (
                 <div
-                  key={index}
+                  key={level.id}
                   className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-sm sm:text-base transition-all ${
                     completedLevels.includes(index + 1)
                       ? 'bg-green-500 text-white'
@@ -224,7 +364,7 @@ export default function QuestFriday() {
           {/* Level Badge */}
           <div className="text-center mb-4">
             <span className="inline-block px-6 py-2 bg-blue-500 text-white rounded-full font-bold text-lg">
-              Level {currentLevel + 1} of {levels.length}
+              Level {currentLevel + 1} of {questData.levels.length}
             </span>
           </div>
 
@@ -236,33 +376,31 @@ export default function QuestFriday() {
           </div>
 
           {/* Suspects Line-Up */}
-          {/* Mobile: 2x2 Grid, Desktop: Horizontal Line with Height Chart */}
           <div className="mb-8 sm:mb-12">
             {/* Mobile Grid Layout */}
             <div className="grid grid-cols-2 gap-4 sm:gap-6 md:hidden">
               {currentLevelData.suspects.map((suspect, index) => (
                 <div
                   key={suspect.id}
-                  onClick={() => handleSuspectClick(suspect.image)}
+                  onClick={() => handleSuspectClick(suspect.id)}
                   className={`
                     relative flex flex-col items-center justify-center cursor-pointer transition-all
                     ${!showFeedback && 'hover:scale-105 active:scale-95'}
-                    ${showFeedback && selectedSuspect === suspect.image && isCorrect && 'scale-105'}
-                    ${showFeedback && selectedSuspect === suspect.image && !isCorrect && 'opacity-50'}
+                    ${showFeedback && selectedSuspect === suspect.id && isCorrect && 'scale-105'}
+                    ${showFeedback && selectedSuspect === suspect.id && !isCorrect && 'opacity-50'}
                     ${showFeedback ? 'cursor-default' : ''}
                   `}
                 >
-                  {/* Character Image with Border when Selected */}
                   <div className={`
                     relative rounded-2xl transition-all w-full
-                    ${selectedSuspect === suspect.image && !showFeedback
+                    ${selectedSuspect === suspect.id && !showFeedback
                       ? 'ring-4 ring-blue-500 bg-blue-50 p-2'
                       : 'bg-white p-2'
                     }
                   `}>
                     <img
-                      src={suspect.image}
-                      alt={`Suspect ${index + 1}`}
+                      src={suspect.imageUrl}
+                      alt={`Suspect ${suspect.suspectNumber}`}
                       className="w-full h-auto aspect-[3/4] object-contain select-none"
                       draggable={false}
                       onError={(e) => {
@@ -270,32 +408,28 @@ export default function QuestFriday() {
                       }}
                     />
 
-                    {/* Correct Indicator */}
-                    {selectedSuspect === suspect.image && showFeedback && isCorrect && (
+                    {selectedSuspect === suspect.id && showFeedback && isCorrect && (
                       <div className="absolute -right-2 -top-2 w-12 h-12 rounded-full bg-green-500 flex items-center justify-center shadow-xl animate-pulse z-10">
                         <Check size={24} className="text-white" strokeWidth={3} />
                       </div>
                     )}
 
-                    {/* Wrong Indicator */}
-                    {selectedSuspect === suspect.image && showFeedback && !isCorrect && (
+                    {selectedSuspect === suspect.id && showFeedback && !isCorrect && (
                       <div className="absolute -right-2 -top-2 w-12 h-12 rounded-full bg-red-500 flex items-center justify-center shadow-xl z-10">
                         <X size={24} className="text-white" strokeWidth={3} />
                       </div>
                     )}
                   </div>
 
-                  {/* Suspect Number Label */}
                   <div className="mt-2 text-sm font-bold text-gray-600">
-                    Suspect {index + 1}
+                    Suspect {suspect.suspectNumber}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Desktop Horizontal Layout with Height Chart */}
+            {/* Desktop Horizontal Layout */}
             <div className="hidden md:block relative px-4 py-8 lg:py-12 bg-gray-50 rounded-2xl overflow-hidden" style={{ minHeight: '400px' }}>
-              {/* Height Chart Background Lines */}
               <div className="absolute inset-0 flex flex-col justify-around py-12 pointer-events-none">
                 {['6ft', '5ft', '4ft', '3ft'].map((height, index) => (
                   <div key={height} className="flex items-center w-full px-6 lg:px-8">
@@ -308,17 +442,16 @@ export default function QuestFriday() {
                 ))}
               </div>
 
-              {/* Suspects */}
               <div className="relative flex justify-center items-end gap-8 lg:gap-12 z-10">
                 {currentLevelData.suspects.map((suspect, index) => (
                   <div
                     key={suspect.id}
-                    onClick={() => handleSuspectClick(suspect.image)}
+                    onClick={() => handleSuspectClick(suspect.id)}
                     className={`
                       relative flex flex-col items-center justify-end cursor-pointer transition-all
                       ${!showFeedback && 'hover:scale-105'}
-                      ${showFeedback && selectedSuspect === suspect.image && isCorrect && 'scale-110'}
-                      ${showFeedback && selectedSuspect === suspect.image && !isCorrect && 'opacity-50'}
+                      ${showFeedback && selectedSuspect === suspect.id && isCorrect && 'scale-110'}
+                      ${showFeedback && selectedSuspect === suspect.id && !isCorrect && 'opacity-50'}
                       ${showFeedback ? 'cursor-default' : ''}
                     `}
                     style={{ 
@@ -327,17 +460,16 @@ export default function QuestFriday() {
                       maxWidth: '200px'
                     }}
                   >
-                    {/* Character Image with Border when Selected */}
                     <div className={`
                       relative rounded-2xl transition-all w-full
-                      ${selectedSuspect === suspect.image && !showFeedback
+                      ${selectedSuspect === suspect.id && !showFeedback
                         ? 'ring-4 ring-blue-500 bg-blue-50 p-2'
                         : ''
                       }
                     `}>
                       <img
-                        src={suspect.image}
-                        alt={`Suspect ${index + 1}`}
+                        src={suspect.imageUrl}
+                        alt={`Suspect ${suspect.suspectNumber}`}
                         className="w-full h-auto max-h-[350px] lg:max-h-[400px] object-contain object-bottom select-none"
                         draggable={false}
                         onError={(e) => {
@@ -345,15 +477,13 @@ export default function QuestFriday() {
                         }}
                       />
 
-                      {/* Correct Indicator */}
-                      {selectedSuspect === suspect.image && showFeedback && isCorrect && (
+                      {selectedSuspect === suspect.id && showFeedback && isCorrect && (
                         <div className="absolute -right-2 -top-2 w-14 h-14 rounded-full bg-green-500 flex items-center justify-center shadow-xl animate-pulse">
                           <Check size={32} className="text-white" strokeWidth={3} />
                         </div>
                       )}
 
-                      {/* Wrong Indicator */}
-                      {selectedSuspect === suspect.image && showFeedback && !isCorrect && (
+                      {selectedSuspect === suspect.id && showFeedback && !isCorrect && (
                         <div className="absolute -right-2 -top-2 w-14 h-14 rounded-full bg-red-500 flex items-center justify-center shadow-xl">
                           <X size={32} className="text-white" strokeWidth={3} />
                         </div>
@@ -370,21 +500,28 @@ export default function QuestFriday() {
             <div className="flex justify-center mt-6 sm:mt-8">
               <button
                 onClick={handleAccuse}
-                disabled={!selectedSuspect}
+                disabled={!selectedSuspect || submitting}
                 className={`
-                  px-12 sm:px-16 py-4 sm:py-5 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95
-                  ${selectedSuspect
+                  px-12 sm:px-16 py-4 sm:py-5 text-white rounded-full font-bold text-lg sm:text-xl md:text-2xl shadow-xl transition-all active:scale-95 inline-flex items-center gap-3
+                  ${selectedSuspect && !submitting
                     ? 'bg-blue-500 hover:bg-blue-600 cursor-pointer'
                     : 'bg-gray-400 cursor-not-allowed opacity-50'
                   }
                 `}
               >
-                ACCUSE NOW
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    CHECKING...
+                  </>
+                ) : (
+                  'ACCUSE NOW'
+                )}
               </button>
             </div>
           )}
 
-          {/* Feedback Message */}
+          {/* Feedback Messages */}
           {showFeedback && !isCorrect && (
             <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-red-50 border-2 border-red-200 max-w-2xl mx-auto">
               <div className="flex items-center justify-center gap-2 md:gap-3 text-red-700 font-bold text-base md:text-xl">
@@ -396,7 +533,6 @@ export default function QuestFriday() {
             </div>
           )}
 
-          {/* Success Message */}
           {showFeedback && isCorrect && (
             <div className="mb-6 p-4 md:p-6 rounded-xl md:rounded-2xl bg-green-50 border-2 border-green-200 max-w-2xl mx-auto">
               <div className="flex items-center justify-center gap-2 md:gap-3 text-green-700 font-bold text-base md:text-xl">
@@ -404,7 +540,7 @@ export default function QuestFriday() {
                   <Check size={20} className="md:w-6 md:h-6 text-white" />
                 </div>
                 <span>
-                  {currentLevel < levels.length - 1 
+                  {currentLevel < questData.levels.length - 1 
                     ? 'Correct! Moving to next suspect...' 
                     : 'Correct! All suspects detained!'}
                 </span>
@@ -435,7 +571,7 @@ export default function QuestFriday() {
                 <li>• <strong>Select:</strong> Click on the suspect that matches the description</li>
                 <li>• <strong>Accuse:</strong> Press the "ACCUSE NOW" button to confirm your choice</li>
                 <li>• <strong>Warning:</strong> One wrong accusation and you'll be jailed!</li>
-                <li>• <strong>Levels:</strong> Complete all 3 levels to win the game</li>
+                <li>• <strong>Levels:</strong> Complete all {questData.levels.length} levels to win the game</li>
                 <li>• <strong>Goal:</strong> Identify all correct suspects without mistakes</li>
               </ul>
             </div>
@@ -443,7 +579,6 @@ export default function QuestFriday() {
         </div>
       </div>
 
-      {/* Bottom Safe Area */}
       <div className="h-16 sm:h-20" />
     </div>
   );

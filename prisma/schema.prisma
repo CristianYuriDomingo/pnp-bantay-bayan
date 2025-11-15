@@ -68,6 +68,7 @@ model User {
   badgeEarned          UserBadge[]
   progress             UserProgress[]
   achievementsEarned   UserAchievement[]
+  questMondayProgress  QuestMondayProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -311,4 +312,83 @@ model QuizMastery {
   @@index([quizId])
   @@index([currentMasteryLevel])
   @@map("quiz_mastery")
+}
+
+// ============================================
+// QUEST MONDAY - SUSPECT LINE-UP GAME
+// ============================================
+
+model QuestMonday {
+  id          String                  @id @default(cuid())
+  title       String                  @default("Suspect Line-Up")
+  description String?
+  isActive    Boolean                 @default(true)
+  createdById String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  
+  // Relations
+  levels      QuestMondayLevel[]
+  progress    QuestMondayProgress[]
+  
+  @@map("quest_monday")
+}
+
+model QuestMondayLevel {
+  id            String                @id @default(cuid())
+  questMondayId String
+  levelNumber   Int                   // 1, 2, 3, etc.
+  description   String                // "Wearing red cap, tattoo on right arm"
+  orderIndex    Int                   @default(0)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  
+  // Relations
+  questMonday   QuestMonday           @relation(fields: [questMondayId], references: [id], onDelete: Cascade)
+  suspects      QuestMondaySuspect[]
+  
+  @@unique([questMondayId, levelNumber])
+  @@index([questMondayId])
+  @@index([levelNumber])
+  @@map("quest_monday_levels")
+}
+
+model QuestMondaySuspect {
+  id            String            @id @default(cuid())
+  levelId       String
+  imageUrl      String            // "/uploads/quest-monday/suspect1.png"
+  isCorrect     Boolean           @default(false)
+  suspectNumber Int               // 1, 2, 3, 4 (for display order)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  
+  // Relations
+  level         QuestMondayLevel  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  
+  @@unique([levelId, suspectNumber])
+  @@index([levelId])
+  @@map("quest_monday_suspects")
+}
+
+model QuestMondayProgress {
+  id              String       @id @default(cuid())
+  userId          String
+  questMondayId   String
+  currentLevel    Int          @default(1)
+  completedLevels Json         @default("[]")  // Array of completed level numbers [1, 2]
+  isCompleted     Boolean      @default(false)
+  attempts        Int          @default(0)     // Failed attempts counter
+  startedAt       DateTime     @default(now())
+  completedAt     DateTime?
+  lastPlayedAt    DateTime     @default(now())
+  
+  // Relations
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questMonday     QuestMonday  @relation(fields: [questMondayId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, questMondayId])
+  @@index([userId])
+  @@index([questMondayId])
+  @@index([isCompleted])
+  @@map("quest_monday_progress")
 }

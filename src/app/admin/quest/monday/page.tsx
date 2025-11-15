@@ -1,7 +1,7 @@
-//app/admin/quest/monday/page.tsx
+//app/api/admin/quest/tuesday/route.ts
 'use client';
-import { useState } from 'react';
-import { ChevronLeft, Save, Upload, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, Save, Upload, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface Suspect {
@@ -52,10 +52,100 @@ export default function QuestMondayPage() {
     }
   ]);
 
-  const handleSave = () => {
-    // Add your save logic here (API call, database update, etc.)
-    console.log('Saving levels:', levels);
-    alert('Quest Monday saved successfully!');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch existing quest data on mount
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
+
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/admin/quest/monday');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch quest data');
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data && data.data.levels && data.data.levels.length > 0) {
+        // Transform API data to frontend format
+        const transformedLevels = data.data.levels.map((level: any) => ({
+          level: level.levelNumber,
+          description: level.description,
+          suspects: level.suspects.map((suspect: any) => ({
+            id: suspect.id,
+            image: suspect.imageUrl,
+            isCorrect: suspect.isCorrect
+          }))
+        }));
+        setLevels(transformedLevels);
+      }
+    } catch (err) {
+      console.error('Error fetching quest data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quest data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      // Validate before saving
+      for (const level of levels) {
+        if (!level.description.trim()) {
+          alert(`Level ${level.level} is missing description`);
+          return;
+        }
+
+        const correctCount = level.suspects.filter(s => s.isCorrect).length;
+        if (correctCount !== 1) {
+          alert(`Level ${level.level} must have exactly 1 correct suspect`);
+          return;
+        }
+
+        const missingImages = level.suspects.filter(s => !s.image || !s.image.trim()).length;
+        if (missingImages > 0) {
+          alert(`Level ${level.level} has ${missingImages} suspect(s) missing image`);
+          return;
+        }
+      }
+
+      const response = await fetch('/api/admin/quest/monday', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ levels }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save quest');
+      }
+
+      alert('Quest Monday saved successfully!');
+      
+      // Refresh data from server
+      await fetchQuestData();
+      
+    } catch (err) {
+      console.error('Error saving quest:', err);
+      alert(err instanceof Error ? err.message : 'Failed to save quest');
+      setError(err instanceof Error ? err.message : 'Failed to save quest');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateDescription = (levelIndex: number, description: string) => {
@@ -104,6 +194,39 @@ export default function QuestMondayPage() {
     setLevels(newLevels);
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest Monday...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && levels.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Quest</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchQuestData}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
@@ -127,12 +250,31 @@ export default function QuestMondayPage() {
           </div>
           <button 
             onClick={handleSave}
-            className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" />
-            Save Changes
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
           </button>
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800">
+              <strong>Error:</strong> {error}
+            </p>
+          </div>
+        )}
 
         {/* Levels */}
         <div className="space-y-8">
