@@ -1,112 +1,282 @@
 // app/users/questTuesday/page.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { ArrowLeft, Check, X, Trophy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Check, X, Loader2 } from 'lucide-react';
 
 interface Question {
-  id: number;
+  id: string;
+  questionNumber: number;
   question: string;
-  correctAnswer: boolean;
-  explanation: string;
 }
 
-const questions: Question[] = [
-  {
-    id: 1,
-    question: "Should I join terrorist groups?",
-    correctAnswer: false,
-    explanation: "Never join terrorist groups. They promote violence and harm innocent people."
-  },
-  {
-    id: 2,
-    question: "Should I report suspicious activities to the police?",
-    correctAnswer: true,
-    explanation: "Yes! Reporting suspicious activities helps keep our community safe."
-  },
-  {
-    id: 3,
-    question: "Is it okay to share fake news about crimes?",
-    correctAnswer: false,
-    explanation: "Sharing fake news causes panic and misinformation. Always verify before sharing."
-  },
-  {
-    id: 4,
-    question: "Should I cooperate with police officers when asked?",
-    correctAnswer: true,
-    explanation: "Cooperation with law enforcement helps maintain peace and order."
-  },
-  {
-    id: 5,
-    question: "Can I take the law into my own hands?",
-    correctAnswer: false,
-    explanation: "Vigilante actions are illegal. Always let authorities handle law enforcement."
-  }
-];
+interface QuestData {
+  id: string;
+  title: string;
+  lives: number;
+  totalQuestions: number;
+  questions: Question[];
+  userProgress: {
+    currentQuestion: number;
+    completedQuestions: number[];
+    livesRemaining: number;
+    score: number;
+    isCompleted: boolean;
+    isFailed: boolean;
+  } | null;
+}
 
-export default function QuestTrueFalse() {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+export default function QuestTuesday() {
+  const [questData, setQuestData] = useState<QuestData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lives, setLives] = useState(3);
   const [score, setScore] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [correctAnswer, setCorrectAnswer] = useState<boolean | null>(null);
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
-  const handleAnswer = (answer: boolean) => {
-    if (showFeedback) return;
+  // Fetch quest data on mount
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
 
-    setSelectedAnswer(answer);
-    const correct = answer === questions[currentQuestion].correctAnswer;
-    setIsCorrect(correct);
-    setShowFeedback(true);
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (correct) {
-      setScore(score + 1);
-    } else {
-      const newLives = lives - 1;
-      setLives(newLives);
-      if (newLives === 0) {
-        setGameOver(true);
+      const response = await fetch('/api/users/quest/tuesday');
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please check if you are logged in.');
       }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch quest data');
+      }
+
+      if (data.success && data.data) {
+        setQuestData(data.data);
+
+        // Restore user progress if exists
+        if (data.data.userProgress) {
+          const progress = data.data.userProgress;
+          setLives(progress.livesRemaining);
+          setScore(progress.score);
+
+          // Find current question index
+          const currentIndex = data.data.questions.findIndex(
+            (q: Question) => q.questionNumber === progress.currentQuestion
+          );
+          setCurrentQuestionIndex(currentIndex >= 0 ? currentIndex : 0);
+
+          if (progress.isCompleted) {
+            setGameWon(true);
+          } else if (progress.isFailed) {
+            setGameOver(true);
+          }
+        } else {
+          // New game - set initial lives from quest config
+          setLives(data.data.lives);
+        }
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('Error fetching quest data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quest data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswer = async (answer: boolean) => {
+    if (showFeedback || !questData) return;
+
+    try {
+      setSubmitting(true);
+      setSelectedAnswer(answer);
+
+      const currentQuestion = questData.questions[currentQuestionIndex];
+
+      const response = await fetch('/api/users/quest/tuesday/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questTuesdayId: questData.id,
+          questionId: currentQuestion.id,
+          selectedAnswer: answer
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please try again.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit answer');
+      }
+
+      const correct = data.data.correct;
+      setIsCorrect(correct);
+      setExplanation(data.data.explanation);
+      setCorrectAnswer(data.data.correctAnswer);
+      setShowFeedback(true);
+
+      // Update lives and score
+      setLives(data.data.livesRemaining);
+      setScore(data.data.score);
+
+      // Check game state
+      if (data.data.isFailed) {
+        setTimeout(() => {
+          setGameOver(true);
+        }, 1500);
+      } else if (data.data.isCompleted) {
+        setTimeout(() => {
+          setGameWon(true);
+        }, 1500);
+      }
+
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit answer');
+      setSelectedAnswer(null);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+    if (!questData) return;
+
+    if (currentQuestionIndex < questData.questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
       setShowFeedback(false);
       setSelectedAnswer(null);
       setIsCorrect(false);
-    } else {
-      setGameWon(true);
+      setExplanation('');
+      setCorrectAnswer(null);
     }
   };
 
-  const handleRestart = () => {
-    setCurrentQuestion(0);
-    setLives(3);
-    setScore(0);
-    setShowFeedback(false);
-    setSelectedAnswer(null);
-    setIsCorrect(false);
-    setGameOver(false);
-    setGameWon(false);
+  const handleRestart = async () => {
+    if (!questData) return;
+
+    try {
+      const response = await fetch('/api/users/quest/tuesday/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questTuesdayId: questData.id
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset progress');
+      }
+
+      // Reset all state
+      setCurrentQuestionIndex(0);
+      setLives(questData.lives);
+      setScore(0);
+      setShowFeedback(false);
+      setSelectedAnswer(null);
+      setIsCorrect(false);
+      setExplanation('');
+      setCorrectAnswer(null);
+      setGameOver(false);
+      setGameWon(false);
+
+    } catch (err) {
+      console.error('Error resetting progress:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reset progress');
+    }
   };
 
-  const progress = (currentQuestion / questions.length) * 100;
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Error state
+  if (error || !questData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Quest</h2>
+          <p className="text-gray-600 mb-6">{error || 'No quest available'}</p>
+          <div className="space-y-3">
+            <button
+              onClick={fetchQuestData}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const progress = ((currentQuestionIndex + 1) / questData.totalQuestions) * 100;
+  const currentQuestion = questData.questions[currentQuestionIndex];
+
+  // Game Over Screen
   if (gameOver) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-red-400 to-red-500 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
             <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
-              <img 
-                src="/Quest/questTuesday/jail.png" 
-                alt="Jail" 
+              <img
+                src="/Quest/questTuesday/jail.png"
+                alt="Jail"
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23ef4444" width="100" height="100" rx="10"/><text x="50" y="65" font-size="60" text-anchor="middle" fill="white">✕</text></svg>';
+                }}
               />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Pibi goes to jail.</h1>
@@ -125,16 +295,20 @@ export default function QuestTrueFalse() {
     );
   }
 
+  // Game Won Screen
   if (gameWon) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-300 to-yellow-400 flex items-center justify-center p-4">
         <div className="w-full max-w-md text-center">
           <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
             <div className="w-28 h-28 sm:w-32 sm:h-32 mx-auto mb-6">
-              <img 
-                src="/Quest/questTuesday/free.png" 
-                alt="Free" 
+              <img
+                src="/Quest/questTuesday/free.png"
+                alt="Free"
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%2322c55e" width="100" height="100" rx="10"/><text x="50" y="70" font-size="60" text-anchor="middle" fill="white">✓</text></svg>';
+                }}
               />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">Pibi stays free</h1>
@@ -180,12 +354,15 @@ export default function QuestTrueFalse() {
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(questData.lives)].map((_, i) => (
                 <img
                   key={i}
                   src="/Quest/questTuesday/bullet.png"
                   alt="Life"
                   className={`w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 object-contain ${i < lives ? "opacity-100" : "opacity-30 grayscale"}`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="%23fbbf24"/></svg>';
+                  }}
                 />
               ))}
             </div>
@@ -200,30 +377,48 @@ export default function QuestTrueFalse() {
             {/* Question */}
             <div className="mb-8 sm:mb-12 md:mb-16 lg:mb-24 w-full">
               <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-800 text-center px-3 sm:px-4 leading-tight">
-                {questions[currentQuestion].question}
+                {currentQuestion.question}
               </h2>
             </div>
 
             {/* Answer Buttons - Always in same line */}
             <div className="flex items-center justify-center gap-3 sm:gap-4 md:gap-6 lg:gap-12 w-full px-3 sm:px-4">
               <div className="flex-1 max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[260px]">
-                <img 
-                  src="/Quest/questTuesday/true.png" 
-                  alt="True" 
-                  onClick={() => handleAnswer(true)}
-                  className="w-full h-auto cursor-pointer hover:scale-105 transition-transform active:scale-95 select-none"
+                <img
+                  src="/Quest/questTuesday/true.png"
+                  alt="True"
+                  onClick={() => !submitting && handleAnswer(true)}
+                  className={`w-full h-auto select-none ${
+                    submitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 transition-transform active:scale-95'
+                  }`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect fill="%2322c55e" width="200" height="100" rx="10"/><text x="100" y="65" font-size="40" text-anchor="middle" fill="white" font-weight="bold">TRUE</text></svg>';
+                  }}
                 />
               </div>
 
               <div className="flex-1 max-w-[140px] sm:max-w-[180px] md:max-w-[220px] lg:max-w-[260px]">
-                <img 
+                <img
                   src="/Quest/questTuesday/false.png"
                   alt="False"
-                  onClick={() => handleAnswer(false)}
-                  className="w-full h-auto cursor-pointer hover:scale-105 transition-transform active:scale-95 select-none"
+                  onClick={() => !submitting && handleAnswer(false)}
+                  className={`w-full h-auto select-none ${
+                    submitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-105 transition-transform active:scale-95'
+                  }`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><rect fill="%23ef4444" width="200" height="100" rx="10"/><text x="100" y="65" font-size="40" text-anchor="middle" fill="white" font-weight="bold">FALSE</text></svg>';
+                  }}
                 />
               </div>
             </div>
+
+            {/* Submitting Indicator */}
+            {submitting && (
+              <div className="mt-8 flex items-center gap-3 text-gray-600">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="font-medium">Checking answer...</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full max-w-2xl px-3 sm:px-4">
@@ -238,7 +433,7 @@ export default function QuestTrueFalse() {
                   <X size={40} className="sm:w-12 sm:h-12 md:w-16 md:h-16 text-red-500" />
                 )}
               </div>
-              
+
               <h2 className={`text-2xl sm:text-3xl md:text-4xl font-black mb-3 sm:mb-4 ${
                 isCorrect ? 'text-green-500' : 'text-red-500'
               }`}>
@@ -251,7 +446,7 @@ export default function QuestTrueFalse() {
                 <p className={`text-sm sm:text-base md:text-lg font-medium ${
                   isCorrect ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {questions[currentQuestion].explanation}
+                  {explanation}
                 </p>
               </div>
             </div>
@@ -260,13 +455,14 @@ export default function QuestTrueFalse() {
             <div className="w-full">
               <button
                 onClick={handleNext}
+                disabled={gameOver || gameWon}
                 className={`w-full py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg md:text-xl text-white shadow-lg transition-transform active:scale-95 ${
-                  isCorrect 
-                    ? 'bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600' 
+                  isCorrect
+                    ? 'bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600'
                     : 'bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
                 }`}
               >
-                {currentQuestion < questions.length - 1 ? 'CONTINUE' : 'FINISH'}
+                {currentQuestionIndex < questData.questions.length - 1 ? 'CONTINUE' : 'FINISH'}
               </button>
             </div>
           </div>
@@ -278,9 +474,9 @@ export default function QuestTrueFalse() {
         <div className="bg-blue-50 rounded-2xl border-2 border-blue-200 p-4 sm:p-6">
           <div className="flex gap-3 sm:gap-4 md:gap-6 items-start">
             <div className="flex-shrink-0 hidden sm:block">
-              <img 
-                src="/Quest/think.png" 
-                alt="Bantay Mascot" 
+              <img
+                src="/Quest/think.png"
+                alt="Bantay Mascot"
                 className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 object-contain"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
@@ -291,8 +487,8 @@ export default function QuestTrueFalse() {
               <h3 className="font-bold text-gray-800 mb-2 sm:mb-3 text-base sm:text-lg">How to Play: Free or Jail</h3>
               <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
                 <li>• <strong>Answer Questions:</strong> Click TRUE or FALSE for each safety question</li>
-                <li>• <strong>Three Lives:</strong> You have 3 bullets - lose one for each wrong answer</li>
-                <li>• <strong>Goal:</strong> Answer all questions before running out of bullets</li>
+                <li>• <strong>Lives:</strong> You have {questData.lives} {questData.lives === 1 ? 'life' : 'lives'} - lose one for each wrong answer</li>
+                <li>• <strong>Goal:</strong> Answer all questions before running out of lives</li>
                 <li>• <strong>Win:</strong> Keep Pibi free by making smart, safe choices!</li>
               </ul>
             </div>

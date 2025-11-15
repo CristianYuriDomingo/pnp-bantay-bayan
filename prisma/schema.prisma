@@ -69,6 +69,7 @@ model User {
   progress             UserProgress[]
   achievementsEarned   UserAchievement[]
   questMondayProgress  QuestMondayProgress[]
+  questTuesdayProgress QuestTuesdayProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -391,4 +392,71 @@ model QuestMondayProgress {
   @@index([questMondayId])
   @@index([isCompleted])
   @@map("quest_monday_progress")
+}
+
+// ============================================
+// QUEST TUESDAY - TRUE/FALSE GAME
+// ============================================
+
+model QuestTuesday {
+  id          String                    @id @default(cuid())
+  title       String                    @default("Free or Jail Quiz")
+  lives       Int                       @default(3)  // Number of bullets/lives
+  isActive    Boolean                   @default(true)
+  createdById String
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  
+  // Relations
+  questions   QuestTuesdayQuestion[]
+  progress    QuestTuesdayProgress[]
+  
+  @@map("quest_tuesday")
+}
+
+model QuestTuesdayQuestion {
+  id              String         @id @default(cuid())
+  questTuesdayId  String
+  questionNumber  Int            // 1, 2, 3, etc.
+  question        String         // The question text
+  correctAnswer   Boolean        // true or false
+  explanation     String         // Explanation for the answer
+  orderIndex      Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  questTuesday    QuestTuesday   @relation(fields: [questTuesdayId], references: [id], onDelete: Cascade)
+  
+  @@unique([questTuesdayId, questionNumber])
+  @@index([questTuesdayId])
+  @@index([questionNumber])
+  @@map("quest_tuesday_questions")
+}
+
+model QuestTuesdayProgress {
+  id                String       @id @default(cuid())
+  userId            String
+  questTuesdayId    String
+  currentQuestion   Int          @default(1)
+  completedQuestions Json        @default("[]")  // Array of completed question numbers [1, 2, 3]
+  answeredQuestions Json         @default("[]")  // Array of {questionNumber, isCorrect, selectedAnswer}
+  livesRemaining    Int          @default(3)
+  score             Int          @default(0)     // Correct answers count
+  isCompleted       Boolean      @default(false)
+  isFailed          Boolean      @default(false) // True if all lives lost
+  startedAt         DateTime     @default(now())
+  completedAt       DateTime?
+  lastPlayedAt      DateTime     @default(now())
+  
+  // Relations
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questTuesday      QuestTuesday @relation(fields: [questTuesdayId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, questTuesdayId])
+  @@index([userId])
+  @@index([questTuesdayId])
+  @@index([isCompleted])
+  @@index([isFailed])
+  @@map("quest_tuesday_progress")
 }
