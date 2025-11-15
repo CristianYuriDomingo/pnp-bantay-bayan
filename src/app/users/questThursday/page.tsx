@@ -1,103 +1,261 @@
 // app/users/questThursday/page.tsx
 'use client';
-import React, { useState } from 'react';
-import { X, Trophy, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Loader2 } from 'lucide-react';
 
 interface Item {
-  id: number;   
-  name: string;
-  image: string;
-  isAllowed: boolean;
-  explanation: string;
+  id: string;   
+  itemName: string;
+  itemImage: string;
 }
 
-const items: Item[] = [
-  {
-    id: 1,
-    name: "KNIFE",
-    image: "/Quest/questThursday/knife.png",
-    isAllowed: false,
-    explanation: "Knives are dangerous weapons and are confiscated for everyone's safety."
-  },
-  {
-    id: 2,
-    name: "BOOK",
-    image: "/Quest/questThursday/book.png",
-    isAllowed: true,
-    explanation: "Books are allowed! Reading materials are safe and educational."
-  },
-  {
-    id: 3,
-    name: "GUN",
-    image: "/Quest/questThursday/gun.png",
-    isAllowed: false,
-    explanation: "Firearms are strictly prohibited and will be confiscated immediately."
-  },
-  {
-    id: 4,
-    name: "PHONE",
-    image: "/Quest/questThursday/phone.png",
-    isAllowed: true,
-    explanation: "Mobile phones are allowed for communication and emergencies."
-  },
-  {
-    id: 5,
-    name: "DRUGS",
-    image: "/Quest/questThursday/drugs.png",
-    isAllowed: false,
-    explanation: "Illegal drugs are prohibited and will be confiscated by authorities."
-  }
-];
+interface QuestData {
+  id: string;
+  title: string;
+  lives: number;
+  totalItems: number;
+  items: Item[];
+  userProgress: {
+    currentItem: number;
+    completedItems: string[];
+    livesRemaining: number;
+    score: number;
+    isCompleted: boolean;
+    isFailed: boolean;
+  } | null;
+}
 
 export default function ConfiscatedAllowedGame() {
-  const [currentItem, setCurrentItem] = useState(0);
+  const [questData, setQuestData] = useState<QuestData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [lives, setLives] = useState(3);
   const [score, setScore] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [correctAnswer, setCorrectAnswer] = useState<boolean | null>(null);
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
-  const handleAnswer = (answer: boolean) => {
-    if (showFeedback) return;
+  // Fetch quest data on mount
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
 
-    const correct = answer === items[currentItem].isAllowed;
-    setIsCorrect(correct);
-    setShowFeedback(true);
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    if (correct) {
-      setScore(score + 1);
-    } else {
-      const newLives = lives - 1;
-      setLives(newLives);
-      if (newLives === 0) {
-        setGameOver(true);
+      const response = await fetch('/api/users/quest/thursday');
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please check if you are logged in.');
       }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch quest data');
+      }
+
+      if (data.success && data.data) {
+        setQuestData(data.data);
+
+        // Restore user progress if exists
+        if (data.data.userProgress) {
+          const progress = data.data.userProgress;
+          setLives(progress.livesRemaining);
+          setScore(progress.score);
+
+          // Find current item index
+          const currentIndex = progress.completedItems.length;
+          setCurrentItemIndex(currentIndex >= 0 ? currentIndex : 0);
+
+          if (progress.isCompleted) {
+            setGameWon(true);
+          } else if (progress.isFailed) {
+            setGameOver(true);
+          }
+        } else {
+          // New game - set initial lives from quest config
+          setLives(data.data.lives);
+        }
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('Error fetching quest data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quest data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnswer = async (answer: boolean) => {
+    if (showFeedback || !questData) return;
+
+    try {
+      setSubmitting(true);
+
+      const currentItem = questData.items[currentItemIndex];
+
+      const response = await fetch('/api/users/quest/thursday/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questThursdayId: questData.id,
+          itemId: currentItem.id,
+          selectedDecision: answer
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please try again.');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit answer');
+      }
+
+      const correct = data.data.correct;
+      setIsCorrect(correct);
+      setExplanation(data.data.explanation);
+      setCorrectAnswer(data.data.correctAnswer);
+      setShowFeedback(true);
+
+      // Update lives and score
+      setLives(data.data.livesRemaining);
+      setScore(data.data.score);
+
+      // Check game state
+      if (data.data.isFailed) {
+        setTimeout(() => {
+          setGameOver(true);
+        }, 1500);
+      } else if (data.data.isCompleted) {
+        setTimeout(() => {
+          setGameWon(true);
+        }, 1500);
+      }
+
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit answer');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleNext = () => {
-    if (currentItem < items.length - 1) {
-      setCurrentItem(currentItem + 1);
+    if (!questData) return;
+
+    if (currentItemIndex < questData.items.length - 1) {
+      setCurrentItemIndex(currentItemIndex + 1);
       setShowFeedback(false);
       setIsCorrect(false);
-    } else {
-      setGameWon(true);
+      setExplanation('');
+      setCorrectAnswer(null);
     }
   };
 
-  const handleRestart = () => {
-    setCurrentItem(0);
-    setLives(3);
-    setScore(0);
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setGameOver(false);
-    setGameWon(false);
+  const handleRestart = async () => {
+    if (!questData) return;
+
+    try {
+      const response = await fetch('/api/users/quest/thursday/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questThursdayId: questData.id
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response');
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to reset progress');
+      }
+
+      // Reset all state
+      setCurrentItemIndex(0);
+      setLives(questData.lives);
+      setScore(0);
+      setShowFeedback(false);
+      setIsCorrect(false);
+      setExplanation('');
+      setCorrectAnswer(null);
+      setGameOver(false);
+      setGameWon(false);
+
+    } catch (err) {
+      console.error('Error resetting progress:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reset progress');
+    }
   };
 
-  const progress = (currentItem / items.length) * 100;
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest...</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Error state
+  if (error || !questData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Quest</h2>
+          <p className="text-gray-600 mb-6">{error || 'No quest available'}</p>
+          <div className="space-y-3">
+            <button
+              onClick={fetchQuestData}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.history.back()}
+              className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const progress = ((currentItemIndex + 1) / questData.totalItems) * 100;
+  const currentItem = questData.items[currentItemIndex];
+
+  // Game Over Screen
   if (gameOver) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-red-400 to-red-500 flex items-center justify-center p-4">
@@ -108,6 +266,9 @@ export default function ConfiscatedAllowedGame() {
                 src="/Quest/questThursday/kickedoff.png" 
                 alt="Kicked Off" 
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23ef4444" width="100" height="100" rx="10"/><text x="50" y="65" font-size="60" text-anchor="middle" fill="white">✕</text></svg>';
+                }}
               />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">General kicked you off.</h1>
@@ -126,6 +287,7 @@ export default function ConfiscatedAllowedGame() {
     );
   }
 
+  // Game Won Screen
   if (gameWon) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-yellow-300 to-yellow-400 flex items-center justify-center p-4">
@@ -136,6 +298,9 @@ export default function ConfiscatedAllowedGame() {
                 src="/Quest/questThursday/promoted.png" 
                 alt="Promoted" 
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%2322c55e" width="100" height="100" rx="10"/><text x="50" y="70" font-size="60" text-anchor="middle" fill="white">✓</text></svg>';
+                }}
               />
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-gray-800 mb-2">General promoting you</h1>
@@ -182,12 +347,15 @@ export default function ConfiscatedAllowedGame() {
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
-              {[...Array(3)].map((_, i) => (
+              {[...Array(questData.lives)].map((_, i) => (
                 <img
                   key={i}
                   src="/Quest/questThursday/bullet.png"
                   alt="Life"
                   className={`w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 object-contain ${i < lives ? "opacity-100" : "opacity-30 grayscale"}`}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="%23fbbf24"/></svg>';
+                  }}
                 />
               ))}
             </div>
@@ -204,11 +372,14 @@ export default function ConfiscatedAllowedGame() {
               <div className="bg-white rounded-2xl shadow-xl px-4 py-3 sm:px-6 sm:py-4 border-2 border-gray-200 min-w-[160px] sm:min-w-[200px]">
                 <div className="text-center">
                   <img 
-                    src={items[currentItem].image} 
-                    alt={items[currentItem].name}
+                    src={currentItem.itemImage} 
+                    alt={currentItem.itemName}
                     className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 mx-auto mb-2 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23e5e7eb" width="100" height="100" rx="10"/><text x="50" y="60" font-size="40" text-anchor="middle" fill="%236b7280">?</text></svg>';
+                    }}
                   />
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">{items[currentItem].name}</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800">{currentItem.itemName}</p>
                 </div>
                 {/* Speech bubble tail */}
                 <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-5 h-5 bg-white border-b-2 border-r-2 border-gray-200 transform rotate-45"></div>
@@ -221,27 +392,40 @@ export default function ConfiscatedAllowedGame() {
                 src="/Quest/questThursday/mascot.png" 
                 alt="Police Mascot"
                 className="w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 object-contain mx-auto"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect fill="%233b82f6" width="200" height="200" rx="20"/><circle cx="100" cy="100" r="60" fill="white"/></svg>';
+                }}
               />
             </div>
 
             {/* Answer Buttons - Responsive layout */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 md:gap-6 w-full max-w-2xl px-3 sm:px-4">
               <button
-                onClick={() => handleAnswer(false)}
-                className="w-full sm:flex-1 max-w-[320px] sm:max-w-[280px] py-4 sm:py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg sm:text-xl md:text-2xl shadow-lg transition-all active:scale-95"
+                onClick={() => !submitting && handleAnswer(false)}
+                disabled={submitting}
+                className="w-full sm:flex-1 max-w-[320px] sm:max-w-[280px] py-4 sm:py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold text-lg sm:text-xl md:text-2xl shadow-lg transition-all active:scale-95"
               >
-                CONFISCATE
+                {submitting ? 'CHECKING...' : 'CONFISCATE'}
               </button>
               
               <p className="text-base sm:text-lg md:text-xl font-medium text-gray-400 hidden sm:block">or</p>
 
               <button
-                onClick={() => handleAnswer(true)}
-                className="w-full sm:flex-1 max-w-[320px] sm:max-w-[280px] py-4 sm:py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg sm:text-xl md:text-2xl shadow-lg transition-all active:scale-95"
+                onClick={() => !submitting && handleAnswer(true)}
+                disabled={submitting}
+                className="w-full sm:flex-1 max-w-[320px] sm:max-w-[280px] py-4 sm:py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-bold text-lg sm:text-xl md:text-2xl shadow-lg transition-all active:scale-95"
               >
-                ALLOW
+                {submitting ? 'CHECKING...' : 'ALLOW'}
               </button>
             </div>
+
+            {/* Submitting Indicator */}
+            {submitting && (
+              <div className="mt-8 flex items-center gap-3 text-gray-600">
+                <Loader2 className="w-6 h-6 animate-spin" />
+                <span className="font-medium">Checking decision...</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full max-w-2xl mx-auto px-3 sm:px-4 min-h-[calc(100vh-240px)] sm:min-h-[calc(100vh-300px)] flex flex-col justify-center">
@@ -269,7 +453,7 @@ export default function ConfiscatedAllowedGame() {
                 <p className={`text-sm sm:text-base md:text-lg font-medium ${
                   isCorrect ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {items[currentItem].explanation}
+                  {explanation}
                 </p>
               </div>
             </div>
@@ -278,13 +462,14 @@ export default function ConfiscatedAllowedGame() {
             <div className="w-full">
               <button
                 onClick={handleNext}
+                disabled={gameOver || gameWon}
                 className={`w-full py-4 sm:py-5 rounded-2xl font-bold text-base sm:text-lg md:text-xl text-white shadow-lg transition-transform active:scale-95 ${
                   isCorrect 
                     ? 'bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600' 
                     : 'bg-gradient-to-b from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600'
                 }`}
               >
-                {currentItem < items.length - 1 ? 'CONTINUE' : 'FINISH'}
+                {currentItemIndex < questData.items.length - 1 ? 'CONTINUE' : 'FINISH'}
               </button>
             </div>
           </div>
@@ -310,7 +495,7 @@ export default function ConfiscatedAllowedGame() {
               <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
                 <li>• <strong>Inspect Items:</strong> The general is watching inspect item in right way</li>
                 <li>• <strong>Make a Decision:</strong> Choose CONFISCATE or ALLOW for each item</li>
-                <li>• <strong>Three Lives:</strong> You have 3 bullets - lose one for each wrong answer</li>
+                <li>• <strong>Lives:</strong> You have {questData.lives} {questData.lives === 1 ? 'life' : 'lives'} - lose one for each wrong answer</li>
                 <li>• <strong>Goal:</strong> Pass the inspection by correctly identifying all items</li>
                 <li>• <strong>Win:</strong> Get promoted by the general for your excellent work!</li>
               </ul>

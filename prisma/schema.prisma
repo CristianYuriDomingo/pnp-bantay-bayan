@@ -36,40 +36,41 @@ model Session {
 }
 
 model User {
-  id                   String              @id @default(cuid())
-  name                 String?
-  email                String              @unique
-  emailVerified        DateTime?
-  image                String?
-  password             String?
-  role                 String              @default("user")
-  status               String              @default("active")
-  totalXP              Int                 @default(0)
-  level                Int                 @default(1)
+  id                     String                    @id @default(cuid())
+  name                   String?
+  email                  String                    @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String?
+  role                   String                    @default("user")
+  status                 String                    @default("active")
+  totalXP                Int                       @default(0)
+  level                  Int                       @default(1)
 
   // PNP Rank System Fields - UPDATED: Changed default from "Pat" to "Cadet"
-  currentRank          String              @default("Cadet")
-  leaderboardPosition  Int?
-  rankAchievedAt       DateTime            @default(now())
-  highestRankEver      String              @default("Cadet")
-  rankHistory          Json?
-  lastActiveDate       DateTime            @default(now())
+  currentRank            String                    @default("Cadet")
+  leaderboardPosition    Int?
+  rankAchievedAt         DateTime                  @default(now())
+  highestRankEver        String                    @default("Cadet")
+  rankHistory            Json?
+  lastActiveDate         DateTime                  @default(now())
 
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  resetToken           String?
-  resetTokenExpiry     DateTime?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  resetToken             String?
+  resetTokenExpiry       DateTime?
   
   // Relations
-  accounts             Account[]
-  sessions             Session[]
-  quizAttempts         QuizAttempt[]
-  quizMasteries        QuizMastery[]
-  badgeEarned          UserBadge[]
-  progress             UserProgress[]
-  achievementsEarned   UserAchievement[]
-  questMondayProgress  QuestMondayProgress[]
-  questTuesdayProgress QuestTuesdayProgress[]
+  accounts               Account[]
+  sessions               Session[]
+  quizAttempts           QuizAttempt[]
+  quizMasteries          QuizMastery[]
+  badgeEarned            UserBadge[]
+  progress               UserProgress[]
+  achievementsEarned     UserAchievement[]
+  questMondayProgress    QuestMondayProgress[]
+  questTuesdayProgress   QuestTuesdayProgress[]
+  questThursdayProgress  QuestThursdayProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -459,4 +460,70 @@ model QuestTuesdayProgress {
   @@index([isCompleted])
   @@index([isFailed])
   @@map("quest_tuesday_progress")
+}
+
+// ============================================
+// QUEST THURSDAY - CONFISCATE OR ALLOW GAME
+// ============================================
+
+model QuestThursday {
+  id          String                    @id @default(cuid())
+  title       String                    @default("Confiscate or Allow")
+  lives       Int                       @default(3)
+  isActive    Boolean                   @default(true)
+  createdById String
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  
+  // Relations
+  items       QuestThursdayItem[]
+  progress    QuestThursdayProgress[]
+  
+  @@map("quest_thursday")
+}
+
+model QuestThursdayItem {
+  id              String         @id @default(cuid())
+  questThursdayId String
+  itemName        String         // e.g., "KNIFE", "BOOK", "PHONE"
+  itemImage       String         // Image path or base64
+  isAllowed       Boolean        @default(false)  // true = ALLOW, false = CONFISCATE
+  explanation     String         // Explanation for the decision
+  orderIndex      Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Relations
+  questThursday   QuestThursday  @relation(fields: [questThursdayId], references: [id], onDelete: Cascade)
+  
+  @@index([questThursdayId])
+  @@index([orderIndex])
+  @@map("quest_thursday_items")
+}
+
+model QuestThursdayProgress {
+  id                String         @id @default(cuid())
+  userId            String
+  questThursdayId   String
+  currentItem       Int            @default(1)
+  completedItems    Json           @default("[]")  // Array of completed item IDs
+  answeredItems     Json           @default("[]")  // Array of {itemId, selectedDecision, isCorrect}
+  livesRemaining    Int            @default(3)
+  score             Int            @default(0)     // Correct answers count
+  isCompleted       Boolean        @default(false)
+  isFailed          Boolean        @default(false) // True if all lives lost
+  startedAt         DateTime       @default(now())
+  completedAt       DateTime?
+  lastPlayedAt      DateTime       @default(now())
+  
+  // Relations
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questThursday     QuestThursday  @relation(fields: [questThursdayId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, questThursdayId])
+  @@index([userId])
+  @@index([questThursdayId])
+  @@index([isCompleted])
+  @@index([isFailed])
+  @@map("quest_thursday_progress")
 }
