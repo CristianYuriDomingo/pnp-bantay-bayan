@@ -30,8 +30,8 @@ const quests: Quest[] = [
   {
     id: 'quest-wednesday',
     day: 'Wednesday',
-    title: 'Guess the Rank',
-    type: 'Matching',
+    title: 'Code the Call',
+    type: 'Puzzle',
     thumbnail: '/Quest/questWednesday/pibiBack.png',
   },
   {
@@ -44,8 +44,8 @@ const quests: Quest[] = [
   {
     id: 'quest-friday',
     day: 'Friday',
-    title: 'Code the Call',
-    type: 'Puzzle',
+    title: 'Guess the Rank ',
+    type: 'Matching',
     thumbnail: '/Quest/questWednesday/pibiBack.png',
   }
 ];

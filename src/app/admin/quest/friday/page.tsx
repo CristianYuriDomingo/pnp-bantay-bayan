@@ -1,32 +1,150 @@
+// app/admin/quest/friday/page.tsx
 'use client';
-import { useState } from 'react';
-import { ChevronLeft, Save, Upload, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, Save, Upload, X, Loader2 } from 'lucide-react';
 
 interface RankOption {
-  id: string;
-  label: string;
-  image: string;
+  id?: string;
+  rankName: string;
+  rankImage: string;
   isCorrect: boolean;
 }
 
 export default function QuestFridayAdmin() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [questId, setQuestId] = useState<string | null>(null);
+  const [title, setTitle] = useState('Guess The Rank');
+  const [instructionText, setInstructionText] = useState('Police Corporal');
+  
   const [rankOptions, setRankOptions] = useState<RankOption[]>([
-    { id: '1', label: 'POLICE MASTER SERGEANT', image: '', isCorrect: false },
-    { id: '2', label: 'POLICE CORPORAL', image: '', isCorrect: true },
-    { id: '3', label: 'PATROLMAN', image: '', isCorrect: false },
+    { rankName: 'POLICE MASTER SERGEANT', rankImage: '', isCorrect: false },
+    { rankName: 'POLICE CORPORAL', rankImage: '', isCorrect: true },
+    { rankName: 'PATROLMAN', rankImage: '', isCorrect: false },
   ]);
 
-  const [instructionText, setInstructionText] = useState('Police Corporal');
+  // Fetch existing quest data
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
 
-  const handleSave = () => {
-    console.log('Saving rank options:', rankOptions);
-    console.log('Instruction text:', instructionText);
-    alert('Quest Friday saved successfully!');
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/quest/friday');
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setQuestId(data.data.id);
+          setTitle(data.data.title);
+          setInstructionText(data.data.instruction);
+          setRankOptions(data.data.rankOptions.map((option: any) => ({
+            id: option.id,
+            rankName: option.rankName,
+            rankImage: option.rankImage,
+            isCorrect: option.isCorrect
+          })));
+        }
+      } else if (response.status === 404) {
+        // No quest exists yet, use default values
+        console.log('No existing quest found, using defaults');
+      } else {
+        const errorData = await response.json();
+        console.error('Error fetching quest:', errorData.error);
+      }
+    } catch (error) {
+      console.error('Error fetching quest data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Validation
+    if (!title.trim()) {
+      alert('Please enter a title');
+      return;
+    }
+
+    if (!instructionText.trim()) {
+      alert('Please enter instruction text');
+      return;
+    }
+
+    if (rankOptions.length !== 3) {
+      alert('Must have exactly 3 rank options');
+      return;
+    }
+
+    // Validate each rank option
+    for (let i = 0; i < rankOptions.length; i++) {
+      const option = rankOptions[i];
+      if (!option.rankName.trim()) {
+        alert(`Rank option ${i + 1} name is empty`);
+        return;
+      }
+      if (!option.rankImage) {
+        alert(`Rank option ${i + 1} image is missing`);
+        return;
+      }
+    }
+
+    // Check exactly one correct answer
+    const correctCount = rankOptions.filter(opt => opt.isCorrect).length;
+    if (correctCount !== 1) {
+      alert(`Must have exactly one correct answer. Currently: ${correctCount}`);
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const payload = {
+        questId,
+        title,
+        instruction: instructionText,
+        rankOptions: rankOptions.map(({ id, ...option }) => option) // Remove id for API
+      };
+
+      const url = '/api/admin/quest/friday';
+      const method = questId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save quest');
+      }
+
+      alert(data.message || 'Quest Friday saved successfully!');
+      
+      // Update questId if it was a new creation
+      if (data.data?.id) {
+        setQuestId(data.data.id);
+      }
+
+      // Refresh data
+      await fetchQuestData();
+
+    } catch (error) {
+      console.error('Error saving quest:', error);
+      alert(error instanceof Error ? error.message : 'Failed to save quest');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateRankLabel = (index: number, label: string) => {
     const newOptions = [...rankOptions];
-    newOptions[index].label = label;
+    newOptions[index].rankName = label;
     setRankOptions(newOptions);
   };
 
@@ -46,7 +164,7 @@ export default function QuestFridayAdmin() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const newOptions = [...rankOptions];
-      newOptions[index].image = reader.result as string;
+      newOptions[index].rankImage = reader.result as string;
       setRankOptions(newOptions);
     };
     reader.readAsDataURL(file);
@@ -54,7 +172,7 @@ export default function QuestFridayAdmin() {
 
   const removeImage = (index: number) => {
     const newOptions = [...rankOptions];
-    newOptions[index].image = '';
+    newOptions[index].rankImage = '';
     setRankOptions(newOptions);
   };
 
@@ -66,6 +184,17 @@ export default function QuestFridayAdmin() {
     });
     setRankOptions(newOptions);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest Friday...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -80,20 +209,36 @@ export default function QuestFridayAdmin() {
             Back to Quests
           </button>
           <div className="flex-1">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 mb-2">
               <span className="px-3 py-1 rounded-full text-sm font-bold bg-pink-100 text-pink-700 border-pink-300">
                 Friday
               </span>
-              <h1 className="text-2xl font-bold text-gray-900">Guess The Rank</h1>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="text-2xl font-bold text-gray-900 border-b-2 border-transparent hover:border-gray-300 focus:border-pink-500 focus:outline-none bg-transparent"
+                placeholder="Quest Title"
+              />
             </div>
-            <p className="text-sm text-gray-600 mt-1">Quest Type: Drag & Drop</p>
+            <p className="text-sm text-gray-600">Quest Type: Drag & Drop</p>
           </div>
           <button 
             onClick={handleSave}
-            className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg transition-colors font-medium"
           >
-            <Save className="w-4 h-4" />
-            Save Changes
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
           </button>
         </div>
 
@@ -125,7 +270,7 @@ export default function QuestFridayAdmin() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {rankOptions.map((option, index) => (
               <div 
-                key={option.id}
+                key={index}
                 className={`relative border-2 rounded-xl p-4 transition-all ${
                   option.isCorrect 
                     ? 'border-green-500 bg-green-50' 
@@ -148,33 +293,19 @@ export default function QuestFridayAdmin() {
                 </div>
 
                 {/* Option Number */}
-                <div className="text-center mb-3">
+                <div className="text-center mb-4">
                   <span className="inline-block px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-bold">
                     Option {index + 1}
                   </span>
                 </div>
 
-                {/* Rank Label Input */}
-                <div className="mb-3">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Rank Name
-                  </label>
-                  <input
-                    type="text"
-                    value={option.label}
-                    onChange={(e) => updateRankLabel(index, e.target.value)}
-                    placeholder="e.g., POLICE CORPORAL"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent uppercase"
-                  />
-                </div>
-
                 {/* Image Upload Area */}
                 <div className="mb-3 bg-gray-100 rounded-lg overflow-hidden aspect-square flex items-center justify-center relative group">
-                  {option.image ? (
+                  {option.rankImage ? (
                     <>
                       <img 
-                        src={option.image} 
-                        alt={option.label}
+                        src={option.rankImage} 
+                        alt={option.rankName}
                         className="w-full h-full object-contain p-4"
                       />
                       {/* Remove Image Button */}
@@ -209,18 +340,18 @@ export default function QuestFridayAdmin() {
                   />
                   <div className="w-full px-3 py-2 text-sm border-2 border-dashed border-gray-300 hover:border-pink-500 rounded-lg text-center cursor-pointer transition-colors bg-white hover:bg-pink-50">
                     <span className="text-gray-700 font-medium">
-                      {option.image ? 'Change Insignia' : 'Upload Insignia'}
+                      {option.rankImage ? 'Change Insignia' : 'Upload Insignia'}
                     </span>
                   </div>
                 </label>
 
                 {/* Validation Warnings */}
-                {!option.label.trim() && (
+                {!option.rankName.trim() && (
                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                     ⚠️ Rank name is empty
                   </div>
                 )}
-                {!option.image && (
+                {!option.rankImage && (
                   <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800">
                     ⚠️ Insignia image missing
                   </div>
@@ -240,10 +371,10 @@ export default function QuestFridayAdmin() {
           )}
 
           {/* Missing Images Warning */}
-          {rankOptions.filter(opt => !opt.image).length > 0 && (
+          {rankOptions.filter(opt => !opt.rankImage).length > 0 && (
             <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <p className="text-sm text-orange-800">
-                ⚠️ Warning: {rankOptions.filter(opt => !opt.image).length} insignia image(s) missing.
+                ⚠️ Warning: {rankOptions.filter(opt => !opt.rankImage).length} insignia image(s) missing.
                 Please upload images for all rank options.
               </p>
             </div>

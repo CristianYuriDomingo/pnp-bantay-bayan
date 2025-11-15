@@ -71,6 +71,7 @@ model User {
   questMondayProgress    QuestMondayProgress[]
   questTuesdayProgress   QuestTuesdayProgress[]
   questThursdayProgress  QuestThursdayProgress[]
+  questFridayProgress    QuestFridayProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -526,4 +527,65 @@ model QuestThursdayProgress {
   @@index([isCompleted])
   @@index([isFailed])
   @@map("quest_thursday_progress")
+}
+
+// ============================================
+// QUEST FRIDAY - GUESS THE RANK GAME (Drag & Drop)
+// ============================================
+
+model QuestFriday {
+  id          String                  @id @default(cuid())
+  title       String                  @default("Guess The Rank")
+  instruction String                  // "Police Corporal" - used in "Drag Pibi to the _____ Rank"
+  isActive    Boolean                 @default(true)
+  createdById String
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  
+  // Relations
+  rankOptions QuestFridayRankOption[]
+  progress    QuestFridayProgress[]
+  
+  @@map("quest_friday")
+}
+
+model QuestFridayRankOption {
+  id            String       @id @default(cuid())
+  questFridayId String
+  rankName      String       // e.g., "POLICE MASTER SERGEANT", "POLICE CORPORAL"
+  rankImage     String       // Rank insignia image (base64 or path)
+  isCorrect     Boolean      @default(false)  // Only one should be true
+  orderIndex    Int          @default(0)      // Display order (1, 2, 3)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  questFriday   QuestFriday  @relation(fields: [questFridayId], references: [id], onDelete: Cascade)
+  
+  @@index([questFridayId])
+  @@index([orderIndex])
+  @@map("quest_friday_rank_options")
+}
+
+model QuestFridayProgress {
+  id            String       @id @default(cuid())
+  userId        String
+  questFridayId String
+  selectedRank  String?      // ID of the rank option selected by user
+  isCorrect     Boolean      @default(false)
+  isCompleted   Boolean      @default(false)
+  attempts      Int          @default(0)      // Number of attempts made
+  startedAt     DateTime     @default(now())
+  completedAt   DateTime?
+  lastPlayedAt  DateTime     @default(now())
+  
+  // Relations
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questFriday   QuestFriday  @relation(fields: [questFridayId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, questFridayId])
+  @@index([userId])
+  @@index([questFridayId])
+  @@index([isCompleted])
+  @@map("quest_friday_progress")
 }

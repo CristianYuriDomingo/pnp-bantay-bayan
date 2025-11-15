@@ -1,29 +1,66 @@
 // app/users/questFriday/page.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { X, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, Loader2 } from 'lucide-react';
 
 interface RankOption {
   id: string;
-  label: string;
-  isCorrect: boolean;
-  image: string;
+  rankImage: string;
+  orderIndex: number;
 }
 
-const rankOptions: RankOption[] = [
-  { id: '1', label: 'POLICE MASTER SERGEANT', isCorrect: false, image: '/Quest/insignia-1.png' },
-  { id: '2', label: 'POLICE CORPORAL', isCorrect: true, image: '/Quest/insignia-2.png' },
-  { id: '3', label: 'PATROLMAN', isCorrect: false, image: '/Quest/insignia-3.png' },
-];
+interface QuestData {
+  id: string;
+  title: string;
+  instruction: string;
+  rankOptions: RankOption[];
+  userProgress: {
+    isCompleted: boolean;
+    isCorrect: boolean;
+    attempts: number;
+    selectedRank: string | null;
+  } | null;
+}
 
 export default function GuessTheRank() {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [questData, setQuestData] = useState<QuestData | null>(null);
   const [draggedOver, setDraggedOver] = useState<string | null>(null);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [attempts, setAttempts] = useState(0);
   const [gameWon, setGameWon] = useState(false);
+
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
+
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/users/quest/friday');
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setQuestData(data.data);
+        
+        // If user already completed, show win screen
+        if (data.data.userProgress?.isCompleted && data.data.userProgress?.isCorrect) {
+          setGameWon(true);
+        }
+      } else {
+        console.error('Failed to fetch quest:', data.error);
+        alert('Failed to load quest. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching quest:', error);
+      alert('Failed to load quest. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -44,19 +81,42 @@ export default function GuessTheRank() {
     handleAnswer(optionId);
   };
 
-  const handleAnswer = (optionId: string) => {
-    if (showFeedback) return;
+  const handleAnswer = async (optionId: string) => {
+    if (showFeedback || submitting || !questData) return;
 
     setSelectedOption(optionId);
-    const option = rankOptions.find(opt => opt.id === optionId);
-    const correct = option?.isCorrect || false;
-    
-    setIsCorrect(correct);
-    setShowFeedback(true);
-    setAttempts(attempts + 1);
+    setSubmitting(true);
 
-    if (correct) {
-      setGameWon(true);
+    try {
+      const response = await fetch('/api/users/quest/friday/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questFridayId: questData.id,
+          selectedRankId: optionId
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const correct = data.data.correct;
+        setIsCorrect(correct);
+        setShowFeedback(true);
+
+        if (correct) {
+          setGameWon(true);
+        }
+      } else {
+        alert('Failed to submit answer. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      alert('Failed to submit answer. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -67,14 +127,66 @@ export default function GuessTheRank() {
     setDraggedOver(null);
   };
 
-  const handleRestart = () => {
-    setSelectedOption(null);
-    setShowFeedback(false);
-    setIsCorrect(false);
-    setAttempts(0);
-    setGameWon(false);
-    setDraggedOver(null);
+  const handleRestart = async () => {
+    if (!questData) return;
+
+    try {
+      const response = await fetch('/api/users/quest/friday/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questFridayId: questData.id
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSelectedOption(null);
+        setShowFeedback(false);
+        setIsCorrect(false);
+        setGameWon(false);
+        setDraggedOver(null);
+        
+        // Refresh quest data
+        await fetchQuestData();
+      } else {
+        alert('Failed to reset progress. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      alert('Failed to reset progress. Please try again.');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!questData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <p className="text-xl text-gray-800 mb-4">No active quest available</p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (gameWon) {
     return (
@@ -116,7 +228,7 @@ export default function GuessTheRank() {
               <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
             </button>
             <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-800">
-              Guess The Rank
+              {questData.title}
             </h1>
             <div className="w-10 sm:w-14"></div>
           </div>
@@ -130,19 +242,20 @@ export default function GuessTheRank() {
           <div className="flex flex-col items-center mb-8 sm:mb-12 relative">
             {/* Top Insignia Options Row */}
             <div className="flex justify-center gap-4 sm:gap-8 md:gap-20 mb-8 sm:mb-10 md:mb-12 relative z-10 px-2">
-              {rankOptions.map((option, index) => (
+              {questData.rankOptions.map((option, index) => (
                 <div key={option.id} className="flex flex-col items-center relative">
                   <div
                     onDragOver={(e) => handleDragOver(e, option.id)}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, option.id)}
-                    onClick={() => !showFeedback && handleAnswer(option.id)}
+                    onClick={() => !showFeedback && !submitting && handleAnswer(option.id)}
                     className={`
                       relative w-20 h-20 sm:w-28 sm:h-28 md:w-40 md:h-40
                       bg-white rounded-xl sm:rounded-2xl border-3 sm:border-4 
                       flex items-center justify-center p-2 sm:p-3 md:p-4
-                      transition-all cursor-pointer shadow-md
-                      ${draggedOver === option.id && !showFeedback
+                      transition-all shadow-md
+                      ${submitting ? 'cursor-wait opacity-50' : 'cursor-pointer'}
+                      ${draggedOver === option.id && !showFeedback && !submitting
                         ? 'scale-110 shadow-2xl border-blue-400'
                         : selectedOption === option.id && showFeedback
                         ? isCorrect
@@ -150,12 +263,12 @@ export default function GuessTheRank() {
                           : 'border-red-500 shadow-xl'
                         : 'border-gray-300 hover:scale-105 hover:border-blue-300'
                       }
-                      ${showFeedback ? 'cursor-default' : ''}
+                      ${showFeedback || submitting ? 'pointer-events-none' : ''}
                     `}
                   >
                     <img 
-                      src={option.image}
-                      alt={option.label}
+                      src={option.rankImage}
+                      alt={`Rank option ${index + 1}`}
                       className="w-full h-full object-contain select-none"
                       draggable={false}
                     />
@@ -164,6 +277,13 @@ export default function GuessTheRank() {
                     {selectedOption === option.id && showFeedback && isCorrect && (
                       <div className="absolute -right-2 -top-2 sm:-right-3 sm:-top-3 w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
                         <Check size={20} className="sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" strokeWidth={3} />
+                      </div>
+                    )}
+
+                    {/* Loading spinner */}
+                    {submitting && selectedOption === option.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 rounded-xl">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                       </div>
                     )}
                   </div>
@@ -216,9 +336,9 @@ export default function GuessTheRank() {
             {/* Pibi Character - Responsive sizing */}
             <div 
               className={`mb-6 sm:mb-8 relative z-20 ${
-                showFeedback ? 'opacity-50 cursor-not-allowed' : 'cursor-move hover:scale-105 transition-transform active:scale-95'
+                showFeedback || submitting ? 'opacity-50 cursor-not-allowed' : 'cursor-move hover:scale-105 transition-transform active:scale-95'
               }`}
-              draggable={!showFeedback}
+              draggable={!showFeedback && !submitting}
               onDragStart={handleDragStart}
             >
               <img 
@@ -231,7 +351,7 @@ export default function GuessTheRank() {
 
             {/* Instruction text - Responsive sizing */}
             <p className="text-base sm:text-lg md:text-2xl text-gray-900 font-medium text-center px-4">
-              Drag Pibi to the Police Corporal Rank
+              Drag Pibi to the {questData.instruction} Rank
             </p>
           </div>
 
@@ -280,7 +400,7 @@ export default function GuessTheRank() {
               <ul className="text-gray-700 space-y-1 sm:space-y-2 text-sm sm:text-base">
                 <li>• <strong>Drag & Drop:</strong> Drag Pibi to one of the rank insignia</li>
                 <li>• <strong>Click:</strong> Or simply click on a rank insignia to select it</li>
-                <li>• <strong>Goal:</strong> Match Pibi with the correct Police Corporal rank</li>
+                <li>• <strong>Goal:</strong> Match Pibi with the correct {questData.instruction} rank</li>
               </ul>
             </div>
           </div>
@@ -292,10 +412,3 @@ export default function GuessTheRank() {
     </div>
   );
 }
-
-
-
-
-
-
-
