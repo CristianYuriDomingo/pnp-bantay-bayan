@@ -70,6 +70,7 @@ model User {
   achievementsEarned     UserAchievement[]
   questMondayProgress    QuestMondayProgress[]
   questTuesdayProgress   QuestTuesdayProgress[]
+  questWednesdayProgress QuestWednesdayProgress[]
   questThursdayProgress  QuestThursdayProgress[]
   questFridayProgress    QuestFridayProgress[]
 
@@ -461,6 +462,51 @@ model QuestTuesdayProgress {
   @@index([isCompleted])
   @@index([isFailed])
   @@map("quest_tuesday_progress")
+}
+
+// ============================================
+// QUEST WEDNESDAY - CODE THE CALL (Phone Number Puzzle)
+// ============================================
+
+model QuestWednesday {
+  id              String                    @id @default(cuid())
+  title           String                    @default("Code the Call")
+  description     String                    // "PNP", "Emergency", "Fire Station"
+  networkName     String                    // "Globe", "Smart", "TM", etc.
+  correctNumber   String                    // Full 11-digit number: "09559627331"
+  shuffledDigits  Json                      // Array of 9 shuffled digits (excluding first "09")
+  isActive        Boolean                   @default(true)
+  createdById     String
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  
+  // Relations
+  progress        QuestWednesdayProgress[]
+  
+  @@map("quest_wednesday")
+}
+
+model QuestWednesdayProgress {
+  id                String         @id @default(cuid())
+  userId            String
+  questWednesdayId  String
+  userAnswer        String?        // User's arranged number
+  isCorrect         Boolean        @default(false)
+  isCompleted       Boolean        @default(false)
+  attempts          Int            @default(0)
+  startedAt         DateTime       @default(now())
+  completedAt       DateTime?
+  lastPlayedAt      DateTime       @default(now())
+  
+  // Relations
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questWednesday    QuestWednesday @relation(fields: [questWednesdayId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, questWednesdayId])
+  @@index([userId])
+  @@index([questWednesdayId])
+  @@index([isCompleted])
+  @@map("quest_wednesday_progress")
 }
 
 // ============================================

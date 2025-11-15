@@ -3,12 +3,32 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, X, RotateCcw } from 'lucide-react';
+import { X, Loader2, AlertCircle } from 'lucide-react';
 
-export default function QuestMonday() {
+interface QuestData {
+  id: string;
+  title: string;
+  description: string;
+  networkName: string;
+  shuffledDigits: string[];
+  userProgress: {
+    isCompleted: boolean;
+    attempts: number;
+    completedAt: Date | null;
+  } | null;
+}
+
+export default function QuestWednesday() {
   const router = useRouter();
-  const correctNumber = ['0', '9', '5', '5', '9', '6', '2', '7', '3', '3', '1'];
-  const [shuffledDigits] = useState(['5', '5', '9', '6', '2', '7', '3', '3', '1']);
+  
+  // State management
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [questData, setQuestData] = useState<QuestData | null>(null);
+  
+  // Game state
+  const [shuffledDigits, setShuffledDigits] = useState<string[]>([]);
   const [userAnswer, setUserAnswer] = useState<(string | null)[]>(Array(11).fill(null));
   const [selectedDigit, setSelectedDigit] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -17,6 +37,55 @@ export default function QuestMonday() {
   const [attempts, setAttempts] = useState(0);
   const [showFeedback, setShowFeedback] = useState(false);
 
+  // Fetch quest data on mount
+  useEffect(() => {
+    fetchQuestData();
+  }, []);
+
+  const fetchQuestData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch('/api/users/quest/wednesday');
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to fetch quest');
+      }
+
+      if (result.success && result.data) {
+        setQuestData(result.data);
+        setShuffledDigits(result.data.shuffledDigits);
+        
+        // Set attempts from progress
+        if (result.data.userProgress) {
+          setAttempts(result.data.userProgress.attempts);
+          
+          // If already completed, show success state
+          if (result.data.userProgress.isCompleted) {
+            setIsCorrect(true);
+            setShowFeedback(true);
+            setIsComplete(true);
+          }
+        }
+        
+        // Initialize answer slots with first two digits (0 and 9)
+        const initialAnswer = Array(11).fill(null);
+        initialAnswer[0] = '0';
+        initialAnswer[1] = '9';
+        setUserAnswer(initialAnswer);
+      }
+
+    } catch (err) {
+      console.error('Error fetching quest:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quest');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Check if all slots are filled
   useEffect(() => {
     if (userAnswer.every(digit => digit !== null)) {
       setIsComplete(true);
@@ -27,14 +96,50 @@ export default function QuestMonday() {
     }
   }, [userAnswer]);
 
-  const handleCheckAnswer = () => {
-    if (isComplete) {
-      const correct = userAnswer.every((digit, index) => digit === correctNumber[index]);
-      setIsCorrect(correct);
-      setShowFeedback(true);
-      if (!correct) {
-        setAttempts(attempts + 1);
+  const handleCheckAnswer = async () => {
+    if (!isComplete || !questData) return;
+
+    try {
+      setSubmitting(true);
+      
+      // Extract the 9 digits after "09"
+      const userNineDigits = userAnswer.slice(2);
+      
+      const response = await fetch('/api/users/quest/wednesday/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questWednesdayId: questData.id,
+          userAnswer: userNineDigits
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to submit answer');
       }
+
+      if (result.success) {
+        setIsCorrect(result.data.correct);
+        setShowFeedback(true);
+        
+        if (result.data.correct) {
+          // Success!
+          console.log('Quest completed!');
+        } else {
+          // Wrong answer
+          setAttempts(result.data.attempts);
+        }
+      }
+
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      alert(err instanceof Error ? err.message : 'Failed to submit answer');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -64,7 +169,10 @@ export default function QuestMonday() {
   };
 
   const handleReset = () => {
-    setUserAnswer(Array(11).fill(null));
+    const resetAnswer = Array(11).fill(null);
+    resetAnswer[0] = '0';
+    resetAnswer[1] = '9';
+    setUserAnswer(resetAnswer);
     setSelectedDigit(null);
     setSelectedIndex(null);
     setIsComplete(false);
@@ -72,12 +180,91 @@ export default function QuestMonday() {
     setShowFeedback(false);
   };
 
-  const isDigitUsed = (digit: string, index: number) => {
-    return userAnswer.includes(digit) && 
-           userAnswer.indexOf(digit) !== -1 && 
-           shuffledDigits.slice(0, index).filter((d: string) => d === digit).length < 
-           userAnswer.filter((d: string | null) => d === digit).length;
+  const handlePlayAgain = async () => {
+    if (!questData) return;
+
+    try {
+      setSubmitting(true);
+      
+      const response = await fetch('/api/users/quest/wednesday/reset', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          questWednesdayId: questData.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to reset progress');
+      }
+
+      // Reset all game state
+      handleReset();
+      setAttempts(0);
+      setIsCorrect(false);
+      setShowFeedback(false);
+      
+      // Refresh quest data
+      await fetchQuestData();
+
+    } catch (err) {
+      console.error('Error resetting progress:', err);
+      alert(err instanceof Error ? err.message : 'Failed to reset progress');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  // FIXED: Check if a digit from shuffled digits is already used in user answer
+  // Only count digits from positions 2+ (skip the fixed "0" and "9")
+  const isDigitUsed = (digit: string, digitIndex: number) => {
+    // Get only the user-placed digits (positions 2-10)
+    const userPlacedDigits = userAnswer.slice(2);
+    
+    // Count how many times this digit appears in shuffled digits up to this index
+    const availableCount = shuffledDigits.slice(0, digitIndex + 1).filter(d => d === digit).length;
+    
+    // Count how many times this digit has been used in user answer
+    const usedCount = userPlacedDigits.filter(d => d === digit).length;
+    
+    // Digit is used if all available instances have been placed
+    return usedCount >= availableCount;
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading Quest...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !questData) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Quest</h2>
+          <p className="text-gray-600 mb-6">{error || 'Quest not found'}</p>
+          <button
+            onClick={() => router.push('/users/quest')}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Back to Quests
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -92,7 +279,7 @@ export default function QuestMonday() {
               <X size={24} className="text-gray-600 sm:w-7 sm:h-7 md:w-8 md:h-8" />
             </button>
             <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-gray-800">
-              Code the Call
+              {questData.title}
             </h1>
             <div className="w-9 sm:w-10 md:w-14"></div>
           </div>
@@ -104,7 +291,7 @@ export default function QuestMonday() {
         {/* Subtitle */}
         <div className="text-center mb-6 sm:mb-8 md:mb-12">
           <p className="text-sm sm:text-base md:text-xl text-gray-500 px-2">
-            Arrange the digits to form a valid PNP mobile number
+            Arrange the digits to form a valid <strong>{questData.description}</strong> mobile number
           </p>
         </div>
 
@@ -131,8 +318,8 @@ export default function QuestMonday() {
                   ${index === 0 || index === 1 ? 'bg-gray-200 border-gray-400 text-gray-600 cursor-default' : ''}
                 `}
               >
-                {index === 0 ? '0' : index === 1 ? '9' : digit || ''}
-                {digit !== null && index > 1 && (
+                {digit || ''}
+                {digit !== null && index > 1 && !showFeedback && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -148,22 +335,30 @@ export default function QuestMonday() {
           </div>
         </div>
 
-        {/* Shuffled Digits */}
+        {/* Shuffled Digits with Network Label */}
         <div className="mb-6 sm:mb-8 md:mb-12">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-700 mb-3 sm:mb-4 md:mb-6 px-1">Shuffled Digits</h2>
+          <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6 px-1">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-700">Shuffled Digits</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm md:text-base text-gray-600 font-medium">Network:</span>
+              <span className="px-2 sm:px-3 md:px-4 py-1 sm:py-1.5 bg-green-100 text-green-700 rounded-md sm:rounded-lg font-bold text-xs sm:text-sm md:text-base border border-green-300">
+                {questData.networkName}
+              </span>
+            </div>
+          </div>
           <div className="flex justify-center gap-1.5 sm:gap-2 md:gap-3 flex-wrap px-1">
             {shuffledDigits.map((digit, index) => {
               const used = isDigitUsed(digit, index);
               return (
                 <button
                   key={index}
-                  onClick={() => !used && handleDigitClick(digit, index)}
-                  disabled={used}
+                  onClick={() => !used && !showFeedback && handleDigitClick(digit, index)}
+                  disabled={used || showFeedback}
                   className={`
                     w-10 h-12 sm:w-12 sm:h-14 md:w-16 md:h-20 rounded-md sm:rounded-lg md:rounded-xl 
                     text-xl sm:text-2xl md:text-3xl font-bold
                     transition-all border-2 border-b-4
-                    ${used 
+                    ${used || showFeedback
                       ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed' 
                       : selectedIndex === index
                       ? 'bg-yellow-300 border-yellow-500 text-gray-800 -translate-y-1'
@@ -183,7 +378,7 @@ export default function QuestMonday() {
           <div className="mb-4 sm:mb-6 md:mb-8 p-3 sm:p-4 md:p-6 rounded-lg sm:rounded-xl md:rounded-2xl bg-green-50 border-2 border-green-200">
             <div className="flex items-center justify-center gap-2 md:gap-3 text-green-700 font-bold text-sm sm:text-base md:text-xl">
               <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-green-400 flex items-center justify-center flex-shrink-0">
-                <Check size={16} className="sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />
+                <span className="text-white text-xl">✓</span>
               </div>
               <span>Excellent! You got it right!</span>
             </div>
@@ -207,39 +402,62 @@ export default function QuestMonday() {
             <>
               <button
                 onClick={handleReset}
-                className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-white hover:bg-gray-50 border-2 border-b-4 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
+                disabled={submitting}
+                className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-white hover:bg-gray-50 border-2 border-b-4 border-gray-300 text-gray-700 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Reset
               </button>
               
               <button
                 onClick={handleCheckAnswer}
-                disabled={!isComplete}
+                disabled={!isComplete || submitting}
                 className={`flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all border-2 border-b-4
-                  ${isComplete 
+                  ${isComplete && !submitting
                     ? 'bg-green-400 hover:bg-green-500 border-green-600 text-white cursor-pointer hover:-translate-y-0.5 active:translate-y-0' 
                     : 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed'
                   }`}
               >
-                CHECK
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Checking...
+                  </span>
+                ) : (
+                  'CHECK'
+                )}
               </button>
             </>
           )}
           
           {isCorrect && (
-            <button
-              onClick={handleContinue}
-              className="w-full px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-green-400 hover:bg-green-500 border-2 border-b-4 border-green-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
-            >
-              CONTINUE
-            </button>
+            <div className="w-full flex gap-2 sm:gap-3">
+              <button
+                onClick={handlePlayAgain}
+                disabled={submitting}
+                className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-blue-400 hover:bg-blue-500 border-2 border-b-4 border-blue-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
+              >
+                {submitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </span>
+                ) : (
+                  'PLAY AGAIN'
+                )}
+              </button>
+              <button
+                onClick={handleContinue}
+                className="flex-1 px-3 py-2.5 sm:px-4 sm:py-3 md:px-8 md:py-5 bg-green-400 hover:bg-green-500 border-2 border-b-4 border-green-600 text-white rounded-lg sm:rounded-xl font-bold text-sm sm:text-base md:text-lg transition-all hover:-translate-y-0.5 active:translate-y-0"
+              >
+                CONTINUE
+              </button>
+            </div>
           )}
         </div>
 
         {/* Instructions Section with Mascot */}
         <div className="bg-blue-50 rounded-lg sm:rounded-xl md:rounded-2xl border-2 border-blue-200 p-3 sm:p-4 md:p-6">
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 md:gap-6 items-center sm:items-start">
-            {/* Mascot Image - Hidden on very small screens, visible from sm up */}
+            {/* Mascot Image */}
             <div className="flex-shrink-0 hidden xs:block">
               <img 
                 src="/Quest/think.png" 
@@ -262,7 +480,7 @@ export default function QuestMonday() {
         </div>
 
         {/* Progress Indicator */}
-        {attempts > 0 && (
+        {attempts > 0 && !isCorrect && (
           <div className="text-center text-xs sm:text-sm md:text-base text-gray-500 mt-4 sm:mt-6">
             {attempts} attempt{attempts !== 1 ? 's' : ''}
           </div>
