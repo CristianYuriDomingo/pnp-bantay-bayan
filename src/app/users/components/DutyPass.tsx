@@ -1,37 +1,148 @@
-import React, { useState } from 'react';
+// app/users/components/DutyPass.tsx
+import React, { useState, useEffect } from 'react';
+import { Ticket, Loader2, CheckCircle, Calendar } from 'lucide-react';
+
+interface DutyPassStatus {
+  dutyPasses: number;
+  currentStreak: number;
+  longestStreak: number;
+  canClaim: boolean;
+  isSunday: boolean;
+  lastClaimDate: string | null;
+}
 
 export default function DutyPass() {
-  const [isClaimed, setIsClaimed] = useState(false);
+  const [status, setStatus] = useState<DutyPassStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // FOR PREVIEW: Set to true to simulate Sunday
-  // Change this to check real day: const isSunday = new Date().getDay() === 0;
-  const isSunday = true; // PREVIEW MODE - Always Sunday
-  const canClaim = isSunday && !isClaimed;
+  useEffect(() => {
+    fetchStatus();
+  }, []);
 
-  const handleClaim = () => {
-    if (canClaim) {
-      setIsClaimed(true);
+  const fetchStatus = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/duty-pass');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch duty pass status');
+      }
+      
+      const data = await response.json();
+      setStatus(data);
+    } catch (err) {
+      console.error('Error fetching duty pass status:', err);
+      setError('Failed to load duty pass status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!status?.canClaim || claiming) return;
+
+    try {
+      setClaiming(true);
+      setError(null);
+      
+      const response = await fetch('/api/duty-pass', {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to claim duty pass');
+      }
+
+      // Update status with new values
+      setStatus(prev => prev ? {
+        ...prev,
+        dutyPasses: data.dutyPasses,
+        canClaim: false,
+        lastClaimDate: data.claimedAt,
+      } : null);
+
+      // Show success animation
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+
+    } catch (err: any) {
+      console.error('Error claiming duty pass:', err);
+      setError(err.message || 'Failed to claim duty pass');
+    } finally {
+      setClaiming(false);
     }
   };
 
   const getButtonText = () => {
-    if (isClaimed) return 'CLAIMED';
-    if (!isSunday) return 'AVAILABLE ON SUNDAY';
-    return 'CLAIM';
+    if (claiming) return 'CLAIMING...';
+    if (showSuccess) return 'CLAIMED!';
+    if (!status?.isSunday) return 'AVAILABLE ON SUNDAY';
+    if (!status?.canClaim) return 'ALREADY CLAIMED';
+    return 'CLAIM NOW';
   };
+
+  const getButtonClass = () => {
+    const baseClass = "w-full px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2";
+    
+    if (showSuccess) {
+      return `${baseClass} bg-green-500 text-white shadow-md`;
+    }
+    
+    if (!status?.canClaim || claiming) {
+      return `${baseClass} bg-gray-300 text-gray-500 cursor-not-allowed`;
+    }
+    
+    return `${baseClass} bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg active:scale-95`;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
+          <div className="flex items-center justify-center gap-3 py-8">
+            <Loader2 className="animate-spin text-blue-500" size={24} />
+            <span className="text-gray-600 dark:text-gray-400">Loading duty pass...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+          <div className="text-center py-4">
+            <p className="text-red-600 font-semibold mb-2">Error</p>
+            <p className="text-red-500 text-sm">{error}</p>
+            <button
+              onClick={fetchStatus}
+              className="mt-3 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
-      {/* Inner card with rounded corners and border - matching QuestCard */}
       <div className="rounded-2xl border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-5">
         <div className="flex items-center gap-4">
           {/* Duty Pass Image */}
           <div 
-            className="flex-shrink-0 transition-transform duration-200"
+            className="flex-shrink-0 transition-all duration-200 relative"
             style={{
-              transform: isHovered && canClaim ? 'scale(1.05)' : 'scale(1)',
-              opacity: canClaim ? 1 : 0.6
+              transform: isHovered && status?.canClaim ? 'scale(1.05)' : 'scale(1)',
+              opacity: status?.canClaim ? 1 : 0.6
             }}
           >
             <img
@@ -39,31 +150,63 @@ export default function DutyPass() {
               alt="Duty Pass"
               className="w-20 h-20 object-contain"
             />
+            
+            {/* Pass count badge */}
+            {status && status.dutyPasses > 0 && (
+              <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-md border-2 border-white">
+                {status.dutyPasses}
+              </div>
+            )}
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-1">
-              Duty Pass
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                Duty Pass
+              </h3>
+              {status?.isSunday && (
+                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-xs font-semibold rounded-full flex items-center gap-1">
+                  <Calendar size={12} />
+                  Sunday
+                </span>
+              )}
+            </div>
+            
             <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
-              Duty Pass allows your streak to remain in place for one full day of inactivity.
+              Protects your streak for one full day. You have <span className="font-bold text-blue-600">{status?.dutyPasses || 0}</span> {status?.dutyPasses === 1 ? 'pass' : 'passes'}.
             </p>
+
+            {/* Success message */}
+            {showSuccess && (
+              <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+                <CheckCircle size={16} className="text-green-500" />
+                <span className="text-green-700 text-sm font-medium">
+                  Duty pass claimed successfully! +1
+                </span>
+              </div>
+            )}
 
             {/* Claim Button */}
             <button
               onClick={handleClaim}
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
-              disabled={!canClaim}
-              className={`w-full px-4 py-2.5 rounded-xl font-bold text-sm transition-all duration-200 ${
-                !canClaim
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-500 text-white hover:bg-blue-600 shadow-md hover:shadow-lg active:scale-95'
-              }`}
+              disabled={!status?.canClaim || claiming}
+              className={getButtonClass()}
             >
+              {claiming && <Loader2 size={16} className="animate-spin" />}
+              {showSuccess && <CheckCircle size={16} />}
+              {!claiming && !showSuccess && status?.canClaim && <Ticket size={16} />}
               {getButtonText()}
             </button>
+
+            {/* Next availability info */}
+            {status && !status.canClaim && !status.isSunday && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                Next duty pass available this Sunday
+              </p>
+            )}
           </div>
         </div>
       </div>

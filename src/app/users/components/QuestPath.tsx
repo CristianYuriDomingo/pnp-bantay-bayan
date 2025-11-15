@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles, Ticket } from 'lucide-react';
 
 interface Level {
@@ -14,31 +14,50 @@ interface Level {
 interface QuestPathProps {
   initialLevel?: number;
   initialCompleted?: number[];
-  initialDutyPasses?: number;
   onNavigate?: (route: string) => void;
 }
 
 export default function QuestPath({ 
   initialLevel = 0, 
   initialCompleted = [], 
-  initialDutyPasses = 0,
   onNavigate 
 }: QuestPathProps) {
   const [currentLevel, setCurrentLevel] = useState(initialLevel);
   const [completedLevels, setCompletedLevels] = useState<number[]>(initialCompleted);
-  const [dutyPasses, setDutyPasses] = useState(initialDutyPasses);
+  const [dutyPasses, setDutyPasses] = useState(0);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [showDutyPassPopup, setShowDutyPassPopup] = useState(false);
+  const [loadingDutyPass, setLoadingDutyPass] = useState(true);
 
-const levels: Level[] = [
-  { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10, route: "/users/questMonday" },
-  { id: 1, title: "Tuesday Quest", type: "daily", icon: Target, color: "from-cyan-400 to-cyan-600", points: 15, route: "/users/questTuesday" },
-  { id: 2, title: "Wednesday Quest", type: "daily", icon: Sparkles, color: "from-purple-400 to-purple-600", points: 20, route: "/users/questWednesday" },
-  { id: 3, title: "Thursday Quest", type: "daily", icon: Flame, color: "from-orange-400 to-red-500", points: 25, route: "/users/questThursday" },
-  { id: 4, title: "Friday Quest", type: "daily", icon: Shield, color: "from-indigo-400 to-indigo-600", points: 30, route: "/users/questFriday" },
-];
+  const levels: Level[] = [
+    { id: 0, title: "Monday Quest", type: "daily", icon: Star, color: "from-blue-400 to-blue-600", points: 10, route: "/users/questMonday" },
+    { id: 1, title: "Tuesday Quest", type: "daily", icon: Target, color: "from-cyan-400 to-cyan-600", points: 15, route: "/users/questTuesday" },
+    { id: 2, title: "Wednesday Quest", type: "daily", icon: Sparkles, color: "from-purple-400 to-purple-600", points: 20, route: "/users/questWednesday" },
+    { id: 3, title: "Thursday Quest", type: "daily", icon: Flame, color: "from-orange-400 to-red-500", points: 25, route: "/users/questThursday" },
+    { id: 4, title: "Friday Quest", type: "daily", icon: Shield, color: "from-indigo-400 to-indigo-600", points: 30, route: "/users/questFriday" },
+  ];
+
+  // Fetch duty passes from API
+  useEffect(() => {
+    fetchDutyPasses();
+  }, []);
+
+  const fetchDutyPasses = async () => {
+    try {
+      setLoadingDutyPass(true);
+      const response = await fetch('/api/duty-pass');
+      if (response.ok) {
+        const data = await response.json();
+        setDutyPasses(data.dutyPasses || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching duty passes:', error);
+    } finally {
+      setLoadingDutyPass(false);
+    }
+  };
 
   const handleLevelClick = (level: Level) => {
     if (level.id <= currentLevel) {
@@ -104,7 +123,9 @@ const levels: Level[] = [
               >
                 <div className="flex items-center gap-2">
                   <Ticket size={20} className="text-blue-500" />
-                  <span className="text-gray-800 text-lg font-bold">{dutyPasses}</span>
+                  <span className="text-gray-800 text-lg font-bold">
+                    {loadingDutyPass ? '...' : dutyPasses}
+                  </span>
                 </div>
 
                 {/* Duty Pass Popup */}
