@@ -47,7 +47,7 @@ model User {
   totalXP                Int                       @default(0)
   level                  Int                       @default(1)
 
-  // PNP Rank System Fields - UPDATED: Changed default from "Pat" to "Cadet"
+  // PNP Rank System Fields
   currentRank            String                    @default("Cadet")
   leaderboardPosition    Int?
   rankAchievedAt         DateTime                  @default(now())
@@ -55,14 +55,19 @@ model User {
   rankHistory            Json?
   lastActiveDate         DateTime                  @default(now())
 
-  // Duty Pass & Streak System Fields
-  dutyPasses             Int                       @default(0)       // Current number of passes available
-  lastDutyPassClaim      DateTime?                                   // Last time user claimed a duty pass
-  dutyPassUsedDates      Json?                     @default("[]")    // Array of dates when passes were auto-used
-  currentStreak          Int                       @default(0)       // Current consecutive days streak
-  longestStreak          Int                       @default(0)       // Highest streak ever achieved
-  lastStreakUpdate       DateTime?                                   // Last date streak was checked/updated
-  streakProtectedUntil   DateTime?                                   // Date until streak is protected by duty pass
+  // Duty Pass & Streak System Fields (EXISTING)
+  dutyPasses             Int                       @default(0)
+  lastDutyPassClaim      DateTime?
+  dutyPassUsedDates      Json?                     @default("[]")
+  currentStreak          Int                       @default(0)
+  longestStreak          Int                       @default(0)
+  lastStreakUpdate       DateTime?
+  streakProtectedUntil   DateTime?
+
+  // 🆕 NEW: Weekly Quest System Fields
+  timezone               String                    @default("Asia/Manila")
+  weeklyQuestStartDate   DateTime?                 // Monday 00:00 of current week
+  lastQuestCompletedAt   DateTime?                 // Last time user completed any quest
 
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
@@ -82,6 +87,9 @@ model User {
   questWednesdayProgress QuestWednesdayProgress[]
   questThursdayProgress  QuestThursdayProgress[]
   questFridayProgress    QuestFridayProgress[]
+  
+  // 🆕 NEW: Weekly Quest Progress Relation
+  weeklyProgress         WeeklyQuestProgress[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -90,6 +98,7 @@ model User {
   @@index([lastDutyPassClaim])
   @@index([currentStreak])
   @@index([lastStreakUpdate])
+  @@index([weeklyQuestStartDate])  // 🆕 NEW INDEX
 }
 
 model VerificationToken {
@@ -197,30 +206,26 @@ model UserBadge {
   @@map("user_badges")
 }
 
-// Achievement Model (NO RARITY)
 model Achievement {
   id               String              @id @default(cuid())
-  code             String              @unique  // e.g., "identity-established", "rank-pco1"
-  name             String                       // e.g., "Identity Established"
-  description      String                       // e.g., "Set your username"
-  icon             String?                      // Icon path or emoji
-  category         String                       // e.g., "Profile", "Rank Promotions", "Learning Badges"
-  type             String                       // e.g., "profile", "rank", "badge_milestone"
-  xpReward         Int                 @default(0)         // XP awarded (ONLY for profile/rank, 0 for badges)
+  code             String              @unique
+  name             String
+  description      String
+  icon             String?
+  category         String
+  type             String
+  xpReward         Int                 @default(0)
   
-  // Unlock criteria (stored as JSON for flexibility)
-  criteriaType     String                       // e.g., "profile_field", "rank_achieved", "badge_count"
-  criteriaValue    String                       // e.g., "name", "PCO1", "5"
-  criteriaData     Json?                        // Additional criteria data if needed
+  criteriaType     String
+  criteriaValue    String
+  criteriaData     Json?
   
-  // Metadata
-  sortOrder        Int                 @default(0)         // Display order
-  isActive         Boolean             @default(true)      // Can be disabled without deleting
+  sortOrder        Int                 @default(0)
+  isActive         Boolean             @default(true)
   
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   
-  // Relations
   userAchievements UserAchievement[]
 
   @@index([category])
@@ -233,15 +238,14 @@ model UserAchievement {
   id            String      @id @default(cuid())
   userId        String
   achievementId String
-  xpAwarded     Int         @default(0)  // Actual XP awarded (for audit trail)
+  xpAwarded     Int         @default(0)
   earnedAt      DateTime    @default(now())
-  notificationSeen Boolean  @default(false)  // For future notification system
+  notificationSeen Boolean  @default(false)
   
-  // Relations
   achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, achievementId])  // User can only earn each achievement once
+  @@unique([userId, achievementId])
   @@index([userId])
   @@index([earnedAt])
   @@index([notificationSeen])
@@ -343,7 +347,6 @@ model QuestMonday {
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   
-  // Relations
   levels      QuestMondayLevel[]
   progress    QuestMondayProgress[]
   
@@ -353,13 +356,12 @@ model QuestMonday {
 model QuestMondayLevel {
   id            String                @id @default(cuid())
   questMondayId String
-  levelNumber   Int                   // 1, 2, 3, etc.
-  description   String                // "Wearing red cap, tattoo on right arm"
+  levelNumber   Int
+  description   String
   orderIndex    Int                   @default(0)
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   
-  // Relations
   questMonday   QuestMonday           @relation(fields: [questMondayId], references: [id], onDelete: Cascade)
   suspects      QuestMondaySuspect[]
   
@@ -372,13 +374,12 @@ model QuestMondayLevel {
 model QuestMondaySuspect {
   id            String            @id @default(cuid())
   levelId       String
-  imageUrl      String            // "/uploads/quest-monday/suspect1.png"
+  imageUrl      String
   isCorrect     Boolean           @default(false)
-  suspectNumber Int               // 1, 2, 3, 4 (for display order)
+  suspectNumber Int
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   
-  // Relations
   level         QuestMondayLevel  @relation(fields: [levelId], references: [id], onDelete: Cascade)
   
   @@unique([levelId, suspectNumber])
@@ -391,14 +392,13 @@ model QuestMondayProgress {
   userId          String
   questMondayId   String
   currentLevel    Int          @default(1)
-  completedLevels Json         @default("[]")  // Array of completed level numbers [1, 2]
+  completedLevels Json         @default("[]")
   isCompleted     Boolean      @default(false)
-  attempts        Int          @default(0)     // Failed attempts counter
+  attempts        Int          @default(0)
   startedAt       DateTime     @default(now())
   completedAt     DateTime?
   lastPlayedAt    DateTime     @default(now())
   
-  // Relations
   user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   questMonday     QuestMonday  @relation(fields: [questMondayId], references: [id], onDelete: Cascade)
   
@@ -416,13 +416,12 @@ model QuestMondayProgress {
 model QuestTuesday {
   id          String                    @id @default(cuid())
   title       String                    @default("Free or Jail Quiz")
-  lives       Int                       @default(3)  // Number of bullets/lives
+  lives       Int                       @default(3)
   isActive    Boolean                   @default(true)
   createdById String
   createdAt   DateTime                  @default(now())
   updatedAt   DateTime                  @updatedAt
   
-  // Relations
   questions   QuestTuesdayQuestion[]
   progress    QuestTuesdayProgress[]
   
@@ -432,15 +431,14 @@ model QuestTuesday {
 model QuestTuesdayQuestion {
   id              String         @id @default(cuid())
   questTuesdayId  String
-  questionNumber  Int            // 1, 2, 3, etc.
-  question        String         // The question text
-  correctAnswer   Boolean        // true or false
-  explanation     String         // Explanation for the answer
+  questionNumber  Int
+  question        String
+  correctAnswer   Boolean
+  explanation     String
   orderIndex      Int            @default(0)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   
-  // Relations
   questTuesday    QuestTuesday   @relation(fields: [questTuesdayId], references: [id], onDelete: Cascade)
   
   @@unique([questTuesdayId, questionNumber])
@@ -454,17 +452,16 @@ model QuestTuesdayProgress {
   userId            String
   questTuesdayId    String
   currentQuestion   Int          @default(1)
-  completedQuestions Json        @default("[]")  // Array of completed question numbers [1, 2, 3]
-  answeredQuestions Json         @default("[]")  // Array of {questionNumber, isCorrect, selectedAnswer}
+  completedQuestions Json        @default("[]")
+  answeredQuestions Json         @default("[]")
   livesRemaining    Int          @default(3)
-  score             Int          @default(0)     // Correct answers count
+  score             Int          @default(0)
   isCompleted       Boolean      @default(false)
-  isFailed          Boolean      @default(false) // True if all lives lost
+  isFailed          Boolean      @default(false)
   startedAt         DateTime     @default(now())
   completedAt       DateTime?
   lastPlayedAt      DateTime     @default(now())
   
-  // Relations
   user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   questTuesday      QuestTuesday @relation(fields: [questTuesdayId], references: [id], onDelete: Cascade)
   
@@ -477,22 +474,21 @@ model QuestTuesdayProgress {
 }
 
 // ============================================
-// QUEST WEDNESDAY - CODE THE CALL (Phone Number Puzzle)
+// QUEST WEDNESDAY - CODE THE CALL
 // ============================================
 
 model QuestWednesday {
   id              String                    @id @default(cuid())
   title           String                    @default("Code the Call")
-  description     String                    // "PNP", "Emergency", "Fire Station"
-  networkName     String                    // "Globe", "Smart", "TM", etc.
-  correctNumber   String                    // Full 11-digit number: "09559627331"
-  shuffledDigits  Json                      // Array of 9 shuffled digits (excluding first "09")
+  description     String
+  networkName     String
+  correctNumber   String
+  shuffledDigits  Json
   isActive        Boolean                   @default(true)
   createdById     String
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt
   
-  // Relations
   progress        QuestWednesdayProgress[]
   
   @@map("quest_wednesday")
@@ -502,7 +498,7 @@ model QuestWednesdayProgress {
   id                String         @id @default(cuid())
   userId            String
   questWednesdayId  String
-  userAnswer        String?        // User's arranged number
+  userAnswer        String?
   isCorrect         Boolean        @default(false)
   isCompleted       Boolean        @default(false)
   attempts          Int            @default(0)
@@ -510,7 +506,6 @@ model QuestWednesdayProgress {
   completedAt       DateTime?
   lastPlayedAt      DateTime       @default(now())
   
-  // Relations
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   questWednesday    QuestWednesday @relation(fields: [questWednesdayId], references: [id], onDelete: Cascade)
   
@@ -534,7 +529,6 @@ model QuestThursday {
   createdAt   DateTime                  @default(now())
   updatedAt   DateTime                  @updatedAt
   
-  // Relations
   items       QuestThursdayItem[]
   progress    QuestThursdayProgress[]
   
@@ -544,15 +538,14 @@ model QuestThursday {
 model QuestThursdayItem {
   id              String         @id @default(cuid())
   questThursdayId String
-  itemName        String         // e.g., "KNIFE", "BOOK", "PHONE"
-  itemImage       String         // Image path or base64
-  isAllowed       Boolean        @default(false)  // true = ALLOW, false = CONFISCATE
-  explanation     String         // Explanation for the decision
+  itemName        String
+  itemImage       String
+  isAllowed       Boolean        @default(false)
+  explanation     String
   orderIndex      Int            @default(0)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   
-  // Relations
   questThursday   QuestThursday  @relation(fields: [questThursdayId], references: [id], onDelete: Cascade)
   
   @@index([questThursdayId])
@@ -565,17 +558,16 @@ model QuestThursdayProgress {
   userId            String
   questThursdayId   String
   currentItem       Int            @default(1)
-  completedItems    Json           @default("[]")  // Array of completed item IDs
-  answeredItems     Json           @default("[]")  // Array of {itemId, selectedDecision, isCorrect}
+  completedItems    Json           @default("[]")
+  answeredItems     Json           @default("[]")
   livesRemaining    Int            @default(3)
-  score             Int            @default(0)     // Correct answers count
+  score             Int            @default(0)
   isCompleted       Boolean        @default(false)
-  isFailed          Boolean        @default(false) // True if all lives lost
+  isFailed          Boolean        @default(false)
   startedAt         DateTime       @default(now())
   completedAt       DateTime?
   lastPlayedAt      DateTime       @default(now())
   
-  // Relations
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   questThursday     QuestThursday  @relation(fields: [questThursdayId], references: [id], onDelete: Cascade)
   
@@ -588,19 +580,18 @@ model QuestThursdayProgress {
 }
 
 // ============================================
-// QUEST FRIDAY - GUESS THE RANK GAME (Drag & Drop)
+// QUEST FRIDAY - GUESS THE RANK GAME
 // ============================================
 
 model QuestFriday {
   id          String                  @id @default(cuid())
   title       String                  @default("Guess The Rank")
-  instruction String                  // "Police Corporal" - used in "Drag Pibi to the _____ Rank"
+  instruction String
   isActive    Boolean                 @default(true)
   createdById String
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
   
-  // Relations
   rankOptions QuestFridayRankOption[]
   progress    QuestFridayProgress[]
   
@@ -610,14 +601,13 @@ model QuestFriday {
 model QuestFridayRankOption {
   id            String       @id @default(cuid())
   questFridayId String
-  rankName      String       // e.g., "POLICE MASTER SERGEANT", "POLICE CORPORAL"
-  rankImage     String       // Rank insignia image (base64 or path)
-  isCorrect     Boolean      @default(false)  // Only one should be true
-  orderIndex    Int          @default(0)      // Display order (1, 2, 3)
+  rankName      String
+  rankImage     String
+  isCorrect     Boolean      @default(false)
+  orderIndex    Int          @default(0)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
-  // Relations
   questFriday   QuestFriday  @relation(fields: [questFridayId], references: [id], onDelete: Cascade)
   
   @@index([questFridayId])
@@ -629,15 +619,14 @@ model QuestFridayProgress {
   id            String       @id @default(cuid())
   userId        String
   questFridayId String
-  selectedRank  String?      // ID of the rank option selected by user
+  selectedRank  String?
   isCorrect     Boolean      @default(false)
   isCompleted   Boolean      @default(false)
-  attempts      Int          @default(0)      // Number of attempts made
+  attempts      Int          @default(0)
   startedAt     DateTime     @default(now())
   completedAt   DateTime?
   lastPlayedAt  DateTime     @default(now())
   
-  // Relations
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   questFriday   QuestFriday  @relation(fields: [questFridayId], references: [id], onDelete: Cascade)
   
@@ -646,4 +635,35 @@ model QuestFridayProgress {
   @@index([questFridayId])
   @@index([isCompleted])
   @@map("quest_friday_progress")
+}
+
+// ============================================
+// 🆕 NEW: WEEKLY QUEST PROGRESS SYSTEM
+// ============================================
+
+model WeeklyQuestProgress {
+  id                   String    @id @default(cuid())
+  userId               String
+  weekStartDate        DateTime  // Monday 00:00 user timezone
+  
+  // Progress tracking
+  completedDays        Json      @default("[]")  // Array: ["monday", "tuesday", "friday"]
+  totalQuestsCompleted Int       @default(0)     // Count: 0-5
+  
+  // Reward chest
+  rewardClaimed        Boolean   @default(false)
+  rewardXP             Int       @default(0)
+  claimedAt            DateTime?
+  
+  // Timestamps
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  
+  // Relations
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, weekStartDate])
+  @@index([userId])
+  @@index([weekStartDate])
+  @@map("weekly_quest_progress")
 }
