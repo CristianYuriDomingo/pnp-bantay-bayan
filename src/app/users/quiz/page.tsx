@@ -443,8 +443,9 @@ export default function Quiz() {
   if (loading) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
-          <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
+        {/* Ultra responsive padding: minimal on small screens */}
+        <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+          <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
                 src="/QuizImage/StartYourQuiz.png"
@@ -454,7 +455,7 @@ export default function Quiz() {
                 className="w-full max-w-[400px] h-auto"
               />
             </div>
-            <div className="flex justify-center items-center py-10">
+            <div className="flex justify-center items-center py-8 sm:py-10">
               <div className="text-lg text-gray-600">Loading quizzes...</div>
             </div>
           </div>
@@ -466,8 +467,9 @@ export default function Quiz() {
   if (error) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="px-20 py-6">
-          <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
+        {/* Ultra responsive padding: minimal on small screens */}
+        <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+          <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
               <Image
                 src="/QuizImage/PibiQuiz.png"
@@ -477,7 +479,7 @@ export default function Quiz() {
                 className="w-full max-w-[400px] h-auto"
               />
             </div>
-            <div className="flex justify-center items-center py-10">
+            <div className="flex justify-center items-center py-8 sm:py-10">
               <div className="text-lg text-red-600">Error: {error}</div>
             </div>
           </div>
@@ -488,8 +490,9 @@ export default function Quiz() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-20 py-6">
-        <div className="max-w-4xl mx-auto bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-4">
+      {/* Ultra responsive padding: minimal on small screens */}
+      <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
+        <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
           <div className="w-full flex justify-center mb-2">
             <Image
               src="/QuizImage/StartYourQuiz.png"
@@ -501,7 +504,7 @@ export default function Quiz() {
           </div>
           
           {parentQuizzes.length === 0 ? (
-            <div className="flex justify-center items-center py-10">
+            <div className="flex justify-center items-center py-8 sm:py-10">
               <div className="text-lg text-gray-600">No quiz categories available</div>
             </div>
           ) : (

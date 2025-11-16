@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       router.push('/auth/signin');
     }
     if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      router.push('/dashboard');
+      router.push('/users');
     }
   }, [status, session, router]);
 
@@ -42,59 +42,48 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { 
       id: 'dashboard', 
       label: 'Dashboard', 
-      icon: '📊', 
-      href: '/admin/dashboard',
+      href: '/admin',
       description: 'Overview & Statistics'
     },
     { 
       id: 'users', 
       label: 'User Management', 
-      icon: '👥', 
       href: '/admin/users',
       description: 'Manage Users & Roles'
     },
     { 
       id: 'content', 
       label: 'Content Management', 
-      icon: '📚', 
       href: '/admin/content',
       description: 'Modules & Lessons'
     },
      { 
       id: 'quest', 
       label: 'Quest Management', 
-      icon: '.l.', 
       href: '/admin/quest',
       description: 'Quest'
     },
     { 
       id: 'quiz', 
       label: 'Quiz Management', 
-      icon: '📝', 
       href: '/admin/quiz',
       description: 'Questions & Assessments'
     },
     { 
       id: 'badges', 
       label: 'Badge Management', 
-      icon: '🏆', 
       href: '/admin/badges',
       description: 'Achievement Badges'
-    },
-    { 
-      id: 'interface', 
-      label: 'Interface Control', 
-      icon: '⚙️', 
-      href: '/admin/interface',
-      description: 'App Settings & UI'
     },
   ];
   
   const isActive = (href: string) => {
-    if (href === '/admin/dashboard') {
-      return pathname === '/admin' || pathname === '/admin/dashboard';
+    // Exact match for dashboard (main admin page)
+    if (href === '/admin') {
+      return pathname === '/admin';
     }
-    return pathname.startsWith(href);
+    // For other pages, check if pathname starts with the href
+    return pathname.startsWith(href) && pathname !== '/admin';
   };
 
   return (
@@ -120,8 +109,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     : 'hover:bg-gray-50 text-gray-700 hover:text-gray-900'
                 }`}
               >
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{item.icon}</span>
+                <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="font-medium">{item.label}</div>
                     <div className="text-xs text-gray-500 mt-1">{item.description}</div>
@@ -150,7 +138,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             onClick={() => signOut({ callbackUrl: '/auth/signin' })}
             className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
           >
-            <span>🚪</span>
             <span>Sign Out</span>
           </button>
         </div>

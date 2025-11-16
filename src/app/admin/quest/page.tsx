@@ -18,35 +18,35 @@ const quests: Quest[] = [
     day: 'Monday',
     title: 'Suspect Line-Up',
     type: 'Line-Up',
-    thumbnail: '/Quest/questFriday/suspect1.png',
+    thumbnail: '/Quest/Admin/mondayIcon.png',
   },
   {
     id: 'quest-tuesday',
     day: 'Tuesday',
     title: 'Safety True or False',
     type: 'True/False',
-    thumbnail: '/Quest/questTuesday/free.png',
+    thumbnail: '/Quest/Admin/tuesdayIcon.png',
   },
   {
     id: 'quest-wednesday',
     day: 'Wednesday',
     title: 'Code the Call',
     type: 'Puzzle',
-    thumbnail: '/Quest/questWednesday/pibiBack.png',
+    thumbnail: '/Quest/Admin/wednesdayIcon.png',
   },
   {
     id: 'quest-thursday',
     day: 'Thursday',
     title: 'Inspection Game',
     type: 'Inspection',
-    thumbnail: '/Quest/questThursday/mascot.png',
+    thumbnail: '/Quest/Admin/thursdayIcon.png',
   },
   {
     id: 'quest-friday',
     day: 'Friday',
     title: 'Guess the Rank ',
     type: 'Matching',
-    thumbnail: '/Quest/questWednesday/pibiBack.png',
+    thumbnail: '/Quest/Admin/fridayIcon.png',
   }
 ];
 
