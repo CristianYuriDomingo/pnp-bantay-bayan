@@ -22,6 +22,21 @@ export default function QuestPage() {
       <div className="space-y-2">
         <QuestCard />
         <DutyPass />
+        
+        {/* Footer Links */}
+        <div className="pt-4 pb-2 px-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
+            <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/about" className="hover:text-gray-600 transition-colors">
+              About
+            </Link>
+            <Link href="/terms" className="hover:text-gray-600 transition-colors">
+              Terms
+            </Link>
+          </div>
+        </div>
       </div>
     );
     
@@ -60,7 +75,7 @@ export default function QuestPage() {
   if (!isAuthenticated || !user) {
     return (
       <div className="h-full overflow-y-auto">
-                  <div className="px-2 sm:px-3 md:px-4 lg:px-12 xl:px-20 pb-6">
+        <div className="px-2 sm:px-3 md:px-4 lg:px-12 xl:px-20 pb-6">
           <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
             <div className="flex flex-col items-center py-10">
               <h1 className="text-2xl font-bold text-gray-800 mb-4">Authentication Required</h1>
@@ -80,16 +95,11 @@ export default function QuestPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* Responsive padding: minimal on small screens, larger on big screens */}
-              <div className="px-2 sm:px-3 md:px-4 lg:px-12 xl:px-20 pb-6">
+      <div className="px-2 sm:px-3 md:px-4 lg:px-12 xl:px-20 pb-6">
         <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
           {/* Main Content - Quest Path */}
           <div className="space-y-6">
-            <QuestPath 
-              initialLevel={0} 
-              initialCompleted={[]} 
-              onNavigate={handleNavigate}
-            />
+            <QuestPath onNavigate={handleNavigate} />
           </div>
         </div>
       </div>
