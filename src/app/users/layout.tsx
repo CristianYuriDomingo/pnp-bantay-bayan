@@ -29,6 +29,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   const { user, isLoading } = useCurrentUser();
   const pathname = usePathname();
   const [isDropdownVisible, setDropdownVisible] = useState(true);
+  const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [rightColumnContent, setRightColumnContent] = useState<ReactNode | null>(null);
   const { isReady } = useAchievementNotification();
   const hasCheckedInitial = useRef(false);
@@ -388,7 +389,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
           {/* MOBILE BOTTOM NAVIGATION - Visible only on mobile */}
           <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-t border-gray-200 dark:border-gray-700 dark:bg-gray-800/95">
             <ul className="flex justify-around items-center h-16 px-2">
-              {navigation.map((item) => {
+              {navigation.slice(0, 4).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <li key={item.name} className="flex-1">
@@ -417,6 +418,78 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                   </li>
                 );
               })}
+              
+              {/* More menu with dropdown */}
+              <li className="flex-1 relative">
+                <button
+                  onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
+                  className={`flex flex-col items-center justify-center h-full w-full transition-all duration-200 rounded-lg mx-1
+                    ${pathname === '/users/profile'
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                    }`}
+                >
+                  <div className={`flex items-center justify-center w-7 h-7 mb-1 transition-transform duration-200 ${pathname === '/users/profile' ? 'scale-110' : ''}`}>
+                    <Image
+                      src="/DashboardImage/more.png"
+                      className="w-7 h-7"
+                      alt="More"
+                      width={28}
+                      height={28}
+                      style={{ filter: pathname === '/users/profile' ? 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(192deg) brightness(97%) contrast(89%)' : 'none' }}
+                    />
+                  </div>
+                  <span className={`text-xs font-medium ${pathname === '/users/profile' ? 'font-bold' : ''}`}>
+                    More
+                  </span>
+                </button>
+                
+                {/* Dropdown menu */}
+                {isMobileMenuOpen && (
+                  <>
+                    {/* Backdrop to close menu */}
+                    <div 
+                      className="fixed inset-0 z-40"
+                      onClick={() => setMobileMenuOpen(false)}
+                    />
+                    
+                    {/* Menu */}
+                    <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                      <Link
+                        href="/users/profile"
+                        className="flex items-center px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Image
+                          src="/DashboardImage/profile.png"
+                          className="w-5 h-5 mr-3"
+                          alt="Profile"
+                          width={20}
+                          height={20}
+                        />
+                        <span className="text-sm font-medium">Profile</span>
+                      </Link>
+                      <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                      <button
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          handleSignOut();
+                        }}
+                        className="w-full flex items-center px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+                      >
+                        <Image
+                          src="/DashboardImage/sign-out.png"
+                          className="w-5 h-5 mr-3"
+                          alt="Logout"
+                          width={20}
+                          height={20}
+                        />
+                        <span className="text-sm font-medium">Sign Out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </li>
             </ul>
           </nav>
         </div>
