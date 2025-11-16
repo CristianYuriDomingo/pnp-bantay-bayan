@@ -218,7 +218,7 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                       >
                         <div className="flex items-center mb-3">
                           <span className="bg-orange-100 text-orange-800 text-sm font-semibold me-2 px-2.5 py-0.5 rounded-sm dark:bg-orange-200 dark:text-orange-900">
-                            Remember!
+                            Reminder
                           </span>
                           <button
                             type="button"
@@ -244,14 +244,10 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                           </button>
                         </div>
                         <p className="mb-3 text-sm text-blue-800 dark:text-blue-400">
-                          Do not ignore any suspicious activity—report it immediately to authorities.
+                          Complete lessons and quests to earn badges and XP while learning about safety.
                         </p>
-                        <a
-                          className="text-sm text-blue-800 underline font-medium hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                          href="#"
-                        >
-                          Contact the Police
-                        </a>
+                        <p className="text-sm text-blue-800 font-medium dark:text-blue-400">
+                          Start Learning Now!</p>
                       </div>
                     </li>
                   )}

@@ -939,7 +939,7 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in duration-200">
             <div className="text-center">
-              <div className="bg-gradient-to-br from-amber-400 to-amber-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 animate-bounce">
+              <div className="bg-gradient-to-br from-amber-400 to-amber-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
                 <Trophy size={40} className="text-white" />
               </div>
               

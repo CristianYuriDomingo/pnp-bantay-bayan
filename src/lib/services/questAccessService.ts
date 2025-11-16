@@ -12,11 +12,12 @@ interface QuestAccessResult {
   reason: string;
   isMissed: boolean;
   needsDutyPass: boolean;
+  isCompleted: boolean; // NEW: Track if quest is already completed
 }
 
 /**
  * Check if user can access a specific quest
- * UPDATED: Only allows current day's quest OR duty pass unlocked quests
+ * UPDATED: Completed quests are now REPLAYABLE
  */
 export async function canAccessQuest(
   userId: string, 
@@ -42,6 +43,7 @@ export async function canAccessQuest(
       reason: 'User not found',
       isMissed: false,
       needsDutyPass: false,
+      isCompleted: false,
     };
   }
 
@@ -50,16 +52,6 @@ export async function canAccessQuest(
 
   // Check if quest is already completed this week
   const isCompleted = await isQuestCompletedThisWeek(userId, questDay);
-
-  // Quest is already completed
-  if (isCompleted) {
-    return {
-      canAccess: false,
-      reason: 'Quest already completed this week',
-      isMissed: false,
-      needsDutyPass: false,
-    };
-  }
 
   // Get quest day indices
   const questDayIndex = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].indexOf(questDay);
@@ -75,12 +67,14 @@ export async function canAccessQuest(
       user.dutyPassUsedDates
     );
 
-    if (hasDutyPassForQuest) {
+    if (hasDutyPassForQuest || isCompleted) {
+      // Either unlocked with duty pass OR already completed (replayable)
       return {
         canAccess: true,
-        reason: 'Unlocked with Duty Pass',
+        reason: isCompleted ? 'Quest completed - replay available!' : 'Unlocked with Duty Pass',
         isMissed: true,
         needsDutyPass: false,
+        isCompleted: isCompleted,
       };
     }
 
@@ -89,6 +83,7 @@ export async function canAccessQuest(
       reason: `Weekend: Use a Duty Pass to unlock ${questDay}'s quest!`,
       isMissed: true,
       needsDutyPass: true,
+      isCompleted: false,
     };
   }
 
@@ -99,6 +94,7 @@ export async function canAccessQuest(
       reason: `This quest unlocks on ${questDay}. Come back then!`,
       isMissed: false,
       needsDutyPass: false,
+      isCompleted: false,
     };
   }
 
@@ -112,31 +108,34 @@ export async function canAccessQuest(
       user.dutyPassUsedDates
     );
 
-    if (hasDutyPassForQuest) {
-      // Duty pass was used - allow access
+    if (hasDutyPassForQuest || isCompleted) {
+      // Either duty pass was used OR quest is completed (replayable)
       return {
         canAccess: true,
-        reason: 'Unlocked with Duty Pass',
+        reason: isCompleted ? 'Quest completed - replay available!' : 'Unlocked with Duty Pass',
         isMissed: true,
         needsDutyPass: false,
+        isCompleted: isCompleted,
       };
     }
 
-    // No duty pass used - quest is missed
+    // No duty pass used and not completed - quest is missed
     return {
       canAccess: false,
       reason: `You missed ${questDay}'s quest. Use a Duty Pass to unlock it!`,
       isMissed: true,
       needsDutyPass: true,
+      isCompleted: false,
     };
   }
 
-  // Quest is current day - can access!
+  // Quest is current day - can access! (whether completed or not)
   return {
     canAccess: true,
-    reason: 'Quest available today!',
+    reason: isCompleted ? 'Quest completed - replay available!' : 'Quest available today!',
     isMissed: false,
     needsDutyPass: false,
+    isCompleted: isCompleted,
   };
 }
 
