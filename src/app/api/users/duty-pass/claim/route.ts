@@ -1,4 +1,5 @@
 // app/api/users/duty-pass/claim/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -54,8 +55,12 @@ export async function POST(request: NextRequest) {
     const lastClaim = user.lastDutyPassClaim;
 
     if (weekStart && lastClaim) {
+      // FIXED: Compare timestamps properly
+      const weekStartTime = new Date(weekStart).getTime();
+      const lastClaimTime = new Date(lastClaim).getTime();
+      
       // If last claim was after this week started, they already claimed
-      if (new Date(lastClaim).getTime() >= new Date(weekStart).getTime()) {
+      if (lastClaimTime >= weekStartTime) {
         return NextResponse.json(
           { 
             success: false,
@@ -102,6 +107,65 @@ export async function POST(request: NextRequest) {
         error: 'Failed to claim duty pass',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
+      { status: 500 }
+    );
+  }
+}
+
+// GET - Check if user can claim (for UI status)
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        dutyPasses: true,
+        lastDutyPassClaim: true,
+        weeklyQuestStartDate: true,
+        currentStreak: true,
+        longestStreak: true,
+        timezone: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const timezone = user.timezone || 'Asia/Manila';
+    const isCurrentlySunday = isSunday(timezone);
+    
+    // Check if can claim
+    let canClaim = false;
+    if (isCurrentlySunday) {
+      const weekStart = user.weeklyQuestStartDate;
+      const lastClaim = user.lastDutyPassClaim;
+      
+      if (!lastClaim) {
+        canClaim = true; // Never claimed before
+      } else if (weekStart) {
+        // Can claim if last claim was before this week started
+        canClaim = new Date(lastClaim).getTime() < new Date(weekStart).getTime();
+      }
+    }
+
+    return NextResponse.json({
+      dutyPasses: user.dutyPasses,
+      currentStreak: user.currentStreak,
+      longestStreak: user.longestStreak,
+      canClaim,
+      isSunday: isCurrentlySunday,
+      lastClaimDate: user.lastDutyPassClaim,
+    });
+  } catch (error) {
+    console.error('Error fetching duty pass status:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch duty pass status' },
       { status: 500 }
     );
   }

@@ -1,15 +1,13 @@
-// ============================================
 // app/api/users/quest/friday/submit/route.ts
-// ============================================
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { onQuestComplete } from '@/lib/services/streakService';
+import { getCurrentWeekProgress } from '@/lib/services/weeklyResetService';
 
 export const dynamic = 'force-dynamic';
 
-// POST - Submit answer
 export async function POST(request: NextRequest) {
   console.log('🎯 Submit answer API called');
   
@@ -24,12 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('✅ User authenticated:', session.user.email);
-
     const body = await request.json();
     const { questFridayId, selectedRankId } = body;
-
-    console.log('📝 Submit data:', { questFridayId, selectedRankId });
 
     if (!questFridayId || !selectedRankId) {
       return NextResponse.json(
@@ -38,7 +32,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the quest with rank options
     const quest = await prisma.questFriday.findUnique({
       where: { id: questFridayId },
       include: {
@@ -63,9 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isCorrect = selectedRank.isCorrect;
-    console.log('🎲 Answer is:', isCorrect ? 'CORRECT' : 'WRONG');
 
-    // Get or create user progress
     let progress = await prisma.questFridayProgress.findUnique({
       where: {
         userId_questFridayId: {
@@ -101,11 +92,102 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log('✅ Progress updated:', { 
-      isCorrect, 
-      attempts: progress.attempts,
-      isCompleted: progress.isCompleted
-    });
+    // 🆕 WEEKLY QUEST INTEGRATION
+    if (isCorrect) {
+      try {
+        console.log('🎯 Quest completed! Updating weekly progress and streak...');
+        
+        // 1. Update weekly progress FIRST
+        const user = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { weeklyQuestStartDate: true },
+        });
+
+        if (user?.weeklyQuestStartDate) {
+          const currentProgress = await getCurrentWeekProgress(session.user.id);
+          
+          if (currentProgress) {
+            const completedDays = Array.isArray(currentProgress.completedDays) 
+              ? currentProgress.completedDays as string[]
+              : [];
+            
+            if (!completedDays.includes('friday')) {
+              await prisma.weeklyQuestProgress.update({
+                where: {
+                  userId_weekStartDate: {
+                    userId: session.user.id,
+                    weekStartDate: user.weeklyQuestStartDate,
+                  },
+                },
+                data: {
+                  completedDays: [...completedDays, 'friday'],
+                  totalQuestsCompleted: { increment: 1 },
+                },
+              });
+              console.log('✅ Weekly progress updated: Friday added');
+            }
+          }
+        }
+
+        // 2. Update streak AFTER weekly progress
+        const streakResult = await onQuestComplete(session.user.id, 'friday');
+        console.log('🔥 Streak updated:', {
+          currentStreak: streakResult.currentStreak,
+          longestStreak: streakResult.longestStreak,
+          message: streakResult.message
+        });
+
+        // 3. Fetch fresh user data to return updated values
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: {
+            currentStreak: true,
+            longestStreak: true,
+          },
+        });
+
+        console.log('✅ Fresh user data fetched:', updatedUser);
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            correct: isCorrect,
+            isCompleted: isCorrect,
+            attempts: progress.attempts,
+            progress: {
+              isCorrect: progress.isCorrect,
+              isCompleted: progress.isCompleted,
+              attempts: progress.attempts
+            },
+            // Return fresh streak data
+            streak: {
+              current: updatedUser?.currentStreak || streakResult.currentStreak,
+              longest: updatedUser?.longestStreak || streakResult.longestStreak,
+              message: streakResult.message
+            }
+          },
+          message: '🎉 Quest completed! Streak updated!'
+        });
+
+      } catch (weeklyError) {
+        console.error('⚠️ Error updating weekly progress:', weeklyError);
+        
+        return NextResponse.json({
+          success: true,
+          data: {
+            correct: isCorrect,
+            isCompleted: isCorrect,
+            attempts: progress.attempts,
+            progress: {
+              isCorrect: progress.isCorrect,
+              isCompleted: progress.isCompleted,
+              attempts: progress.attempts
+            }
+          },
+          message: '🎉 Quest completed!'
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -119,7 +201,7 @@ export async function POST(request: NextRequest) {
           attempts: progress.attempts
         }
       },
-      message: isCorrect ? 'Correct answer!' : 'Wrong answer!'
+      message: isCorrect ? '🎉 Quest completed! Streak updated!' : 'Wrong answer!'
     });
 
   } catch (error) {

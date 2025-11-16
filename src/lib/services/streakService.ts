@@ -82,6 +82,8 @@ export async function checkAndUpdateStreak(userId: string): Promise<StreakCheckR
       },
     });
 
+    console.log('💔 Streak broken for user:', userId, '- 2+ days missed');
+
     return {
       currentStreak: 0,
       longestStreak: user.longestStreak,
@@ -103,7 +105,8 @@ export async function checkAndUpdateStreak(userId: string): Promise<StreakCheckR
 
 /**
  * Called when user completes a quest
- * Updates streak if it's a new day
+ * Updates streak based on completed quest days, not just time elapsed
+ * FIXED: Now properly handles multiple duty pass completions in the same session
  */
 export async function onQuestComplete(userId: string, questDay: string): Promise<StreakCheckResult> {
   const user = await prisma.user.findUnique({
@@ -112,6 +115,8 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
       currentStreak: true,
       longestStreak: true,
       lastQuestCompletedAt: true,
+      lastCompletedQuestDay: true, // NEW: Track which day was last completed
+      weeklyQuestStartDate: true,
       timezone: true,
     },
   });
@@ -122,6 +127,19 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
 
   const now = new Date();
 
+  // Check if this quest was unlocked via duty pass
+  const dutyPassUnlock = await prisma.dutyPassUnlock.findFirst({
+    where: {
+      userId,
+      questDay,
+      unlockedAt: {
+        gte: user.weeklyQuestStartDate || new Date(),
+      },
+    },
+  });
+
+  const isCompletedViaDutyPass = !!dutyPassUnlock;
+
   // If this is the first quest ever
   if (!user.lastQuestCompletedAt) {
     const updatedUser = await prisma.user.update({
@@ -130,22 +148,35 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
         currentStreak: 1,
         longestStreak: Math.max(1, user.longestStreak),
         lastQuestCompletedAt: now,
+        lastCompletedQuestDay: questDay,
       },
+    });
+
+    console.log('🎉 First quest completed! Streak started:', {
+      userId,
+      questDay,
+      newStreak: 1,
+      newLongest: updatedUser.longestStreak,
+      viaDutyPass: isCompletedViaDutyPass
     });
 
     return {
       currentStreak: 1,
       longestStreak: updatedUser.longestStreak,
       streakBroken: false,
-      dutyPassUsed: false,
+      dutyPassUsed: isCompletedViaDutyPass,
       message: 'First quest completed! Streak started!',
     };
   }
 
+  // Check if this is a DIFFERENT quest day than the last one completed
+  const isDifferentQuestDay = user.lastCompletedQuestDay !== questDay;
+  
   const hoursSinceLastQuest = getHoursBetween(user.lastQuestCompletedAt, now);
 
-  // Same day: Update timestamp but don't change streak
-  if (hoursSinceLastQuest < 24) {
+  // If completing the SAME quest day again (e.g., replaying Monday after already completing it)
+  if (!isDifferentQuestDay) {
+    // Just update timestamp, don't change streak
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -153,17 +184,33 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
       },
     });
 
+    console.log('✅ Same quest day completed again:', {
+      userId,
+      questDay,
+      currentStreak: user.currentStreak,
+    });
+
     return {
       currentStreak: user.currentStreak,
       longestStreak: user.longestStreak,
       streakBroken: false,
-      dutyPassUsed: false,
+      dutyPassUsed: isCompletedViaDutyPass,
       message: 'Quest completed - same day',
     };
   }
 
-  // Next day (24-48 hours): Increment streak
-  if (hoursSinceLastQuest >= 24 && hoursSinceLastQuest < 48) {
+  // DIFFERENT quest day completed:
+  // 1. If within same session (< 24 hours) AND different day → INCREMENT (duty pass scenario)
+  // 2. If 24-48 hours AND different day → INCREMENT (normal next-day scenario)
+  // 3. If via duty pass → ALWAYS INCREMENT (streak protection)
+  
+  const shouldIncrementStreak = (
+    (hoursSinceLastQuest < 24 && isDifferentQuestDay) || // Same session, different quest day (duty pass)
+    (hoursSinceLastQuest >= 24 && hoursSinceLastQuest < 48) || // Normal next day
+    isCompletedViaDutyPass // Duty pass always protects streak
+  );
+
+  if (shouldIncrementStreak) {
     const newStreak = user.currentStreak + 1;
     const newLongest = Math.max(newStreak, user.longestStreak);
 
@@ -173,26 +220,48 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
         currentStreak: newStreak,
         longestStreak: newLongest,
         lastQuestCompletedAt: now,
+        lastCompletedQuestDay: questDay,
       },
+    });
+
+    console.log('🔥 Streak updated successfully:', {
+      userId,
+      questDay,
+      oldStreak: user.currentStreak,
+      newStreak,
+      newLongest,
+      hoursSinceLastQuest,
+      isDifferentQuestDay,
+      viaDutyPass: isCompletedViaDutyPass,
+      lastQuestCompletedAt: now
     });
 
     return {
       currentStreak: newStreak,
       longestStreak: newLongest,
       streakBroken: false,
-      dutyPassUsed: false,
-      message: `Streak continued! ${newStreak} days! 🔥`,
+      dutyPassUsed: isCompletedViaDutyPass,
+      message: isCompletedViaDutyPass 
+        ? `Duty pass quest completed! Streak protected: ${newStreak} days! 🔥🎫`
+        : `Streak continued! ${newStreak} days! 🔥`,
     };
   }
 
-  // More than 48 hours: This shouldn't happen if checkAndUpdateStreak was called
-  // But if it does, reset streak and start new one
+  // More than 48 hours without duty pass: Reset streak and start new one
   const updatedUser = await prisma.user.update({
     where: { id: userId },
     data: {
       currentStreak: 1,
       lastQuestCompletedAt: now,
+      lastCompletedQuestDay: questDay,
     },
+  });
+
+  console.log('⚠️ Streak was broken, starting new streak:', {
+    userId,
+    questDay,
+    oldStreak: user.currentStreak,
+    hoursSinceLastQuest
   });
 
   return {
@@ -206,7 +275,7 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
 
 /**
  * Manually use duty pass to unlock a missed quest
- * This maintains the streak
+ * UPDATED: Creates DutyPassUnlock record for tracking
  */
 export async function useDutyPassForMissedQuest(userId: string, questDay: string): Promise<{
   success: boolean;
@@ -217,7 +286,7 @@ export async function useDutyPassForMissedQuest(userId: string, questDay: string
     where: { id: userId },
     select: {
       dutyPasses: true,
-      dutyPassUsedDates: true,
+      weeklyQuestStartDate: true,
     },
   });
 
@@ -234,41 +303,55 @@ export async function useDutyPassForMissedQuest(userId: string, questDay: string
     };
   }
 
-  // Use the duty pass
-  const now = new Date();
-  
-  // Parse existing used dates from JSON
-  let usedDates: string[] = [];
-  if (user.dutyPassUsedDates) {
-    try {
-      const parsed = user.dutyPassUsedDates;
-      if (Array.isArray(parsed)) {
-        usedDates = parsed.map((date: any) => {
-          if (typeof date === 'string') return date;
-          if (date instanceof Date) return date.toISOString();
-          return new Date(date).toISOString();
-        });
-      }
-    } catch (error) {
-      console.error('Error parsing dutyPassUsedDates:', error);
-      usedDates = [];
-    }
+  // Check if duty pass already used for this quest this week
+  const existingUnlock = await prisma.dutyPassUnlock.findFirst({
+    where: {
+      userId,
+      questDay,
+      unlockedAt: {
+        gte: user.weeklyQuestStartDate || new Date(),
+      },
+    },
+  });
+
+  if (existingUnlock) {
+    return {
+      success: false,
+      message: 'Duty pass already used for this quest this week',
+      dutyPassesRemaining: user.dutyPasses,
+    };
   }
 
-  // Add new date as ISO string
-  const updatedDates = [...usedDates, now.toISOString()];
+  // Use the duty pass
+  const now = new Date();
 
-  const updatedUser = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      dutyPasses: { decrement: 1 },
-      dutyPassUsedDates: updatedDates,
-    },
+  // Decrement duty pass and create unlock record in a transaction
+  const [updatedUser, unlockRecord] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: {
+        dutyPasses: { decrement: 1 },
+      },
+    }),
+    prisma.dutyPassUnlock.create({
+      data: {
+        userId,
+        questDay,
+        unlockedAt: now,
+      },
+    }),
+  ]);
+
+  console.log('🎫 Duty pass used:', {
+    userId,
+    questDay,
+    passesRemaining: updatedUser.dutyPasses,
+    unlockedAt: now
   });
 
   return {
     success: true,
-    message: `Duty pass used! ${questDay} quest unlocked!`,
+    message: `Duty pass used! ${questDay.charAt(0).toUpperCase() + questDay.slice(1)} quest unlocked!`,
     dutyPassesRemaining: updatedUser.dutyPasses,
   };
 }

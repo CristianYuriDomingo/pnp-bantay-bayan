@@ -26,7 +26,8 @@ export default function DutyPass() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/duty-pass');
+      // FIXED: Use the correct endpoint
+      const response = await fetch('/api/users/duty-pass/claim');
       
       if (!response.ok) {
         throw new Error('Failed to fetch duty pass status');
@@ -49,7 +50,8 @@ export default function DutyPass() {
       setClaiming(true);
       setError(null);
       
-      const response = await fetch('/api/duty-pass', {
+      // FIXED: Use the correct endpoint
+      const response = await fetch('/api/users/duty-pass/claim', {
         method: 'POST',
       });
 
@@ -62,9 +64,9 @@ export default function DutyPass() {
       // Update status with new values
       setStatus(prev => prev ? {
         ...prev,
-        dutyPasses: data.dutyPasses,
+        dutyPasses: data.data.dutyPassesTotal,
         canClaim: false,
-        lastClaimDate: data.claimedAt,
+        lastClaimDate: data.data.claimedAt,
       } : null);
 
       // Show success animation
@@ -173,8 +175,9 @@ export default function DutyPass() {
               )}
             </div>
             
+            {/* UPDATED: Removed "You have _ passes" text */}
             <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
-              Protects your streak for one full day. You have <span className="font-bold text-blue-600">{status?.dutyPasses || 0}</span> {status?.dutyPasses === 1 ? 'pass' : 'passes'}.
+              Protects your streak for one full day. Use on missed quests to maintain progress!
             </p>
 
             {/* Success message */}

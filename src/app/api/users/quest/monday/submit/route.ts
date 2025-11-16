@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { onQuestComplete } from '@/lib/services/streakService';
+import { getCurrentWeekProgress } from '@/lib/services/weeklyResetService';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,6 +113,106 @@ export async function POST(request: NextRequest) {
         isQuestCompleted 
       });
 
+      // 🆕 WEEKLY QUEST INTEGRATION - Only if quest is completed
+      if (isQuestCompleted) {
+        try {
+          console.log('🎯 Quest completed! Updating weekly progress and streak...');
+          
+          // 1. Update weekly progress FIRST
+          const user = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: { weeklyQuestStartDate: true },
+          });
+
+          if (user?.weeklyQuestStartDate) {
+            const currentProgress = await getCurrentWeekProgress(session.user.id);
+            
+            if (currentProgress) {
+              const completedDays = Array.isArray(currentProgress.completedDays) 
+                ? currentProgress.completedDays as string[]
+                : [];
+              
+              // Add 'monday' if not already added
+              if (!completedDays.includes('monday')) {
+                await prisma.weeklyQuestProgress.update({
+                  where: {
+                    userId_weekStartDate: {
+                      userId: session.user.id,
+                      weekStartDate: user.weeklyQuestStartDate,
+                    },
+                  },
+                  data: {
+                    completedDays: [...completedDays, 'monday'],
+                    totalQuestsCompleted: { increment: 1 },
+                  },
+                });
+                console.log('✅ Weekly progress updated: Monday added to completed days');
+              } else {
+                console.log('ℹ️ Monday already marked as completed this week');
+              }
+            }
+          }
+
+          // 2. Update streak AFTER weekly progress
+          const streakResult = await onQuestComplete(session.user.id, 'monday');
+          console.log('🔥 Streak updated:', {
+            currentStreak: streakResult.currentStreak,
+            longestStreak: streakResult.longestStreak,
+            message: streakResult.message
+          });
+
+          // 3. Fetch fresh user data to return updated values
+          const updatedUser = await prisma.user.findUnique({
+            where: { id: session.user.id },
+            select: {
+              currentStreak: true,
+              longestStreak: true,
+            },
+          });
+
+          console.log('✅ Fresh user data fetched:', updatedUser);
+
+          return NextResponse.json({
+            success: true,
+            data: {
+              correct: true,
+              isQuestCompleted,
+              nextLevel: null,
+              progress: {
+                currentLevel: progress.currentLevel,
+                completedLevels: progress.completedLevels,
+                isCompleted: progress.isCompleted
+              },
+              // Return fresh streak data
+              streak: {
+                current: updatedUser?.currentStreak || streakResult.currentStreak,
+                longest: updatedUser?.longestStreak || streakResult.longestStreak,
+                message: streakResult.message
+              }
+            },
+            message: '🎉 Quest completed! Streak updated!'
+          });
+
+        } catch (weeklyError) {
+          console.error('⚠️ Error updating weekly progress:', weeklyError);
+          // Still return success but log the error
+          return NextResponse.json({
+            success: true,
+            data: {
+              correct: true,
+              isQuestCompleted,
+              nextLevel: null,
+              progress: {
+                currentLevel: progress.currentLevel,
+                completedLevels: progress.completedLevels,
+                isCompleted: progress.isCompleted
+              }
+            },
+            message: '🎉 Quest completed!'
+          });
+        }
+      }
+
       return NextResponse.json({
         success: true,
         data: {
@@ -123,7 +225,9 @@ export async function POST(request: NextRequest) {
             isCompleted: progress.isCompleted
           }
         },
-        message: 'Correct answer!'
+        message: isQuestCompleted 
+          ? '🎉 Quest completed! Streak updated!' 
+          : 'Correct answer!'
       });
 
     } else {

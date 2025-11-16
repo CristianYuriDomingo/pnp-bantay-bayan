@@ -158,12 +158,13 @@ export function getDaysBetween(date1: Date, date2: Date): number {
 
 /**
  * Get array of available quest days based on current day
+ * UPDATED: Only returns current day for weekdays, empty for weekends
  * - Monday: ["monday"]
- * - Tuesday: ["monday", "tuesday"]
- * - Wednesday: ["monday", "tuesday", "wednesday"]
- * - Thursday: ["monday", "tuesday", "wednesday", "thursday"]
- * - Friday: ["monday", "tuesday", "wednesday", "thursday", "friday"]
- * - Saturday/Sunday: ["monday", "tuesday", "wednesday", "thursday", "friday"] (all quests)
+ * - Tuesday: ["tuesday"]
+ * - Wednesday: ["wednesday"]
+ * - Thursday: ["thursday"]
+ * - Friday: ["friday"]
+ * - Saturday/Sunday: [] (no quests naturally available - must use duty pass)
  * 
  * @param timezone - User's timezone (default: 'Asia/Manila')
  * @returns Array of available quest day names
@@ -171,21 +172,25 @@ export function getDaysBetween(date1: Date, date2: Date): number {
  * @example
  * // If today is Wednesday
  * const available = getAvailableQuestDays();
- * // Returns: ["monday", "tuesday", "wednesday"]
+ * // Returns: ["wednesday"]
+ * 
+ * // If today is Sunday
+ * const available = getAvailableQuestDays();
+ * // Returns: []
  */
 export function getAvailableQuestDays(timezone: string = 'Asia/Manila'): string[] {
   const currentDay = getCurrentDayOfWeek(timezone);
   const allDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   
-  const currentIndex = allDays.indexOf(currentDay);
-  
-  // Weekend: all quests available for review
+  // Weekend: NO quests naturally available (must use duty pass for any incomplete quest)
   if (currentDay === 'saturday' || currentDay === 'sunday') {
-    return allDays;
+    return [];
   }
   
-  // Weekday: return up to current day
-  return allDays.slice(0, currentIndex + 1);
+  const currentIndex = allDays.indexOf(currentDay);
+  
+  // Weekday: return only current day
+  return currentIndex >= 0 ? [allDays[currentIndex]] : [];
 }
 
 /**
@@ -196,8 +201,12 @@ export function getAvailableQuestDays(timezone: string = 'Asia/Manila'): string[
  * 
  * @example
  * // If today is Wednesday
- * isQuestDayAvailable('monday'); // Returns: true
+ * isQuestDayAvailable('monday'); // Returns: false
+ * isQuestDayAvailable('wednesday'); // Returns: true
  * isQuestDayAvailable('friday'); // Returns: false
+ * 
+ * // If today is Sunday
+ * isQuestDayAvailable('monday'); // Returns: false (must use duty pass)
  */
 export function isQuestDayAvailable(questDay: string, timezone: string = 'Asia/Manila'): boolean {
   const availableDays = getAvailableQuestDays(timezone);

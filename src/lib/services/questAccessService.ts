@@ -1,3 +1,4 @@
+//lib/services/questAccessService.ts
 import { prisma } from '@/lib/prisma';
 import { 
   getCurrentDayOfWeek, 
@@ -15,6 +16,7 @@ interface QuestAccessResult {
 
 /**
  * Check if user can access a specific quest
+ * UPDATED: Only allows current day's quest OR duty pass unlocked quests
  */
 export async function canAccessQuest(
   userId: string, 
@@ -30,6 +32,7 @@ export async function canAccessQuest(
     select: {
       timezone: true,
       weeklyQuestStartDate: true,
+      dutyPassUsedDates: true,
     },
   });
 
@@ -44,23 +47,9 @@ export async function canAccessQuest(
 
   const timezone = user.timezone || 'Asia/Manila';
   const currentDay = getCurrentDayOfWeek(timezone);
-  const availableDays = getAvailableQuestDays(timezone);
-
-  // Check if this quest day is available yet
-  const isAvailable = availableDays.includes(questDay);
 
   // Check if quest is already completed this week
   const isCompleted = await isQuestCompletedThisWeek(userId, questDay);
-
-  // Quest is from future - locked
-  if (!isAvailable) {
-    return {
-      canAccess: false,
-      reason: `This quest unlocks on ${questDay}. Come back then!`,
-      isMissed: false,
-      needsDutyPass: false,
-    };
-  }
 
   // Quest is already completed
   if (isCompleted) {
@@ -72,12 +61,68 @@ export async function canAccessQuest(
     };
   }
 
-  // Check if quest was missed (past day but not completed)
+  // Get quest day indices
   const questDayIndex = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].indexOf(questDay);
   const currentDayIndex = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].indexOf(currentDay);
 
+  // Weekend handling
+  if (currentDay === 'saturday' || currentDay === 'sunday') {
+    // On weekends, all incomplete quests are "missed" and need duty pass
+    const hasDutyPassForQuest = await checkDutyPassUsedForQuest(
+      userId, 
+      questDay, 
+      user.weeklyQuestStartDate,
+      user.dutyPassUsedDates
+    );
+
+    if (hasDutyPassForQuest) {
+      return {
+        canAccess: true,
+        reason: 'Unlocked with Duty Pass',
+        isMissed: true,
+        needsDutyPass: false,
+      };
+    }
+
+    return {
+      canAccess: false,
+      reason: `Weekend: Use a Duty Pass to unlock ${questDay}'s quest!`,
+      isMissed: true,
+      needsDutyPass: true,
+    };
+  }
+
+  // Quest is from future - locked
+  if (questDayIndex > currentDayIndex) {
+    return {
+      canAccess: false,
+      reason: `This quest unlocks on ${questDay}. Come back then!`,
+      isMissed: false,
+      needsDutyPass: false,
+    };
+  }
+
   // Quest is from a past day and not completed = MISSED
   if (questDayIndex < currentDayIndex) {
+    // Check if user has used a duty pass for this quest this week
+    const hasDutyPassForQuest = await checkDutyPassUsedForQuest(
+      userId, 
+      questDay, 
+      user.weeklyQuestStartDate,
+      user.dutyPassUsedDates
+    );
+
+    if (hasDutyPassForQuest) {
+      // Duty pass was used - allow access
+      return {
+        canAccess: true,
+        reason: 'Unlocked with Duty Pass',
+        isMissed: true,
+        needsDutyPass: false,
+      };
+    }
+
+    // No duty pass used - quest is missed
     return {
       canAccess: false,
       reason: `You missed ${questDay}'s quest. Use a Duty Pass to unlock it!`,
@@ -86,13 +131,38 @@ export async function canAccessQuest(
     };
   }
 
-  // Quest is available and not completed - can access!
+  // Quest is current day - can access!
   return {
     canAccess: true,
-    reason: 'Quest available',
+    reason: 'Quest available today!',
     isMissed: false,
     needsDutyPass: false,
   };
+}
+
+/**
+ * Check if user has used duty pass for a specific quest this week
+ */
+async function checkDutyPassUsedForQuest(
+  userId: string,
+  questDay: string,
+  weekStartDate: Date | null,
+  dutyPassUsedDates: any
+): Promise<boolean> {
+  if (!weekStartDate) return false;
+
+  // Get duty pass unlock records for this user and quest
+  const unlockRecord = await prisma.dutyPassUnlock.findFirst({
+    where: {
+      userId,
+      questDay,
+      unlockedAt: {
+        gte: weekStartDate, // Only check unlocks from this week onwards
+      },
+    },
+  });
+
+  return !!unlockRecord;
 }
 
 /**

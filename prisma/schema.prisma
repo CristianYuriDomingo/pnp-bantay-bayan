@@ -68,7 +68,7 @@ model User {
   timezone               String                    @default("Asia/Manila")
   weeklyQuestStartDate   DateTime?                 // Monday 00:00 of current week
   lastQuestCompletedAt   DateTime?                 // Last time user completed any quest
-
+  lastCompletedQuestDay  String?                   // NEW: Track which quest day was last completed ("monday", "tuesday", etc.)
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
   resetToken             String?
@@ -90,6 +90,9 @@ model User {
   
   // 🆕 NEW: Weekly Quest Progress Relation
   weeklyProgress         WeeklyQuestProgress[]
+  
+  // 🆕 NEW: Duty Pass Unlock Tracking
+  dutyPassUnlocks        DutyPassUnlock[]
 
   @@index([resetToken])
   @@index([totalXP])
@@ -666,4 +669,21 @@ model WeeklyQuestProgress {
   @@index([userId])
   @@index([weekStartDate])
   @@map("weekly_quest_progress")
+}
+
+// ============================================
+// 🆕 NEW: DUTY PASS UNLOCK TRACKING
+// ============================================
+
+model DutyPassUnlock {
+  id          String   @id @default(cuid())
+  userId      String
+  questDay    String   // "monday", "tuesday", "wednesday", "thursday", "friday"
+  unlockedAt  DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, questDay])
+  @@index([userId, unlockedAt])
+  @@map("duty_pass_unlocks")
 }

@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { onQuestComplete } from '@/lib/services/streakService';
+import { getCurrentWeekProgress } from '@/lib/services/weeklyResetService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,7 +32,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { questTuesdayId, questionId, selectedAnswer } = body;
 
-    // Validation
     if (!questTuesdayId || !questionId || typeof selectedAnswer !== 'boolean') {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
@@ -38,7 +39,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch the question to check the answer
     const question = await prisma.questTuesdayQuestion.findUnique({
       where: { id: questionId },
       select: {
@@ -57,10 +57,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check if answer is correct
     const isCorrect = selectedAnswer === question.correctAnswer;
 
-    // Get or create user progress
     let progress = await prisma.questTuesdayProgress.findUnique({
       where: {
         userId_questTuesdayId: {
@@ -70,7 +68,6 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Get quest data for lives
     const quest = await prisma.questTuesday.findUnique({
       where: { id: questTuesdayId },
       select: { 
@@ -90,7 +87,6 @@ export async function POST(req: NextRequest) {
     }
 
     if (!progress) {
-      // Create new progress
       progress = await prisma.questTuesdayProgress.create({
         data: {
           userId: user.id,
@@ -103,7 +99,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Check if already answered or game is over
     const answeredQuestions = progress.answeredQuestions as any[];
     const alreadyAnswered = answeredQuestions.some(
       (a: any) => a.questionNumber === question.questionNumber
@@ -130,7 +125,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update progress
     const completedQuestions = progress.completedQuestions as number[];
     const newCompletedQuestions = [...completedQuestions, question.questionNumber];
     
@@ -159,12 +153,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check if all questions answered
     if (newCompletedQuestions.length >= quest.questions.length && !isFailed) {
       isCompleted = true;
     }
 
-    // Update progress in database
     const updatedProgress = await prisma.questTuesdayProgress.update({
       where: {
         userId_questTuesdayId: {
@@ -184,6 +176,89 @@ export async function POST(req: NextRequest) {
         lastPlayedAt: new Date()
       }
     });
+
+    // 🆕 WEEKLY QUEST INTEGRATION
+    if (isCompleted) {
+      try {
+        console.log('🎯 Quest completed! Updating weekly progress and streak...');
+        
+        // 1. Update weekly progress FIRST
+        const userWithWeek = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { weeklyQuestStartDate: true },
+        });
+
+        if (userWithWeek?.weeklyQuestStartDate) {
+          const currentProgress = await getCurrentWeekProgress(user.id);
+          
+          if (currentProgress) {
+            const completedDays = Array.isArray(currentProgress.completedDays) 
+              ? currentProgress.completedDays as string[]
+              : [];
+            
+            if (!completedDays.includes('tuesday')) {
+              await prisma.weeklyQuestProgress.update({
+                where: {
+                  userId_weekStartDate: {
+                    userId: user.id,
+                    weekStartDate: userWithWeek.weeklyQuestStartDate,
+                  },
+                },
+                data: {
+                  completedDays: [...completedDays, 'tuesday'],
+                  totalQuestsCompleted: { increment: 1 },
+                },
+              });
+              console.log('✅ Weekly progress updated: Tuesday added');
+            }
+          }
+        }
+
+        // 2. Update streak AFTER weekly progress
+        const streakResult = await onQuestComplete(user.id, 'tuesday');
+        console.log('🔥 Streak updated:', {
+          currentStreak: streakResult.currentStreak,
+          longestStreak: streakResult.longestStreak,
+          message: streakResult.message
+        });
+
+        // 3. Fetch fresh user data to return updated values
+        const updatedUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: {
+            currentStreak: true,
+            longestStreak: true,
+          },
+        });
+
+        console.log('✅ Fresh user data fetched:', updatedUser);
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            correct: isCorrect,
+            explanation: question.explanation,
+            correctAnswer: question.correctAnswer,
+            livesRemaining: newLivesRemaining,
+            score: newScore,
+            isCompleted,
+            isFailed,
+            currentQuestion: question.questionNumber + 1,
+            totalQuestions: quest.questions.length,
+            // Return fresh streak data
+            streak: {
+              current: updatedUser?.currentStreak || streakResult.currentStreak,
+              longest: updatedUser?.longestStreak || streakResult.longestStreak,
+              message: streakResult.message
+            }
+          },
+          message: '🎉 Quest completed! Streak updated!'
+        });
+
+      } catch (weeklyError) {
+        console.error('⚠️ Error updating weekly progress:', weeklyError);
+      }
+    }
 
     return NextResponse.json({
       success: true,

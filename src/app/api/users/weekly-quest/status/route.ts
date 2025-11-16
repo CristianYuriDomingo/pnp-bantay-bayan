@@ -1,4 +1,4 @@
-// app/api/users/weekly-quest/status/route.ts
+//app/api/users/weekly-quest/status/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -48,6 +48,33 @@ export async function GET(request: NextRequest) {
     // 4. Check and update streak
     const streakResult = await checkAndUpdateStreak(user.id);
 
+    console.log('📊 Streak Check Result:', {
+      userId: user.id,
+      currentStreak: streakResult.currentStreak,
+      longestStreak: streakResult.longestStreak,
+      streakBroken: streakResult.streakBroken,
+      message: streakResult.message
+    });
+
+    // 4b. Re-fetch user data to get updated streak values
+    const updatedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        dutyPasses: true,
+        lastDutyPassClaim: true,
+        weeklyQuestStartDate: true,
+        currentStreak: true,
+        longestStreak: true,
+      },
+    });
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: 'User not found after streak update' },
+        { status: 404 }
+      );
+    }
+
     // 5. Get current week progress
     const weekProgress = await getCurrentWeekProgress(user.id);
 
@@ -66,8 +93,8 @@ export async function GET(request: NextRequest) {
 
     // 9. Check if user can claim duty pass (Sunday + not claimed this week)
     const canClaimDutyPass = isCurrentlySunday && (
-      !user.lastDutyPassClaim || 
-      new Date(user.lastDutyPassClaim).getTime() < (user.weeklyQuestStartDate?.getTime() || 0)
+      !updatedUser.lastDutyPassClaim || 
+      new Date(updatedUser.lastDutyPassClaim).getTime() < (updatedUser.weeklyQuestStartDate?.getTime() || 0)
     );
 
     // 10. Calculate reward XP based on completed quests
@@ -84,20 +111,20 @@ export async function GET(request: NextRequest) {
       data: {
         // Week info
         weekReset: resetResult.weekReset,
-        weekStartDate: user.weeklyQuestStartDate,
+        weekStartDate: updatedUser.weeklyQuestStartDate,
         currentDay,
         isWeekend: isCurrentlyWeekend,
         
-        // Streak info
+        // Streak info - USE streakResult values to ensure they're fresh
         currentStreak: streakResult.currentStreak,
         longestStreak: streakResult.longestStreak,
         streakBroken: streakResult.streakBroken,
         streakMessage: streakResult.message,
         
         // Duty Pass info
-        dutyPasses: user.dutyPasses,
+        dutyPasses: updatedUser.dutyPasses,
         canClaimDutyPass,
-        lastDutyPassClaim: user.lastDutyPassClaim,
+        lastDutyPassClaim: updatedUser.lastDutyPassClaim,
         
         // Weekly Progress
         weeklyProgress: {
