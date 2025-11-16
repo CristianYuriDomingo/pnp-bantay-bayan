@@ -4,6 +4,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import LearnCard from '../components/LearnCard';
 import SearchBar from '../components/SearchBar';
 import DashboardStats from '../components/DashboardStats';
@@ -43,8 +44,23 @@ export default function DashboardPage() {
         </div>
         
         {/* Recent Activity Section */}
-        <div>
+        <div className="border-b border-gray-100 dark:border-gray-700">
           <RecentActivity />
+        </div>
+
+        {/* Footer Links */}
+        <div className="pt-4 pb-2 px-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            <Link href="/users/privacy" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/users/about" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              About
+            </Link>
+            <Link href="/users/terms" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Terms
+            </Link>
+          </div>
         </div>
       </div>
     );

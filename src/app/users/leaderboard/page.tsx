@@ -1,6 +1,7 @@
 // app/users/leaderboard/page.tsx
 'use client'
 import React, { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useLeaderboard, useUserRank as useUserLeaderboardRank } from '@/hooks/use-leaderboard'
 import { useUserRank } from '@/hooks/use-rank'
 import { LeaderboardEntry, LeaderboardPaginationLimit } from '@/types/leaderboard'
@@ -389,15 +390,32 @@ export default function LeaderboardPage() {
   // Set right column content
   useEffect(() => {
     setRightColumnContent(
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="border-b border-gray-100 dark:border-gray-700">
-          <LeaderboardInfoCard />
-        </div>
-        {user && (
-          <div className="p-6">
-            <UserRankCard />
+      <div className="space-y-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="border-b border-gray-100 dark:border-gray-700">
+            <LeaderboardInfoCard />
           </div>
-        )}
+          {user && (
+            <div className="p-6">
+              <UserRankCard />
+            </div>
+          )}
+        </div>
+
+        {/* Footer Links */}
+        <div className="pt-4 pb-2 px-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            <Link href="/users/privacy" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/users/about" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              About
+            </Link>
+            <Link href="/users/terms" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Terms
+            </Link>
+          </div>
+        </div>
       </div>
     )
     return () => setRightColumnContent(null)

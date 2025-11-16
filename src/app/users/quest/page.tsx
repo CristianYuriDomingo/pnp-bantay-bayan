@@ -26,13 +26,13 @@ export default function QuestPage() {
         {/* Footer Links */}
         <div className="pt-4 pb-2 px-4">
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-gray-400 uppercase tracking-wide">
-            <Link href="/privacy" className="hover:text-gray-600 transition-colors">
+            <Link href="/users/privacy" className="hover:text-gray-600 transition-colors">
               Privacy
             </Link>
-            <Link href="/about" className="hover:text-gray-600 transition-colors">
+            <Link href="/users/about" className="hover:text-gray-600 transition-colors">
               About
             </Link>
-            <Link href="/terms" className="hover:text-gray-600 transition-colors">
+            <Link href="/users/terms" className="hover:text-gray-600 transition-colors">
               Terms
             </Link>
           </div>

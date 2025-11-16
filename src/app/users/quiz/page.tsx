@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import QuizTitle from '../components/QuizTitle';
 import MasteryAchievements from '../components/QuizMasteryAchievements';
@@ -338,7 +339,7 @@ export default function Quiz() {
 
   useEffect(() => {
     const rightColumnContent = (
-      <div className="space-y-6">
+      <div className="space-y-2">
         {/* Quiz Statistics Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
           <div className="border-b border-gray-100 dark:border-gray-700">
@@ -359,6 +360,21 @@ export default function Quiz() {
             attemptHistory={quizHistory.attemptHistory}
           />
         )}
+
+        {/* Footer Links */}
+        <div className="pt-4 pb-2 px-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
+            <Link href="/users/privacy" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Privacy
+            </Link>
+            <Link href="/users/about" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              About
+            </Link>
+            <Link href="/users/terms" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              Terms
+            </Link>
+          </div>
+        </div>
       </div>
     );
     
