@@ -61,9 +61,26 @@ export default function Home() {
           <div className="flex items-center gap-8 ml-auto">
             <button
               onClick={handleGetStarted}
-              className={`px-6 py-2.5 text-sm font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-sm ${
+              className={`relative px-8 py-3 text-sm font-bold rounded-2xl text-white transition-all duration-300 ${
                 showHeaderButton ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
               }`}
+              style={{
+                background: 'linear-gradient(to bottom, #60a5fa 0%, #3b82f6 50%, #2563eb 100%)',
+                boxShadow: '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)',
+                transform: showHeaderButton ? 'translateY(0)' : 'translateY(-8px)'
+              }}
+              onMouseDown={(e) => {
+                e.currentTarget.style.transform = 'translateY(4px)';
+                e.currentTarget.style.boxShadow = '0 2px 0 #1e40af, 0 4px 8px rgba(37, 99, 235, 0.3)';
+              }}
+              onMouseUp={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)';
+              }}
             >
               BEGIN SERVICE
             </button>
@@ -97,14 +114,23 @@ export default function Home() {
               <div className="flex flex-col gap-4 max-w-md mx-auto md:mx-0">
                 <button
                   onClick={handleGetStarted}
-                  className="w-full px-8 py-4 text-lg font-bold rounded-2xl bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-md"
+                  className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl text-white transition-all duration-150 active:translate-y-1"
+                  style={{
+                    backgroundColor: '#3b82f6',
+                    boxShadow: '0 4px 0 #1e40af',
+                  }}
                 >
                   BEGIN SERVICE
                 </button>
 
                 <button
                   onClick={handleLoginClick}
-                  className="w-full px-8 py-4 text-lg font-bold rounded-2xl border-2 border-blue-400 text-blue-500 hover:bg-blue-50 transition-all duration-300"
+                  className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl bg-white transition-all duration-150 active:translate-y-1"
+                  style={{
+                    border: '2px solid #d1d5db',
+                    color: '#3b82f6',
+                    boxShadow: '0 4px 0 #d1d5db',
+                  }}
                 >
                   CONTINUE YOUR DUTY
                 </button>
