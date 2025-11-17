@@ -49,8 +49,14 @@ export class BadgeService {
       result.newBadges.push(...cascadingBadges);
 
       // 🔥 4. CHECK AND UNLOCK BADGE MILESTONE ACHIEVEMENTS
-      const { AchievementService } = await import('./achievement-service');
-      await AchievementService.checkAndUnlockBadgeMilestoneAchievements(userId);
+      // ONLY if new badges were actually awarded
+      if (result.newBadges.length > 0) {
+        console.log(`✅ ${result.newBadges.length} new badges awarded, checking achievements...`);
+        const { AchievementService } = await import('./achievement-service');
+        await AchievementService.checkAndUnlockBadgeMilestoneAchievements(userId);
+      } else {
+        console.log(`ℹ️ No new badges awarded, skipping achievement check`);
+      }
 
       console.log(`✅ Badge check complete for user ${userId}: ${result.newBadges.length} new badges awarded`);
       return result;
@@ -74,6 +80,8 @@ export class BadgeService {
       }
     });
 
+    console.log(`🔍 Found ${badges.length} lesson badges for lesson ${lessonId}`);
+
     const newBadges: any[] = [];
 
     for (const badge of badges) {
@@ -93,6 +101,10 @@ export class BadgeService {
       }
     }
 
+    if (newBadges.length === 0) {
+      console.log(`ℹ️ No lesson badges awarded for lesson ${lessonId} (no badges configured or already earned)`);
+    }
+
     return newBadges;
   }
 
@@ -106,6 +118,8 @@ export class BadgeService {
         triggerValue: moduleId
       }
     });
+
+    console.log(`🔍 Found ${badges.length} module badges for module ${moduleId}`);
 
     const newBadges: any[] = [];
 
@@ -122,6 +136,10 @@ export class BadgeService {
           console.log(`🎖️ Awarded module badge "${badge.name}" to user ${userId}`);
         }
       }
+    }
+
+    if (newBadges.length === 0) {
+      console.log(`ℹ️ No module badges awarded for module ${moduleId} (no badges configured or already earned)`);
     }
 
     return newBadges;
@@ -441,7 +459,14 @@ export class BadgeService {
       }
 
       // 🔥 CHECK AND UNLOCK BADGE MILESTONE ACHIEVEMENTS
-      await this.checkAndUnlockBadgeMilestoneAchievements(userId);
+      // ONLY if new badges were actually awarded
+      if (result.newBadges.length > 0) {
+        console.log(`✅ ${result.newBadges.length} quiz badges awarded, checking achievements...`);
+        const { AchievementService } = await import('./achievement-service');
+        await AchievementService.checkAndUnlockBadgeMilestoneAchievements(userId);
+      } else {
+        console.log(`ℹ️ No quiz badges awarded, skipping achievement check`);
+      }
 
       console.log(`✅ Quiz badge check complete: ${result.newBadges.length} new badges`);
       return result;
@@ -531,113 +556,5 @@ export class BadgeService {
     }
 
     return [];
-  }
-
-  /**
-   * 🔥 NEW: Check and unlock badge milestone achievements
-   * This runs after every badge award to check if any achievements should be unlocked
-   */
-  private static async checkAndUnlockBadgeMilestoneAchievements(userId: string): Promise<void> {
-    console.log(`🎖️ Checking badge milestone achievements for user ${userId}`);
-
-    try {
-      // Get all user's badges with their types
-      const userBadges = await prisma.userBadge.findMany({
-        where: { userId },
-        include: {
-          badge: {
-            select: {
-              category: true,
-              masteryLevel: true,
-              triggerType: true,
-              name: true
-            }
-          }
-        }
-      });
-
-      // 🔥 IMPROVED: Count badges based on trigger type (more reliable)
-      // Learning badges = lesson_complete or module_complete
-      const learningBadgeCount = userBadges.filter(ub => 
-        ub.badge.triggerType === 'lesson_complete' || 
-        ub.badge.triggerType === 'module_complete' ||
-        ub.badge.category === 'Learning'
-      ).length;
-
-      // Quiz badges = quiz_mastery or parent_quiz_mastery OR has masteryLevel
-      const quizBadgeCount = userBadges.filter(ub => 
-        ub.badge.triggerType === 'quiz_mastery' || 
-        ub.badge.triggerType === 'parent_quiz_mastery' ||
-        ub.badge.category === 'Quiz Mastery' ||
-        ub.badge.masteryLevel !== null
-      ).length;
-
-      console.log(`📊 Badge counts: Learning=${learningBadgeCount}, Quiz=${quizBadgeCount}`);
-      console.log(`🏅 Total badges: ${userBadges.length}`);
-
-      // Log some badges for debugging
-      if (userBadges.length > 0) {
-        console.log(`Sample badges:`);
-        userBadges.slice(0, 3).forEach(ub => {
-          console.log(`  - ${ub.badge.name} (trigger: ${ub.badge.triggerType}, category: ${ub.badge.category})`);
-        });
-      }
-
-      // Get all badge milestone achievements that aren't unlocked yet
-      const badgeMilestoneAchievements = await prisma.achievement.findMany({
-        where: {
-          type: 'badge_milestone',
-          isActive: true,
-          userAchievements: {
-            none: {
-              userId: userId
-            }
-          }
-        }
-      });
-
-      console.log(`Found ${badgeMilestoneAchievements.length} locked badge milestone achievements`);
-
-      // Check each achievement to see if it should be unlocked
-      for (const achievement of badgeMilestoneAchievements) {
-        const criteriaData = achievement.criteriaData as any;
-        
-        if (!criteriaData || !criteriaData.badgeType || !criteriaData.count) {
-          console.warn(`⚠️ Achievement ${achievement.code} missing criteriaData`);
-          continue;
-        }
-
-        const { badgeType, count } = criteriaData;
-        const userCount = badgeType === 'learning' ? learningBadgeCount : quizBadgeCount;
-
-        console.log(`Checking ${achievement.name}: needs ${count} ${badgeType} badges, user has ${userCount}`);
-
-        // 🔥 UNLOCK IF TARGET REACHED
-        if (userCount >= count) {
-          console.log(`✅ UNLOCKING ACHIEVEMENT: ${achievement.name}`);
-          
-          try {
-            await prisma.userAchievement.create({
-              data: {
-                userId: userId,
-                achievementId: achievement.id,
-                xpAwarded: achievement.xpReward
-              }
-            });
-
-            console.log(`🎉 Achievement "${achievement.name}" unlocked for user ${userId}!`);
-          } catch (err) {
-            // Ignore duplicate errors (achievement already unlocked)
-            if (err instanceof Error && err.message.includes('Unique constraint')) {
-              console.log(`ℹ️ Achievement "${achievement.name}" already unlocked`);
-            } else {
-              throw err;
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error checking badge milestone achievements:', error);
-    }
   }
 }

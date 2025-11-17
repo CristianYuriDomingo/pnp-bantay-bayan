@@ -5,14 +5,14 @@ import { prisma } from '@/lib/prisma';
 
 export class AchievementService {
   /**
-   * 🔥 DYNAMIC: Check and unlock badge milestone achievements
-   * Automatically calculates total badges available in the system
+   * 🔥 FIXED: Check and unlock badge milestone achievements
+   * Only counts ACTUAL lesson/module/quiz badges, not all badges
    */
   static async checkAndUnlockBadgeMilestoneAchievements(userId: string): Promise<void> {
     console.log(`🎖️ Checking badge milestone achievements for user ${userId}`);
 
     try {
-      // Get all user's badges
+      // Get all user's badges with their details
       const userBadges = await prisma.userBadge.findMany({
         where: { userId },
         include: {
@@ -28,81 +28,78 @@ export class AchievementService {
         }
       });
 
-      // Count user's learning badges
-      const userLearningBadges = userBadges.filter(ub => 
+      console.log(`📊 Total user badges: ${userBadges.length}`);
+
+      // 🔥 FIXED: Only count learning badges (lesson_complete or module_complete)
+      const learningBadges = userBadges.filter(ub => 
         ub.badge.triggerType === 'lesson_complete' || 
-        ub.badge.triggerType === 'module_complete' ||
-        ub.badge.category === 'Learning'
+        ub.badge.triggerType === 'module_complete'
       );
 
-      // Count user's quiz badges
-      const userQuizBadges = userBadges.filter(ub => 
+      // 🔥 FIXED: Only count quiz badges (quiz_mastery or parent_quiz_mastery)
+      const quizBadges = userBadges.filter(ub => 
         ub.badge.triggerType === 'quiz_mastery' || 
-        ub.badge.triggerType === 'parent_quiz_mastery' ||
-        ub.badge.category === 'Quiz Mastery' ||
-        ub.badge.masteryLevel !== null
+        ub.badge.triggerType === 'parent_quiz_mastery'
       );
 
-      // 🔥 DYNAMIC: Get total available badges in the system
-      const totalLearningBadges = await prisma.badge.count({
-        where: {
-          OR: [
-            { triggerType: 'lesson_complete' },
-            { triggerType: 'module_complete' },
-            { category: 'Learning' }
-          ]
-        }
-      });
+      const learningBadgeCount = learningBadges.length;
+      const quizBadgeCount = quizBadges.length;
 
-      const totalQuizBadges = await prisma.badge.count({
-        where: {
-          OR: [
-            { triggerType: 'quiz_mastery' },
-            { triggerType: 'parent_quiz_mastery' },
-            { category: 'Quiz Mastery' },
-            { masteryLevel: { not: null } }
-          ]
-        }
-      });
+      console.log(`📊 Badge breakdown:`);
+      console.log(`   - Learning badges (lesson/module): ${learningBadgeCount}`);
+      console.log(`   - Quiz badges (quiz mastery): ${quizBadgeCount}`);
 
-      console.log(`📊 Learning: ${userLearningBadges.length}/${totalLearningBadges}`);
-      console.log(`📊 Quiz: ${userQuizBadges.length}/${totalQuizBadges}`);
+      // Log some examples for debugging
+      if (learningBadges.length > 0) {
+        console.log(`   📚 Sample learning badges:`);
+        learningBadges.slice(0, 3).forEach(ub => {
+          console.log(`      - ${ub.badge.name} (${ub.badge.triggerType})`);
+        });
+      }
 
-      // Get all badge milestone achievements
-      const achievements = await prisma.achievement.findMany({
+      if (quizBadges.length > 0) {
+        console.log(`   📝 Sample quiz badges:`);
+        quizBadges.slice(0, 3).forEach(ub => {
+          console.log(`      - ${ub.badge.name} (${ub.badge.triggerType})`);
+        });
+      }
+
+      // Get all badge milestone achievements that aren't unlocked yet
+      const badgeMilestoneAchievements = await prisma.achievement.findMany({
         where: {
           type: 'badge_milestone',
-          isActive: true
+          isActive: true,
+          userAchievements: {
+            none: {
+              userId: userId
+            }
+          }
         }
       });
 
-      // Check each achievement
-      for (const achievement of achievements) {
-        // Check if already unlocked
-        const alreadyUnlocked = await prisma.userAchievement.findUnique({
-          where: {
-            userId_achievementId: {
-              userId: userId,
-              achievementId: achievement.id
-            }
-          }
-        });
+      console.log(`🔍 Found ${badgeMilestoneAchievements.length} locked badge milestone achievements`);
 
-        if (alreadyUnlocked) {
-          continue; // Skip already unlocked
+      // Check each achievement to see if it should be unlocked
+      for (const achievement of badgeMilestoneAchievements) {
+        const criteriaData = achievement.criteriaData as any;
+        
+        if (!criteriaData || !criteriaData.badgeType) {
+          console.warn(`⚠️ Achievement ${achievement.code} missing criteriaData or badgeType`);
+          continue;
         }
 
-        // 🔥 DYNAMIC UNLOCK LOGIC
-        const shouldUnlock = this.checkDynamicUnlockCriteria(
+        const { badgeType } = criteriaData;
+        const userCount = badgeType === 'learning' ? learningBadgeCount : quizBadgeCount;
+
+        // 🔥 FIXED: Dynamic target calculation
+        const shouldUnlock = await this.checkDynamicUnlockCriteria(
           achievement,
-          userLearningBadges.length,
-          userQuizBadges.length,
-          totalLearningBadges,
-          totalQuizBadges
+          learningBadgeCount,
+          quizBadgeCount
         );
 
         if (shouldUnlock) {
-          console.log(`✅ UNLOCKING: ${achievement.name}`);
+          console.log(`✅ UNLOCKING ACHIEVEMENT: ${achievement.name}`);
           
           try {
             await prisma.userAchievement.create({
@@ -113,14 +110,17 @@ export class AchievementService {
               }
             });
 
-            console.log(`🎉 Achievement "${achievement.name}" unlocked!`);
+            console.log(`🎉 Achievement "${achievement.name}" unlocked for user ${userId}!`);
           } catch (err) {
+            // Ignore duplicate errors (achievement already unlocked)
             if (err instanceof Error && err.message.includes('Unique constraint')) {
               console.log(`ℹ️ Achievement "${achievement.name}" already unlocked`);
             } else {
               throw err;
             }
           }
+        } else {
+          console.log(`❌ Not ready for "${achievement.name}"`);
         }
       }
     } catch (error) {
@@ -129,53 +129,80 @@ export class AchievementService {
   }
 
   /**
-   * 🔥 DYNAMIC: Check if achievement should unlock based on flexible criteria
+   * 🔥 FIXED: Dynamic unlock criteria - calculates targets based on available badges
    */
-  private static checkDynamicUnlockCriteria(
+  private static async checkDynamicUnlockCriteria(
     achievement: any,
     userLearningCount: number,
-    userQuizCount: number,
-    totalLearningCount: number,
-    totalQuizCount: number
-  ): boolean {
+    userQuizCount: number
+  ): Promise<boolean> {
     const criteriaData = achievement.criteriaData as any;
-
-    // If criteriaData exists with specific count (backwards compatible)
-    if (criteriaData && criteriaData.badgeType && criteriaData.count) {
-      const userCount = criteriaData.badgeType === 'learning' ? userLearningCount : userQuizCount;
-      return userCount >= criteriaData.count;
-    }
-
-    // 🔥 NEW: Dynamic unlocking based on achievement name/code pattern
     const code = achievement.code.toLowerCase();
     const name = achievement.name.toLowerCase();
 
-    // Learning achievements
-    if (code.includes('learning') || name.includes('learning')) {
-      if (code.includes('starter') || name.includes('starter')) {
-        return userLearningCount >= 1; // First badge
-      }
-      if (code.includes('master') || name.includes('master')) {
-        return userLearningCount >= Math.ceil(totalLearningCount / 2); // Half of all badges
-      }
-      if (code.includes('legend') || name.includes('legend')) {
-        return userLearningCount >= totalLearningCount; // All badges
-      }
+    // Determine badge type
+    const isLearning = code.includes('learning') || name.includes('learning');
+    const isQuiz = code.includes('quiz') || name.includes('quiz');
+
+    if (!isLearning && !isQuiz) {
+      console.warn(`⚠️ Unknown badge type for achievement: ${achievement.name}`);
+      return false;
     }
 
-    // Quiz achievements
-    if (code.includes('quiz') || name.includes('quiz')) {
-      if (code.includes('starter') || name.includes('starter')) {
-        return userQuizCount >= 1; // First badge
-      }
-      if (code.includes('master') || name.includes('master')) {
-        return userQuizCount >= Math.ceil(totalQuizCount / 2); // Half of all badges
-      }
-      if (code.includes('legend') || name.includes('legend')) {
-        return userQuizCount >= totalQuizCount; // All badges
-      }
+    // Get total available badges of this type
+    let totalAvailable = 0;
+    
+    if (isLearning) {
+      totalAvailable = await prisma.badge.count({
+        where: {
+          OR: [
+            { triggerType: 'lesson_complete' },
+            { triggerType: 'module_complete' }
+          ]
+        }
+      });
+    } else if (isQuiz) {
+      totalAvailable = await prisma.badge.count({
+        where: {
+          OR: [
+            { triggerType: 'quiz_mastery' },
+            { triggerType: 'parent_quiz_mastery' }
+          ]
+        }
+      });
     }
 
+    const userCount = isLearning ? userLearningCount : userQuizCount;
+
+    console.log(`   🔍 Checking ${achievement.name}:`);
+    console.log(`      - Type: ${isLearning ? 'Learning' : 'Quiz'}`);
+    console.log(`      - User has: ${userCount}`);
+    console.log(`      - Total available: ${totalAvailable}`);
+
+    // 🔥 FIXED: Determine milestone type and check
+    if (code.includes('starter') || name.includes('starter')) {
+      // STARTER: Need at least 1 badge
+      const qualifies = userCount >= 1;
+      console.log(`      - STARTER: Need 1, qualifies: ${qualifies}`);
+      return qualifies;
+    }
+    
+    if (code.includes('master') || name.includes('master')) {
+      // MASTER: Need 50% of available badges
+      const required = Math.ceil(totalAvailable / 2);
+      const qualifies = userCount >= required;
+      console.log(`      - MASTER: Need ${required} (50% of ${totalAvailable}), qualifies: ${qualifies}`);
+      return qualifies;
+    }
+    
+    if (code.includes('legend') || name.includes('legend')) {
+      // LEGEND: Need 100% of available badges
+      const qualifies = userCount >= totalAvailable && totalAvailable > 0;
+      console.log(`      - LEGEND: Need ${totalAvailable} (100%), qualifies: ${qualifies}`);
+      return qualifies;
+    }
+
+    console.warn(`      ⚠️ Unknown milestone type for: ${achievement.name}`);
     return false;
   }
 
@@ -208,38 +235,33 @@ export class AchievementService {
     // Count learning and quiz badges
     const userLearningCount = userBadges.filter(ub => 
       ub.badge.triggerType === 'lesson_complete' || 
-      ub.badge.triggerType === 'module_complete' ||
-      ub.badge.category === 'Learning'
+      ub.badge.triggerType === 'module_complete'
     ).length;
 
     const userQuizCount = userBadges.filter(ub => 
       ub.badge.triggerType === 'quiz_mastery' || 
-      ub.badge.triggerType === 'parent_quiz_mastery' ||
-      ub.badge.category === 'Quiz Mastery' ||
-      ub.badge.masteryLevel !== null
+      ub.badge.triggerType === 'parent_quiz_mastery'
     ).length;
 
-    // Get totals
-    const totalLearningCount = await prisma.badge.count({
-      where: {
-        OR: [
-          { triggerType: 'lesson_complete' },
-          { triggerType: 'module_complete' },
-          { category: 'Learning' }
-        ]
-      }
-    });
-
-    const totalQuizCount = await prisma.badge.count({
-      where: {
-        OR: [
-          { triggerType: 'quiz_mastery' },
-          { triggerType: 'parent_quiz_mastery' },
-          { category: 'Quiz Mastery' },
-          { masteryLevel: { not: null } }
-        ]
-      }
-    });
+    // Get total available badges
+    const [totalLearningCount, totalQuizCount] = await Promise.all([
+      prisma.badge.count({
+        where: {
+          OR: [
+            { triggerType: 'lesson_complete' },
+            { triggerType: 'module_complete' }
+          ]
+        }
+      }),
+      prisma.badge.count({
+        where: {
+          OR: [
+            { triggerType: 'quiz_mastery' },
+            { triggerType: 'parent_quiz_mastery' }
+          ]
+        }
+      }),
+    ]);
 
     // Determine which type this achievement is for
     const code = achievement.code.toLowerCase();
