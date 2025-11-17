@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useLessonProgress } from '@/hooks/use-progress';
 import Modal from './Modal';
 
@@ -20,7 +21,6 @@ type SpeechBubbleProps = {
 
 type CombinedCarouselProps = {
   slides: SlideProps[];
-  themeColor?: string;
   onModuleComplete?: (moduleId: string) => void;
   completedModules?: string[];
   finishButtonText?: string;
@@ -32,10 +32,7 @@ type CombinedCarouselProps = {
   speechBubbleMessages?: string[];
   moduleTitle?: string;
   moduleDescription?: string;
-  characterImage?: string;
-  iconImage?: string;
   timerDuration?: number;
-  timerColor?: string;
   isOpen?: boolean;
   onClose?: () => void;
   showAsModal?: boolean;
@@ -74,13 +71,13 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
 
   return (
     <div className="flex items-center space-x-4 p-4">
-      <div ref={imageRef} className="flex-shrink-0">
-        <img 
+      <div ref={imageRef} className="flex-shrink-0 relative w-24 h-24">
+        <Image 
           src={imageError ? fallbackImage : characterImagePath}
           alt="Character" 
-          className="w-24 h-24 object-contain bg-transparent" 
+          fill
+          className="object-contain bg-transparent"
           onError={handleImageError}
-          onLoad={() => console.log('Character image loaded successfully')}
         />
       </div>
 
@@ -95,7 +92,6 @@ function SpeechBubble({ messages, typingSpeed = 50, delayBetween = 1500 }: Speec
 // Main Carousel Content Component
 const CarouselContent: React.FC<CombinedCarouselProps> = ({
   slides,
-  themeColor = "blue",
   onModuleComplete,
   finishButtonText = "Finish Reading",
   completedButtonText = "✓ Completed",
@@ -106,18 +102,13 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   speechBubbleMessages = ["Say No to Smoking", "Protect Your Health and Others!"],
   moduleTitle = "Anti Smoking",
   moduleDescription = "Learn about the dangers of smoking and how to promote a smoke-free environment for a healthier community.",
-  iconImage = "/MainImage/1.png",
   timerDuration = 10,
-  timerColor = "blue",
-  onClose,
   onExit
 }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(timerDuration);
   const [canProceed, setCanProceed] = useState(false);
-  const [iconImageError, setIconImageError] = useState(false);
-  const [iconImageLoaded, setIconImageLoaded] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -130,11 +121,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     refetch: refetchProgress
   } = useLessonProgress(lessonId);
 
-  const isLessonCompleted = () => {
-    const completed = lessonProgress?.completed || false;
-    console.log(`Checking completion for lesson ${lessonId}: ${completed}`);
-    return completed;
-  };
+  const isLessonCompletedValue = lessonProgress?.completed || false;
 
   const currentSlides = slides && slides.length > 0 ? slides : [
     {
@@ -157,21 +144,6 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   ];
 
-  const handleIconError = () => {
-    console.log('Icon image failed to load:', iconImage);
-    setIconImageError(true);
-  };
-
-  const handleIconLoad = () => {
-    console.log('Icon image loaded successfully:', iconImage);
-    setIconImageLoaded(true);
-  };
-
-  const getTimerClasses = (color: string) => {
-    // Always return blue regardless of the color parameter
-    return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg';
-  };
-
   useEffect(() => {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
@@ -183,7 +155,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isLessonCompleted()) {
+    if (isLessonCompletedValue) {
       setCanProceed(true);
       setTimeRemaining(0);
       return;
@@ -205,10 +177,10 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentSlide, timerDuration, isLessonCompleted()]);
+  }, [currentSlide, timerDuration, isLessonCompletedValue]);
 
   const markLessonComplete = async () => {
-    if (progressUpdating || isLessonCompleted()) return;
+    if (progressUpdating || isLessonCompletedValue) return;
 
     const timeSpent = Math.floor((new Date().getTime() - startTime.getTime()) / 1000);
     
@@ -252,7 +224,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   };
 
   const nextSlide = () => {
-    if (canProceed || isLessonCompleted()) {
+    if (canProceed || isLessonCompletedValue) {
       setCurrentSlide((prev) => (prev === currentSlides.length - 1 ? 0 : prev + 1));
     }
   };
@@ -264,7 +236,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   };
 
   const handleFinish = async () => {
-    if (isSubmitting || progressUpdating || isLessonCompleted()) {
+    if (isSubmitting || progressUpdating || isLessonCompletedValue) {
       console.log('Submission blocked: already submitting or completed');
       return;
     }
@@ -296,7 +268,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   };
 
   const getButtonText = () => {
-    if (isLessonCompleted()) {
+    if (isLessonCompletedValue) {
       return continueButtonText;
     } else if (canProceed) {
       return continueButtonText;
@@ -386,7 +358,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         <div className="w-full text-center mb-6">
           <div className="flex items-center justify-center space-x-3 mb-2">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">{moduleTitle}</h2>
-            {isLessonCompleted() && (
+            {isLessonCompletedValue && (
               <span className="bg-gradient-to-r from-green-400 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg animate-pulse">
                 ✓ Completed
               </span>
@@ -401,8 +373,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           {!isMobile && (
             <div className="relative flex items-center h-[500px]">
               <div className="w-full overflow-hidden rounded-3xl relative bg-white">
-                {!canProceed && !isLessonCompleted() && (
-                  <div className={`absolute top-0 left-0 right-0 z-30 ${getTimerClasses(timerColor)} py-3 px-6 text-center font-semibold text-base rounded-t-3xl`}>
+                {!canProceed && !isLessonCompletedValue && (
+                  <div className="absolute top-0 left-0 right-0 z-30 bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-6 text-center font-semibold text-base rounded-t-3xl shadow-lg">
                     <div className="flex items-center justify-center space-x-2">
                       <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -427,14 +399,15 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
 
                 <div className="flex transition-transform duration-500 ease-in-out h-[500px]"
                   style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
-                  {currentSlides.map((slide, index) => (
-                    <div key={index} className="min-w-full flex bg-white h-full">
+                  {currentSlides.map((slide) => (
+                    <div key={slide.id} className="min-w-full flex bg-white h-full">
                       <div className="w-3/5 relative bg-gradient-to-br from-gray-50 to-gray-100">
                         <div className="w-full h-full relative">
-                          <img
+                          <Image
                             src={slide.image}
                             alt={slide.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                           />
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-white opacity-10"></div>
                         </div>
@@ -444,11 +417,11 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                         <h2 className="text-3xl font-bold mb-6 text-gray-800 leading-tight">{slide.title}</h2>
                         <p className="text-lg text-gray-700 leading-relaxed mb-8">{slide.content}</p>
                         
-                        {index === currentSlides.length - 1 && (
+                        {slide.id === currentSlides[currentSlides.length - 1].id && (
                           <button
                             onClick={handleFinish}
                             disabled={progressUpdating || isSubmitting}
-                            className={`${isLessonCompleted() 
+                            className={`${isLessonCompletedValue 
                               ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700 shadow-green-200' 
                               : (progressUpdating || isSubmitting)
                                 ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
@@ -459,7 +432,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                           >
                             {(progressUpdating || isSubmitting) 
                               ? 'Saving Progress...' 
-                              : isLessonCompleted() 
+                              : isLessonCompletedValue 
                                 ? completedButtonText 
                                 : finishButtonText}
                           </button>
@@ -471,18 +444,18 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
 
                 {currentSlide < currentSlides.length - 1 && (
                   <button
-                    onClick={canProceed || isLessonCompleted() ? nextSlide : undefined}
+                    onClick={canProceed || isLessonCompletedValue ? nextSlide : undefined}
                     className={`absolute right-6 top-1/2 -translate-y-1/2 z-20 rounded-full w-14 h-14 flex items-center justify-center
                     focus:outline-none shadow-xl border-2
                     transform transition-all duration-200
-                    ${canProceed || isLessonCompleted()
+                    ${canProceed || isLessonCompletedValue
                       ? `bg-white bg-opacity-95 backdrop-blur border-blue-100
                         hover:shadow-2xl hover:scale-110 active:scale-95
                         text-blue-600 hover:text-blue-700`
                       : `bg-gray-300 bg-opacity-80 cursor-not-allowed text-gray-500 border-gray-400`
                     }`}
                     aria-label="Next slide"
-                    disabled={!canProceed && !isLessonCompleted()}
+                    disabled={!canProceed && !isLessonCompletedValue}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 18l6-6-6-6" />
@@ -494,23 +467,23 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
               <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 bg-white bg-opacity-90 backdrop-blur px-4 py-2 rounded-full shadow-lg">
                 {currentSlides.map((slide, index) => (
                   <button
-                    key={index}
+                    key={slide.id}
                     onClick={() => {
-                      if (index <= currentSlide || isLessonCompleted()) {
+                      if (index <= currentSlide || isLessonCompletedValue) {
                         setCurrentSlide(index);
                       }
                     }}
                     className={`h-2.5 rounded-full transition-all ${
                       currentSlide === index
                         ? 'bg-blue-600 w-8 shadow-md'
-                        : isLessonCompleted()
+                        : isLessonCompletedValue
                           ? 'bg-green-500 w-2.5'
                           : index < currentSlide
                             ? 'bg-blue-400 w-2.5'
                             : 'bg-gray-300 hover:bg-gray-400 w-2.5 cursor-not-allowed'
                     }`}
                     aria-label={`Go to slide ${index + 1}`}
-                    disabled={index > currentSlide && !isLessonCompleted()}
+                    disabled={index > currentSlide && !isLessonCompletedValue}
                   />
                 ))}
               </div>
@@ -520,8 +493,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           {isMobile && (
             <div className="w-full px-4">
               <div className="bg-white rounded-3xl overflow-hidden">
-                {!canProceed && !isLessonCompleted() && (
-                  <div className={`${getTimerClasses(timerColor)} py-3 px-4 text-center text-sm font-semibold rounded-t-3xl`}>
+                {!canProceed && !isLessonCompletedValue && (
+                  <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 px-4 text-center text-sm font-semibold rounded-t-3xl shadow-lg">
                     <div className="flex items-center justify-center space-x-2">
                       <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -533,10 +506,11 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                 )}
 
                 <div className="w-full aspect-square relative bg-gradient-to-br from-gray-50 to-gray-100">
-                  <img
+                  <Image
                     src={currentSlides[currentSlide].image}
                     alt={currentSlides[currentSlide].title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 </div>
 
@@ -548,7 +522,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                     <button
                       onClick={handleFinish}
                       disabled={progressUpdating || isSubmitting}
-                      className={`w-full ${isLessonCompleted() 
+                      className={`w-full ${isLessonCompletedValue 
                         ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700' 
                         : (progressUpdating || isSubmitting)
                           ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
@@ -559,29 +533,29 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                     >
                       {(progressUpdating || isSubmitting) 
                         ? 'Saving Progress...' 
-                        : isLessonCompleted() 
+                        : isLessonCompletedValue 
                           ? completedButtonText 
                           : finishButtonText}
                     </button>
                   ) : (
                     <button
-                      onClick={canProceed || isLessonCompleted() ? nextSlide : undefined}
+                      onClick={canProceed || isLessonCompletedValue ? nextSlide : undefined}
                       className={`w-full ${
-                        canProceed || isLessonCompleted()
+                        canProceed || isLessonCompletedValue
                           ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700'
                           : 'bg-gray-400 border-gray-500 cursor-not-allowed'
                       } text-white font-bold py-4 px-4 rounded-xl 
                       mb-4 transition-all border-b-4 shadow-lg
-                      ${canProceed || isLessonCompleted() 
+                      ${canProceed || isLessonCompletedValue 
                         ? `hover:border-b-2 hover:mb-[18px] hover:translate-y-0.5
                           active:border-b-0 active:mb-5 active:translate-y-1`
                         : ''
                       }`}
-                      disabled={!canProceed && !isLessonCompleted()}
+                      disabled={!canProceed && !isLessonCompletedValue}
                     >
                       {currentSlide === currentSlides.length - 1 
                         ? finishButtonText 
-                        : isLessonCompleted() 
+                        : isLessonCompletedValue 
                           ? continueButtonText 
                           : getButtonText()}
                     </button>
@@ -602,11 +576,11 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                     <div className="flex space-x-2 flex-grow">
                       {currentSlides.map((slide, index) => (
                         <div
-                          key={index}
+                          key={slide.id}
                           className={`h-2.5 rounded-full transition-all flex-grow ${
                             index === currentSlide
                               ? 'bg-blue-600 shadow-md'
-                              : isLessonCompleted()
+                              : isLessonCompletedValue
                                 ? 'bg-green-500'
                                 : index < currentSlide
                                   ? 'bg-blue-400'
@@ -647,12 +621,12 @@ const CombinedCarousel: React.FC<CombinedCarouselProps> = (props) => {
         className="w-full max-w-7xl max-h-[90vh]"
         showCloseButton={false}
       >
-        <CarouselContent {...carouselProps} onClose={onClose} onExit={onExit} />
+        <CarouselContent {...carouselProps} onExit={onExit} />
       </Modal>
     );
   }
 
-  return <CarouselContent {...carouselProps} onClose={onClose} onExit={onExit} />;
+  return <CarouselContent {...carouselProps} onExit={onExit} />;
 };
 
 export default CombinedCarousel;

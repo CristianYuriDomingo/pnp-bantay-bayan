@@ -1,6 +1,7 @@
 // components/LearnCard.tsx - UPDATED: Entire card is clickable
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useOverallProgress } from '@/hooks/use-progress';
 import { useAllBadges } from '@/hooks/use-all-badges';
 
@@ -53,12 +54,17 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
       <div className="relative w-full max-w-md p-6 bg-white rounded-lg shadow-lg mx-4">
         {imageSrc && (
           <div className="absolute -top-14 left-1/2 transform -translate-x-1/2">
-            <img
-              src={imageSrc}
-              alt="Modal Image"
-              className="w-32 h-32 object-cover bg-transparent"
-              style={{ backgroundColor: 'transparent' }}
-            />
+            <div className="relative w-32 h-32">
+              <Image
+                src={imageSrc}
+                alt="Modal Image"
+                fill
+                className="object-cover"
+                onError={() => {
+                  /* no-op: if image fails, it will show alt space */
+                }}
+              />
+            </div>
           </div>
         )}
 
@@ -103,7 +109,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
   const moduleProgress = overallProgress?.moduleProgress?.[moduleId];
   const completedLessons = moduleProgress?.completedLessons?.length || 0;
   const totalLessons = moduleProgress?.totalLessons || 0;
-  const completionPercentage = moduleProgress?.percentage || 0;
+  // removed unused 'completionPercentage'
 
   // Filter badges for this module AND its lessons (EXCLUDING quiz badges)
   const moduleBadges: BadgeDisplay[] = React.useMemo(() => {
@@ -178,7 +184,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
     fetchLessons();
   }, [moduleId]);
 
-  const handleLessonClick = (lessonId: string, lessonTitle: string) => {
+  const handleLessonClick = (lessonId: string) => {
     closeModal();
     router.push(`/users/lessons/${lessonId}`);
     onCardClick?.();
@@ -225,15 +231,19 @@ const LearnCard: React.FC<LearnCardProps> = ({
         {/* Image Container - takes up 70% of card height */}
         <div className="relative w-full h-[70%] bg-gradient-to-br from-blue-50 to-blue-100 overflow-hidden">
           {!imageError && imageSrc ? (
-            <img
-              src={imageSrc}
-              alt={title}
-              className="w-full h-full object-cover"
-              onError={() => {
-                console.log('Image failed to load:', imageSrc);
-                setImageError(true);
-              }}
-            />
+            <div className="relative w-full h-full">
+              <Image
+                src={imageSrc}
+                alt={title}
+                fill
+                className="object-cover"
+                onError={() => {
+                  console.log('Image failed to load:', imageSrc);
+                  setImageError(true);
+                }}
+                priority={false}
+              />
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
               <div className="text-center">
@@ -248,7 +258,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
           {/* Badge container - Module badges emphasized */}
           {moduleBadges.length > 0 && (
             <div className="absolute top-2 left-2 flex space-x-2 z-20">
-              {moduleBadges.slice(0, 3).map((badge, index) => {
+              {moduleBadges.slice(0, 3).map((badge) => {
                 const isModuleBadge = badge.triggerValue === moduleId || badge.triggerType === 'module_complete';
                 
                 return (
@@ -262,15 +272,14 @@ const LearnCard: React.FC<LearnCardProps> = ({
                     onClick={(e) => handleBadgeClick(e, badge)}
                   >
                     <div className="relative w-full h-full">
-                      <img
+                      <Image
                         src={badge.image}
                         alt={badge.name}
-                        className={`w-full h-full object-contain ${
-                          isModuleBadge ? 'ring-2 ring-yellow-400 ring-opacity-60 rounded-full' : ''
-                        }`}
+                        fill
+                        className={`object-contain ${isModuleBadge ? 'rounded-full' : ''}`}
                         onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
+                          const ev = e as React.SyntheticEvent<HTMLImageElement, Event>;
+                          (ev.currentTarget as HTMLImageElement).style.display = 'none';
                         }}
                       />
                       
@@ -347,12 +356,12 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 <p className="text-gray-600">No lessons available for this module.</p>
               </div>
             ) : (
-              moduleLessons.map((lesson, index) => {
+              moduleLessons.map((lesson) => {
                 const isCompleted = moduleProgress?.completedLessons?.includes(lesson.id) || false;
                 return (
                   <button 
                     key={lesson.id}
-                    onClick={() => handleLessonClick(lesson.id, lesson.title)}
+                    onClick={() => handleLessonClick(lesson.id)}
                     className="w-full bg-white border border-gray-200 hover:bg-gray-50 text-blue-600 px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center relative"
                   >
                     <span className="text-center">{lesson.title}</span>
@@ -374,13 +383,14 @@ const LearnCard: React.FC<LearnCardProps> = ({
         {selectedBadge && (
           <div className="p-4 flex flex-col items-center">
             <div className="w-24 h-24 mb-4 relative">
-              <img
+              <Image
                 src={selectedBadge.image}
                 alt={selectedBadge.name}
-                className="w-full h-full object-contain"
+                fill
+                className="object-contain"
                 onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
+                  const ev = e as React.SyntheticEvent<HTMLImageElement, Event>;
+                  (ev.currentTarget as HTMLImageElement).style.display = 'none';
                 }}
               />
             </div>

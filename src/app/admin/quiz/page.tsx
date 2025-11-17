@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Plus, FolderPlus, Edit2, Trash2, Award, ChevronDown, ChevronUp, Eye, X, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, FolderPlus, Edit2, Trash2, Award, ChevronDown, ChevronUp, X, Check, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 // Types
 interface Quiz {
@@ -218,7 +219,7 @@ const BadgeModal = ({
               className="w-full border border-gray-300 px-4 py-2 rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
             {imagePreview && (
-              <img src={imagePreview} alt="Preview" className="mt-3 w-24 h-24 object-cover rounded-lg border-2 border-gray-200" />
+              <Image src={imagePreview} alt="Preview" width={96} height={96} className="mt-3 w-24 h-24 object-cover rounded-lg border-2 border-gray-200" />
             )}
           </div>
         </div>
@@ -337,7 +338,7 @@ const QuestionForm = ({
       </div>
 
       {imagePreview && (
-        <img src={imagePreview} alt="Preview" className="w-32 h-20 object-cover rounded-lg border" />
+        <Image src={imagePreview} alt="Preview" width={128} height={80} className="w-32 h-20 object-cover rounded-lg border" />
       )}
       
       <div>
@@ -507,7 +508,7 @@ const QuizForm = ({
               </div>
               {existingBadge ? (
                 <div className="flex items-center space-x-3">
-                  <img src={existingBadge.image} alt="Badge" className="w-14 h-14 rounded-lg border-2 border-blue-300 shadow-sm" />
+                  <Image src={existingBadge.image} alt="Badge" width={56} height={56} className="w-14 h-14 rounded-lg border-2 border-blue-300 shadow-sm" />
                   <div>
                     <p className="font-medium text-gray-900">{existingBadge.name}</p>
                     <p className="text-sm text-gray-600 mb-1">{existingBadge.description}</p>
@@ -639,7 +640,7 @@ const QuizForm = ({
                         <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">{q.lesson}</span>
                       </div>
                     </div>
-                    {q.image && <img src={q.image} alt="" className="w-24 h-16 object-cover rounded mb-2" />}
+                    {q.image && <Image src={q.image} alt="" width={96} height={64} className="w-24 h-16 object-cover rounded mb-2" />}
                     <div className="text-sm space-y-1 mt-2">
                       {q.options.map((opt, i) => (
                         <div key={i} className={i === q.correctAnswer ? 'text-green-700 font-medium' : 'text-gray-600'}>
@@ -996,11 +997,7 @@ export default function QuizManagement() {
   const [selectedQuizForBadge, setSelectedQuizForBadge] = useState<Quiz | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const quizzesResponse = await fetch('/api/admin/quizzes');
       if (quizzesResponse.ok) {
@@ -1019,7 +1016,11 @@ export default function QuizManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -1226,7 +1227,7 @@ export default function QuizManagement() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="text-6xl mb-4">📚</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No quizzes yet</h3>
-            <p className="text-gray-600 mb-6">Get started by creating your first category or quiz</p>
+            <p className="text-sm text-gray-600 mb-6">Get started by creating your first category or quiz</p>
             <div className="flex flex-col sm:flex-row justify-center gap-3">
               <button 
                 onClick={() => setShowParentModal(true)}
