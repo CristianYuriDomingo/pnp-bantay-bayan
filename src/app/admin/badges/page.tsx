@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Award, Plus, Edit2, Trash2, AlertCircle, CheckCircle, Info, X, RefreshCw, Image as ImageIcon } from 'lucide-react';
 
@@ -27,12 +28,17 @@ interface Module {
   lessonCount?: number;
 }
 
+interface Tip {
+  id?: string;
+  content?: string;
+}
+
 interface Lesson {
   id: string;
   title: string;
   description: string;
   moduleId: string;
-  tips?: any[];
+  tips?: Tip[];
   module?: {
     id: string;
     title: string;
@@ -153,10 +159,10 @@ const BadgeCard = ({
   const getTriggerDescription = () => {
     switch (badge.triggerType) {
       case 'module_complete':
-        const module = modules.find(m => m.id === badge.triggerValue);
+        const foundModule = modules.find(m => m.id === badge.triggerValue);
         return {
           icon: '📚',
-          text: module?.title || 'Unknown Module',
+          text: foundModule?.title || 'Unknown Module',
           subtitle: 'Complete all lessons'
         };
       case 'lesson_complete':
@@ -205,11 +211,14 @@ const BadgeCard = ({
         <div className="flex gap-4">
           <div className="flex-shrink-0">
             {!imageError ? (
-              <img 
+              <Image 
                 src={badge.image} 
                 alt={badge.name} 
+                width={80} 
+                height={80} 
                 className="w-20 h-20 object-cover rounded-xl border-2 border-gray-200" 
-                onError={() => setImageError(true)} 
+                onError={() => setImageError(true)}
+                unoptimized
               />
             ) : (
               <div className="w-20 h-20 flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl border-2 border-gray-200">
@@ -478,7 +487,7 @@ const BadgeFormModal = ({
               />
               <label htmlFor="badge-image-input" className="cursor-pointer">
                 {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-gray-200" />
+                  <Image src={imagePreview} alt="Preview" width={96} height={96} className="w-24 h-24 object-cover rounded-xl mx-auto border-2 border-gray-200" unoptimized />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -523,8 +532,8 @@ const BadgeFormModal = ({
                 onChange={(e) => setTriggerValue(e.target.value)}
               >
                 <option value="">Select Module</option>
-                {modules.map(module => (
-                  <option key={module.id} value={module.id}>{module.title}</option>
+                {modules.map(m => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
                 ))}
               </select>
             ) : triggerType === 'lesson_complete' ? (
@@ -548,8 +557,8 @@ const BadgeFormModal = ({
                 onChange={(e) => setTriggerValue(e.target.value)}
               >
                 <option value="">Select Quiz</option>
-                {quizzes.map(quiz => (
-                  <option key={quiz.id} value={quiz.id}>{quiz.title}</option>
+                {quizzes.map(q => (
+                  <option key={q.id} value={q.id}>{q.title}</option>
                 ))}
               </select>
             ) : (
@@ -652,25 +661,32 @@ export default function BadgeManagementPage() {
   const searchParams = useSearchParams();
   const preselectedLessonId = searchParams.get('lessonId');
 
-  useEffect(() => {
-    if (preselectedLessonId && !showAddBadge && !editingBadge) {
-      const existingBadge = badges.find(b => 
-        b.triggerType === 'lesson_complete' && b.triggerValue === preselectedLessonId
-      );
-      
-      if (existingBadge) {
-        setEditingBadge(existingBadge);
-      } else {
-        setShowAddBadge(true);
-      }
-    }
-  }, [preselectedLessonId, showAddBadge, editingBadge, badges]);
-
-  useEffect(() => {
-    fetchData();
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 5000);
   }, []);
 
-  const fetchData = async () => {
+  const checkOrphanedBadges = useCallback(async () => {
+    try {
+      setCleanupLoading(true);
+      const response = await fetch('/api/admin/badges/cleanup');
+      if (response.ok) {
+        const data = await response.json();
+        const orphaned = data.orphanedBadges || [];
+        setOrphanedBadges(orphaned);
+        
+        if (orphaned.length > 0) {
+          showToast(`Found ${orphaned.length} orphaned badge${orphaned.length !== 1 ? 's' : ''}. Click "Clean Up" to remove.`, 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error checking orphaned badges:', error);
+    } finally {
+      setCleanupLoading(false);
+    }
+  }, [showToast]);
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -693,27 +709,25 @@ export default function BadgeManagementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [checkOrphanedBadges, showToast]);
 
-  const checkOrphanedBadges = async () => {
-    try {
-      setCleanupLoading(true);
-      const response = await fetch('/api/admin/badges/cleanup');
-      if (response.ok) {
-        const data = await response.json();
-        const orphaned = data.orphanedBadges || [];
-        setOrphanedBadges(orphaned);
-        
-        if (orphaned.length > 0) {
-          showToast(`Found ${orphaned.length} orphaned badge${orphaned.length !== 1 ? 's' : ''}. Click "Clean Up" to remove.`, 'error');
-        }
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (preselectedLessonId && !showAddBadge && !editingBadge) {
+      const existingBadge = badges.find(b => 
+        b.triggerType === 'lesson_complete' && b.triggerValue === preselectedLessonId
+      );
+      
+      if (existingBadge) {
+        setEditingBadge(existingBadge);
+      } else {
+        setShowAddBadge(true);
       }
-    } catch (error) {
-      console.error('Error checking orphaned badges:', error);
-    } finally {
-      setCleanupLoading(false);
     }
-  };
+  }, [preselectedLessonId, showAddBadge, editingBadge, badges]);
 
   const handleCleanupOrphanedBadges = async () => {
     if (!confirm(`Delete ${orphanedBadges.length} orphaned badge${orphanedBadges.length !== 1 ? 's' : ''}? This cannot be undone.`)) {
@@ -746,11 +760,6 @@ export default function BadgeManagementPage() {
     } finally {
       setCleanupLoading(false);
     }
-  };
-
-  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 5000);
   };
 
   const handleSaveBadge = async (badgeData: Badge) => {

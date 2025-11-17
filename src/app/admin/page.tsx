@@ -1,6 +1,6 @@
 // app/admin/page.tsx
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, Crown, Target, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
@@ -92,11 +92,7 @@ export default function AdminPage() {
   const [leaderboardPage, setLeaderboardPage] = useState(1);
   const leaderboardLimit = 5;
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -180,7 +176,11 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [stats, recentActivity.length]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const getStatValue = (value?: number) => {
     return value?.toString() ?? '0';
@@ -231,7 +231,6 @@ export default function AdminPage() {
   const startIndex = (leaderboardPage - 1) * leaderboardLimit;
   const endIndex = startIndex + leaderboardLimit;
   const currentLeaderboardData = allLeaderboardData.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(allLeaderboardData.length / leaderboardLimit);
   const hasMore = endIndex < allLeaderboardData.length;
 
   if (loading) {
@@ -253,7 +252,7 @@ export default function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold mb-2">Welcome Back, Admin! 👋</h1>
-              <p className="text-blue-100 text-lg">Here's what's happening on your learning platform today</p>
+              <p className="text-blue-100 text-lg">Here&apos;s what&apos;s happening on your learning platform today</p>
             </div>
             <div className="hidden md:block">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">

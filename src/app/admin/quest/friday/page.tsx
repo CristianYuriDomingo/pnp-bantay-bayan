@@ -2,12 +2,27 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { ChevronLeft, Save, Upload, X, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 interface RankOption {
   id?: string;
   rankName: string;
   rankImage: string;
   isCorrect: boolean;
+}
+
+interface RankOptionResponse {
+  id: string;
+  rankName: string;
+  rankImage: string;
+  isCorrect: boolean;
+}
+
+interface QuestData {
+  id: string;
+  title: string;
+  instruction: string;
+  rankOptions: RankOptionResponse[];
 }
 
 export default function QuestFridayAdmin() {
@@ -34,12 +49,12 @@ export default function QuestFridayAdmin() {
       const response = await fetch('/api/admin/quest/friday');
       
       if (response.ok) {
-        const data = await response.json();
+        const data: { success: boolean; data?: QuestData } = await response.json();
         if (data.success && data.data) {
           setQuestId(data.data.id);
           setTitle(data.data.title);
           setInstructionText(data.data.instruction);
-          setRankOptions(data.data.rankOptions.map((option: any) => ({
+          setRankOptions(data.data.rankOptions.map((option) => ({
             id: option.id,
             rankName: option.rankName,
             rankImage: option.rankImage,
@@ -50,7 +65,7 @@ export default function QuestFridayAdmin() {
         // No quest exists yet, use default values
         console.log('No existing quest found, using defaults');
       } else {
-        const errorData = await response.json();
+        const errorData: { error?: string } = await response.json();
         console.error('Error fetching quest:', errorData.error);
       }
     } catch (error) {
@@ -104,7 +119,7 @@ export default function QuestFridayAdmin() {
         questId,
         title,
         instruction: instructionText,
-        rankOptions: rankOptions.map(({ id, ...option }) => option) // Remove id for API
+        rankOptions: rankOptions.map(({ id: _, ...option }) => option) // Remove id for API
       };
 
       const url = '/api/admin/quest/friday';
@@ -118,7 +133,7 @@ export default function QuestFridayAdmin() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data: { message?: string; data?: { id: string }; error?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save quest');
@@ -140,12 +155,6 @@ export default function QuestFridayAdmin() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const updateRankLabel = (index: number, label: string) => {
-    const newOptions = [...rankOptions];
-    newOptions[index].rankName = label;
-    setRankOptions(newOptions);
   };
 
   const handleImageUpload = (index: number, file: File) => {
@@ -221,7 +230,7 @@ export default function QuestFridayAdmin() {
                 placeholder="Quest Title"
               />
             </div>
-            <p className="text-sm text-gray-600">Quest Type: Drag & Drop</p>
+            <p className="text-sm text-gray-600">Quest Type: Drag &amp; Drop</p>
           </div>
           <button 
             onClick={handleSave}
@@ -256,7 +265,7 @@ export default function QuestFridayAdmin() {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
           />
           <p className="text-xs text-gray-500 mt-2">
-            This text will appear in the instruction: "Drag Pibi to the <strong>{instructionText}</strong> Rank"
+            This text will appear in the instruction: &quot;Drag Pibi to the <strong>{instructionText}</strong> Rank&quot;
           </p>
         </div>
 
@@ -303,10 +312,11 @@ export default function QuestFridayAdmin() {
                 <div className="mb-3 bg-gray-100 rounded-lg overflow-hidden aspect-square flex items-center justify-center relative group">
                   {option.rankImage ? (
                     <>
-                      <img 
-                        src={option.rankImage} 
+                      <Image
+                        src={option.rankImage}
                         alt={option.rankName}
-                        className="w-full h-full object-contain p-4"
+                        fill
+                        className="object-contain p-4"
                       />
                       {/* Remove Image Button */}
                       <button
@@ -392,7 +402,7 @@ export default function QuestFridayAdmin() {
             <li>• Players will drag Pibi character to the correct insignia</li>
             <li>• Supported formats: JPG, PNG, GIF (max 5MB per image)</li>
             <li>• Insignia images should be clear and easily distinguishable</li>
-            <li>• Click "Save Changes" when done to update the quest</li>
+            <li>• Click &quot;Save Changes&quot; when done to update the quest</li>
           </ul>
         </div>
       </div>

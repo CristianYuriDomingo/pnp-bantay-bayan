@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { X, Plus, Edit2, Trash2, Award, BookOpen, Clock, MessageSquare, Image as ImageIcon, ChevronLeft, Check, AlertCircle } from 'lucide-react';
 
 // Types
@@ -45,6 +45,18 @@ interface Badge {
   prerequisites?: string[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+interface BadgeData {
+  id?: string;
+  name: string;
+  description: string;
+  image: string;
+  category: string;
+  rarity: Badge['rarity'];
+  xpValue: number;
+  triggerType: Badge['triggerType'];
+  triggerValue: string;
 }
 
 // Helper function
@@ -203,7 +215,7 @@ const QuickBadgeModal = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.onload = (event) => setImagePreview(event.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -217,7 +229,7 @@ const QuickBadgeModal = ({
     setLoading(true);
     try {
       // Build the badge data payload
-      const badgeData: any = {
+      const badgeData: BadgeData = {
         name: name.trim(),
         description: description.trim(),
         image: imagePreview,
@@ -252,15 +264,16 @@ const QuickBadgeModal = ({
         throw new Error(errorData.error || 'Failed to save badge');
       }
 
-      const savedBadge = await response.json();
+      const savedBadge: Badge = await response.json();
       console.log('Badge saved successfully:', savedBadge); // Debug log
       
       onSave(savedBadge);
       onClose();
       alert(`Badge ${existingBadge ? 'updated' : 'created'} successfully!`);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error saving badge:', error);
-      alert(`Error saving badge: ${error.message}`);
+      alert(`Error saving badge: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -376,7 +389,7 @@ const QuickBadgeModal = ({
             <label htmlFor="badge-image" className="cursor-pointer">
               {imagePreview ? (
                 <div className="flex flex-col items-center gap-2">
-                  <img src={imagePreview} alt="Preview" className="w-24 h-24 object-cover rounded-lg mx-auto" />
+                  <Image src={imagePreview} alt="Preview" width={96} height={96} className="rounded-lg mx-auto" />
                   <span className="text-xs text-gray-500">Click to change image</span>
                 </div>
               ) : (
@@ -429,7 +442,7 @@ const AddTipModal = ({
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.onload = (event) => setImagePreview(event.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -473,7 +486,7 @@ const AddTipModal = ({
             />
             <label htmlFor="tip-image" className="cursor-pointer">
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg mx-auto" />
+                <Image src={imagePreview} alt="Preview" width={80} height={80} className="rounded-lg mx-auto" />
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <ImageIcon className="w-8 h-8 text-gray-400" />
@@ -549,14 +562,14 @@ const AddLessonForm = ({
       } else {
         alert('Error saving lesson');
       }
-    } catch (error) {
+    } catch {
       alert('Error saving lesson');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTipSave = (newTip: any) => {
+  const handleTipSave = (newTip: { title: string; description: string; image?: string }) => {
     if (editTipIndex !== null) {
       setTips(tips.map((tip, idx) => idx === editTipIndex ? { ...tip, ...newTip } : tip));
       setEditTipIndex(null);
@@ -651,7 +664,7 @@ const AddLessonForm = ({
                       </div>
                       <p className="text-sm text-gray-600 ml-8">{tip.description}</p>
                       {tip.image && (
-                        <img src={tip.image} alt="Tip" className="w-16 h-16 object-cover rounded-lg border mt-2 ml-8" />
+                        <Image src={tip.image} alt="Tip" width={64} height={64} className="rounded-lg border mt-2 ml-8" />
                       )}
                     </div>
                     <div className="flex flex-col gap-2">
@@ -775,7 +788,7 @@ const LessonManagement = ({
     setShowBadgeModal(true);
   };
 
-  const handleSaveBadge = (savedBadge: Badge) => {
+  const handleSaveBadge = () => {
     setShowBadgeModal(false);
     setSelectedLesson(null);
     setEditingBadge(null);
@@ -868,7 +881,7 @@ const LessonManagement = ({
                       <div className="flex flex-wrap gap-4 mb-4">
                         <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
                           <MessageSquare className="w-4 h-4" />
-                          <span>"{lesson.bubbleSpeech}"</span>
+                          <span>&ldquo;{lesson.bubbleSpeech}&rdquo;</span>
                         </div>
                         <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
                           <Clock className="w-4 h-4" />
@@ -899,7 +912,7 @@ const LessonManagement = ({
                                 <div className="flex-1">
                                   <span className="font-medium text-blue-900">{tip.title}</span>
                                   {tip.image && (
-                                    <img src={tip.image} alt={`Tip ${tipIndex + 1}`} className="w-12 h-12 object-cover rounded-lg border mt-1" />
+                                    <Image src={tip.image} alt={`Tip ${tipIndex + 1}`} width={48} height={48} className="rounded-lg border mt-1" />
                                   )}
                                 </div>
                               </div>
@@ -967,9 +980,10 @@ const ModuleCard = ({
       <div className="bg-white rounded-2xl shadow-sm border hover:shadow-lg transition-all duration-300 overflow-hidden group w-full sm:w-80">
         <div className="relative h-48 overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
           {!imageError ? (
-            <img 
+            <Image 
               src={module.image} 
-              alt={module.title} 
+              alt={module.title}
+              fill
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
               onError={() => setImageError(true)} 
             />
@@ -1007,9 +1021,10 @@ const ModuleCard = ({
         <div className="space-y-4">
           <div className="relative h-40 rounded-xl overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-100">
             {!imageError && (
-              <img 
+              <Image 
                 src={module.image} 
-                alt={module.title} 
+                alt={module.title}
+                fill
                 className="w-full h-full object-cover" 
                 onError={() => setImageError(true)} 
               />
@@ -1050,7 +1065,7 @@ const ModuleCard = ({
             </button>
             <button 
               onClick={() => { 
-                if (confirm(`Delete "${module.title}"? This action cannot be undone.`)) { 
+                if (confirm(`Delete &quot;${module.title}&quot;? This action cannot be undone.`)) { 
                   onDelete(module.id); 
                   setIsModalOpen(false); 
                 } 
@@ -1079,7 +1094,7 @@ const AddModuleForm = ({ onClose, onSave }: { onClose: () => void; onSave: (modu
     if (file) {
       setImageFile(file);
       const reader = new FileReader();
-      reader.onload = (e) => setImagePreview(e.target?.result as string);
+      reader.onload = (event) => setImagePreview(event.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -1102,7 +1117,7 @@ const AddModuleForm = ({ onClose, onSave }: { onClose: () => void; onSave: (modu
       } else {
         alert('Error creating module');
       }
-    } catch (error) {
+    } catch {
       alert('Error creating module');
     } finally {
       setLoading(false);
@@ -1136,7 +1151,7 @@ const AddModuleForm = ({ onClose, onSave }: { onClose: () => void; onSave: (modu
             />
             <label htmlFor="module-image" className="cursor-pointer">
               {imagePreview ? (
-                <img src={imagePreview} alt="Preview" className="w-32 h-32 object-cover rounded-xl mx-auto" />
+                <Image src={imagePreview} alt="Preview" width={128} height={128} className="rounded-xl mx-auto" />
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <ImageIcon className="w-12 h-12 text-gray-400" />
@@ -1180,7 +1195,6 @@ export default function ContentManagementPage() {
   const [badgeModalType, setBadgeModalType] = useState<'module' | 'lesson'>('module');
   const [selectedTargetItem, setSelectedTargetItem] = useState<Module | Lesson | null>(null);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
-  const router = useRouter();
 
   const fetchData = async () => {
     try {
@@ -1235,12 +1249,7 @@ export default function ContentManagementPage() {
     setShowBadgeModal(true);
   };
 
-  const handleSaveBadge = (savedBadge: Badge) => {
-    if (editingBadge) {
-      setBadges(badges.map(badge => badge.id === savedBadge.id ? savedBadge : badge));
-    } else {
-      setBadges([...badges, savedBadge]);
-    }
+  const handleSaveBadge = () => {
     setShowBadgeModal(false);
     setEditingBadge(null);
     setSelectedTargetItem(null);

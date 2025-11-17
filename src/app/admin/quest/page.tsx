@@ -1,6 +1,7 @@
 //app/admin/quest/page.tsx
 'use client';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // Types
 interface Quest {
@@ -89,10 +90,11 @@ const QuestCard = ({ quest }: { quest: Quest }) => {
       
       {/* Quest Image */}
       <div className="relative h-40 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-        <img 
+        <Image 
           src={quest.thumbnail} 
-          alt={quest.title} 
-          className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" 
+          alt={quest.title}
+          fill
+          className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
         />
         
         {/* Day Badge */}

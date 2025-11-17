@@ -10,11 +10,15 @@ interface Question {
   explanation: string;
 }
 
-interface QuestTuesday {
-  id: string;
-  title: string;
-  lives: number;
-  questions: Question[];
+interface QuestTuesdayResponse {
+  success: boolean;
+  data?: {
+    id: string;
+    title: string;
+    lives: number;
+    questions: Question[];
+  };
+  error?: string;
 }
 
 export default function QuestTuesdayAdmin() {
@@ -62,12 +66,12 @@ export default function QuestTuesdayAdmin() {
       const response = await fetch('/api/admin/quest/tuesday');
       
       if (response.ok) {
-        const data = await response.json();
+        const data: QuestTuesdayResponse = await response.json();
         if (data.success && data.data) {
           setQuestId(data.data.id);
           setTitle(data.data.title);
           setLives(data.data.lives);
-          setQuestions(data.data.questions.map((q: any) => ({
+          setQuestions(data.data.questions.map((q: Question) => ({
             id: q.id,
             question: q.question,
             correctAnswer: q.correctAnswer,
@@ -78,7 +82,7 @@ export default function QuestTuesdayAdmin() {
         // No quest exists yet, use default values
         console.log('No existing quest found, using defaults');
       } else {
-        const errorData = await response.json();
+        const errorData: { error?: string } = await response.json();
         console.error('Error fetching quest:', errorData.error);
       }
     } catch (error) {
@@ -120,7 +124,7 @@ export default function QuestTuesdayAdmin() {
         questId,
         title,
         lives,
-        questions: questions.map(({ id, ...q }) => q) // Remove id for API
+        questions: questions.map(({ id: _, ...q }) => q) // Remove id for API
       };
 
       const url = '/api/admin/quest/tuesday';
@@ -134,7 +138,7 @@ export default function QuestTuesdayAdmin() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data: { message?: string; data?: { id: string }; error?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save quest');
@@ -209,17 +213,18 @@ export default function QuestTuesdayAdmin() {
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <span className="px-3 py-1 rounded-full text-sm font-bold bg-purple-100 text-purple-700 border-purple-300">
+              <span className="px-3 py-1 rounded-full text-sm font-bold bg-green-100 text-green-700 border-green-300">
                 Tuesday
               </span>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="text-2xl font-bold text-gray-900 border-b-2 border-transparent hover:border-gray-300 focus:border-purple-500 focus:outline-none bg-transparent"
+                className="text-2xl font-bold text-gray-900 border-b-2 border-transparent hover:border-gray-300 focus:border-green-500 focus:outline-none bg-transparent"
                 placeholder="Quest Title"
               />
             </div>
+            <p className="text-sm text-gray-600">Quest Type: True/False Quiz</p>
           </div>
           <button 
             onClick={handleSave}
@@ -251,7 +256,7 @@ export default function QuestTuesdayAdmin() {
             max="10"
             value={lives}
             onChange={(e) => setLives(parseInt(e.target.value) || 3)}
-            className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />
           <p className="text-sm text-gray-500 mt-2">
             Players will have {lives} {lives === 1 ? 'life' : 'lives'} to complete the quiz
@@ -265,7 +270,7 @@ export default function QuestTuesdayAdmin() {
               {/* Question Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-500 text-white flex items-center justify-center font-bold">
+                  <div className="w-10 h-10 rounded-full bg-green-500 text-white flex items-center justify-center font-bold">
                     {index + 1}
                   </div>
                   <h2 className="text-lg font-bold text-gray-900">Question {index + 1}</h2>
@@ -289,7 +294,7 @@ export default function QuestTuesdayAdmin() {
                   onChange={(e) => updateQuestion(index, 'question', e.target.value)}
                   rows={2}
                   placeholder="Enter your question here..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
 
@@ -375,7 +380,7 @@ export default function QuestTuesdayAdmin() {
                   onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
                   rows={2}
                   placeholder="Explain why this answer is correct..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
 
@@ -402,7 +407,7 @@ export default function QuestTuesdayAdmin() {
         <div className="mt-6">
           <button
             onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-gray-300 hover:border-purple-500 rounded-2xl text-gray-600 hover:text-purple-600 font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 border-2 border-dashed border-gray-300 hover:border-green-500 rounded-2xl text-gray-600 hover:text-green-600 font-medium transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Add New Question
@@ -410,16 +415,16 @@ export default function QuestTuesdayAdmin() {
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 bg-purple-50 border border-purple-200 rounded-2xl p-6">
-          <h3 className="font-bold text-purple-900 mb-3">Instructions:</h3>
-          <ul className="text-purple-800 space-y-2 text-sm">
+        <div className="mt-8 bg-green-50 border border-green-200 rounded-2xl p-6">
+          <h3 className="font-bold text-green-900 mb-3">Instructions:</h3>
+          <ul className="text-green-800 space-y-2 text-sm">
             <li>• Each question must have a clear question text</li>
             <li>• Select TRUE or FALSE as the correct answer</li>
             <li>• Provide an explanation for why the answer is correct</li>
             <li>• Questions should be related to safety and law enforcement</li>
             <li>• Players get {lives} {lives === 1 ? 'life' : 'lives'} (bullets) - wrong answers lose a life</li>
-            <li>• Click "Add New Question" to add more questions</li>
-            <li>• Click "Save Changes" when done to update the quest</li>
+            <li>• Click &quot;Add New Question&quot; to add more questions</li>
+            <li>• Click &quot;Save Changes&quot; when done to update the quest</li>
           </ul>
         </div>
       </div>

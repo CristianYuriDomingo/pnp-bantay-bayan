@@ -294,7 +294,7 @@ export default function QuestWednesdayAdmin() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  This will appear as: "Arrange the digits to form a valid <strong>{questData.description || '(_____)'}</strong> mobile number"
+                  This will appear as: &quot;Arrange the digits to form a valid <strong>{questData.description || '(_____)'}</strong> mobile number&quot;
                 </p>
               </div>
 
@@ -311,7 +311,7 @@ export default function QuestWednesdayAdmin() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg"
                 />
                 <p className="text-xs text-gray-500 mt-2">
-                  Network name will be displayed to users (e.g., "Smart", "Globe")
+                  Network name will be displayed to users (e.g., &quot;Smart&quot;, &quot;Globe&quot;)
                 </p>
               </div>
             </div>
@@ -440,8 +440,8 @@ export default function QuestWednesdayAdmin() {
           <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6">
             <h3 className="font-bold text-purple-900 mb-3">Instructions:</h3>
             <ul className="text-purple-800 space-y-2 text-sm">
-              <li>• Enter the organization/purpose (e.g., "PNP", "Emergency", "Fire Station")</li>
-              <li>• Enter the network provider (e.g., "Globe", "Smart", "TM", "TNT")</li>
+              <li>• Enter the organization/purpose (e.g., &quot;PNP&quot;, &quot;Emergency&quot;, &quot;Fire Station&quot;)</li>
+              <li>• Enter the network provider (e.g., &quot;Globe&quot;, &quot;Smart&quot;, &quot;TM&quot;, &quot;TNT&quot;)</li>
               <li>• First two digits are automatically set to "0" and "9" (Philippine mobile number format)</li>
               <li>• Enter the remaining 9 digits to complete the 11-digit phone number</li>
               <li>• Click "Auto-Generate" to automatically create shuffled digits from your correct number</li>

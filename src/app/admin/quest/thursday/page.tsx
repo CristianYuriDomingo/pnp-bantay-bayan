@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { ChevronLeft, Save, Plus, Trash2, Upload, X, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 interface Item {
   id?: string;
@@ -11,11 +12,12 @@ interface Item {
   explanation: string;
 }
 
-interface QuestThursday {
+interface ApiItem {
   id: string;
-  title: string;
-  lives: number;
-  items: Item[];
+  itemName: string;
+  itemImage: string;
+  isAllowed: boolean;
+  explanation: string;
 }
 
 export default function QuestThursdayAdmin() {
@@ -68,12 +70,12 @@ export default function QuestThursdayAdmin() {
       const response = await fetch('/api/admin/quest/thursday');
       
       if (response.ok) {
-        const data = await response.json();
+        const data: { success: boolean; data?: { id: string; title: string; lives: number; items: ApiItem[] } } = await response.json();
         if (data.success && data.data) {
           setQuestId(data.data.id);
           setTitle(data.data.title);
           setLives(data.data.lives);
-          setItems(data.data.items.map((item: any) => ({
+          setItems(data.data.items.map((item: ApiItem) => ({
             id: item.id,
             name: item.itemName,
             image: item.itemImage,
@@ -85,7 +87,7 @@ export default function QuestThursdayAdmin() {
         // No quest exists yet, use default values
         console.log('No existing quest found, using defaults');
       } else {
-        const errorData = await response.json();
+        const errorData: { error?: string } = await response.json();
         console.error('Error fetching quest:', errorData.error);
       }
     } catch (error) {
@@ -131,7 +133,7 @@ export default function QuestThursdayAdmin() {
         questId,
         title,
         lives,
-        items: items.map(({ id, ...item }) => item) // Remove id for API
+        items: items.map(({ id: _, ...item }) => item) // Remove id for API
       };
 
       const url = '/api/admin/quest/thursday';
@@ -145,7 +147,7 @@ export default function QuestThursdayAdmin() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const data: { message?: string; data?: { id: string }; error?: string } = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save quest');
@@ -331,10 +333,11 @@ export default function QuestThursdayAdmin() {
                     <div className="bg-gray-100 rounded-lg overflow-hidden aspect-square flex items-center justify-center relative group">
                       {item.image ? (
                         <>
-                          <img 
+                          <Image 
                             src={item.image} 
                             alt={item.name}
-                            className="w-full h-full object-contain p-4"
+                            fill
+                            className="object-contain p-4"
                           />
                           <button
                             onClick={() => removeImage(index)}
@@ -532,7 +535,7 @@ export default function QuestThursdayAdmin() {
             <li>• Items should be related to security and safety inspection</li>
             <li>• Players get {lives} {lives === 1 ? 'life' : 'lives'} (bullets) - wrong answers lose a life</li>
             <li>• Supported image formats: JPG, PNG, GIF (max 5MB)</li>
-            <li>• Click "Save Changes" when done to update the quest</li>
+            <li>• Click &quot;Save Changes&quot; when done to update the quest</li>
           </ul>
         </div>
       </div>

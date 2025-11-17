@@ -2,6 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { ChevronLeft, Save, Upload, X, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 interface Suspect {
@@ -14,6 +15,26 @@ interface Level {
   level: number;
   description: string;
   suspects: Suspect[];
+}
+
+interface ApiLevel {
+  levelNumber: number;
+  description: string;
+  suspects: ApiSuspect[];
+}
+
+interface ApiSuspect {
+  id: string;
+  imageUrl: string;
+  isCorrect: boolean;
+}
+
+interface QuestResponse {
+  success: boolean;
+  data?: {
+    levels: ApiLevel[];
+  };
+  error?: string;
 }
 
 export default function QuestMondayPage() {
@@ -72,14 +93,14 @@ export default function QuestMondayPage() {
         throw new Error('Failed to fetch quest data');
       }
 
-      const data = await response.json();
+      const data: QuestResponse = await response.json();
 
       if (data.success && data.data && data.data.levels && data.data.levels.length > 0) {
         // Transform API data to frontend format
-        const transformedLevels = data.data.levels.map((level: any) => ({
+        const transformedLevels = data.data.levels.map((level: ApiLevel) => ({
           level: level.levelNumber,
           description: level.description,
-          suspects: level.suspects.map((suspect: any) => ({
+          suspects: level.suspects.map((suspect: ApiSuspect) => ({
             id: suspect.id,
             image: suspect.imageUrl,
             isCorrect: suspect.isCorrect
@@ -343,10 +364,11 @@ export default function QuestMondayPage() {
                       <div className="mb-3 bg-gray-100 rounded-lg overflow-hidden aspect-[3/4] flex items-center justify-center relative group">
                         {suspect.image ? (
                           <>
-                            <img 
-                              src={suspect.image} 
+                            <Image
+                              src={suspect.image}
                               alt={`Suspect ${suspectIndex + 1}`}
-                              className="w-full h-full object-cover"
+                              fill
+                              className="object-cover"
                             />
                             {/* Remove Image Button */}
                             <button
@@ -421,7 +443,7 @@ export default function QuestMondayPage() {
             <li>• Write clear descriptions that match the correct suspect</li>
             <li>• Supported formats: JPG, PNG, GIF (max 5MB per image)</li>
             <li>• Hover over uploaded images to see the remove button</li>
-            <li>• Click "Save Changes" when done to update the quest</li>
+            <li>• Click &quot;Save Changes&quot; when done to update the quest</li>
           </ul>
         </div>
       </div>
