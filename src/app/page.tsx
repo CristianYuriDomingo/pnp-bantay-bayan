@@ -65,7 +65,7 @@ export default function Home() {
                 showHeaderButton ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
               }`}
             >
-              GET STARTED
+              BEGIN SERVICE
             </button>
           </div>
         </div>
@@ -99,14 +99,14 @@ export default function Home() {
                   onClick={handleGetStarted}
                   className="w-full px-8 py-4 text-lg font-bold rounded-2xl bg-blue-500 hover:bg-blue-600 text-white transition-all duration-300 shadow-md"
                 >
-                  GET STARTED
+                  BEGIN SERVICE
                 </button>
 
                 <button
                   onClick={handleLoginClick}
                   className="w-full px-8 py-4 text-lg font-bold rounded-2xl border-2 border-blue-400 text-blue-500 hover:bg-blue-50 transition-all duration-300"
                 >
-                  I ALREADY HAVE AN ACCOUNT
+                  CONTINUE YOUR DUTY
                 </button>
               </div>
             </div>

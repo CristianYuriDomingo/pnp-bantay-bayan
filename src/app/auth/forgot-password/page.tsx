@@ -107,63 +107,64 @@ const ForgotPasswordPage = () => {
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-md text-center">
+        <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <div className="w-40 h-20 flex items-center justify-center">
-              <Image 
-                src="/DashboardImage/logo.png" 
-                alt="Bantay Bayan Logo" 
-                width={160} 
-                height={80}
-                className="object-contain"
-              />
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              <div className="w-40 h-20 flex items-center justify-center">
+                <Image 
+                  src="/DashboardImage/logo.png" 
+                  alt="Bantay Bayan Logo" 
+                  width={160} 
+                  height={80}
+                  className="object-contain"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Success Message */}
-          <div className="bg-green-50 border border-green-200 rounded-xl p-6 mb-8">
+          {/* Success Container */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-3">Check your email</h1>
-            <p className="text-gray-600 mb-4">
+            <h1 className="text-2xl font-bold text-gray-800 mb-3 text-center">Check your email</h1>
+            <p className="text-gray-600 mb-4 text-center">
               We've sent a password reset link to:
             </p>
-            <p className="font-semibold text-gray-800 bg-white rounded-lg py-2 px-4 border">
+            <p className="font-semibold text-gray-800 bg-green-50 rounded-lg py-2 px-4 border border-green-200 text-center">
               {email}
             </p>
-            <p className="text-sm text-gray-500 mt-4">
+            <p className="text-sm text-gray-500 mt-4 text-center">
               If you don't see the email, check your spam folder or try again with a different email address.
             </p>
-          </div>
 
-          {/* Actions */}
-          <div className="space-y-4">
-            <Link
-              href="/auth/signin"
-              className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 inline-block text-center"
-            >
-              Back to Sign In
-            </Link>
-            
-            <button
-              onClick={() => {
-                setIsSuccess(false);
-                setEmail('');
-                setTouched(false);
-                setErrors({});
-              }}
-              className="w-full text-blue-600 hover:text-blue-700 font-medium py-2 transition-colors"
-            >
-              Try with different email
-            </button>
+            <div className="mt-6 space-y-3">
+              <Link
+                href="/auth/signin"
+                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 inline-block text-center"
+              >
+                Back to Sign In
+              </Link>
+              
+              <button
+                onClick={() => {
+                  setIsSuccess(false);
+                  setEmail('');
+                  setTouched(false);
+                  setErrors({});
+                }}
+                className="w-full text-blue-600 hover:text-blue-700 font-medium py-2 transition-colors"
+              >
+                Try with different email
+              </button>
+            </div>
           </div>
 
           {/* Resend Timer Info */}
-          <div className="mt-8 text-center">
+          <div className="text-center">
             <p className="text-gray-500 text-xs">
               Didn't receive an email? You can request a new one in 5 minutes.
             </p>
@@ -200,16 +201,11 @@ const ForgotPasswordPage = () => {
               />
             </div>
           </div>
-
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Forgot your password?
-          </h1>
-          <p className="text-gray-600">
-            No worries! Enter your email address and we'll send you a reset link.
-          </p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Forgot your password?</h1>
+          <p className="text-gray-600">No worries! Enter your email address and we'll send you a reset link.</p>
         </div>
 
-        {/* Error Message */}
+        {/* General Error Message */}
         {errors.general && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
@@ -217,68 +213,74 @@ const ForgotPasswordPage = () => {
           </div>
         )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6 mb-8">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Mail className="h-5 w-5 text-gray-400" />
+        {/* Form Container */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+          <div className="space-y-5 mb-6">
+            {/* Email Field */}
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Enter your email address"
+                  value={email}
+                  onChange={handleEmailChange}
+                  onBlur={handleBlur}
+                  required
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                    errors.email ? 'border-red-300 bg-red-50' : 
+                    getFieldStatus() === 'success' ? 'border-green-300 bg-green-50' : 
+                    'border-gray-300'
+                  }`}
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  {renderFieldIcon()}
+                </div>
+              </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <XCircle className="w-4 h-4" />
+                  {errors.email}
+                </p>
+              )}
             </div>
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter your email address"
-              value={email}
-              onChange={handleEmailChange}
-              onBlur={handleBlur}
-              required
-              className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
-                errors.email ? 'border-red-300 bg-red-50' : 
-                getFieldStatus() === 'success' ? 'border-green-300 bg-green-50' : 
-                'border-gray-300'
-              }`}
-            />
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              {renderFieldIcon()}
-            </div>
-            {errors.email && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                <XCircle className="w-4 h-4" />
-                {errors.email}
-              </p>
-            )}
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isLoading || !email.trim() || !!errors.email}
+              className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
+            </button>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading || !email.trim() || !!errors.email}
-            className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
-          </button>
-        </form>
-
-        {/* Help Text */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-800 mb-2">What happens next?</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• We'll send a secure reset link to your email</li>
-            <li>• Click the link to create a new password</li>
-            <li>• The link expires in 24 hours for security</li>
-            <li>• Check your spam folder if you don't see it</li>
-          </ul>
+          {/* Help Text */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2 text-sm">What happens next?</h3>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>• We'll send a secure reset link to your email</li>
+              <li>• Click the link to create a new password</li>
+              <li>• The link expires in 24 hours for security</li>
+              <li>• Check your spam folder if you don't see it</li>
+            </ul>
+          </div>
         </div>
 
         {/* Alternative Options */}
         <div className="text-center">
-          <p className="text-gray-600 text-sm mb-4">
-            Remember your password?
+          <p className="text-gray-600 text-sm">
+            Remember your password?{' '}
+            <Link
+              href="/auth/signin"
+              className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
+            >
+              Back to Sign In
+            </Link>
           </p>
-          <Link
-            href="/auth/signin"
-            className="text-blue-600 hover:text-blue-700 font-semibold transition-colors"
-          >
-            Back to Sign In
-          </Link>
         </div>
 
         {/* Footer */}
