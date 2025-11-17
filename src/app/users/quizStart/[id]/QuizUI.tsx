@@ -811,10 +811,13 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
 
     if (answerFeedback) {
-      if (optionIndex === answerFeedback.correctAnswer) {
-        return "bg-green-500 text-white shadow-lg border border-green-400";
-      } else if (optionIndex === selectedAnswer && !answerFeedback.isCorrect) {
+      // Only show the selected answer as red if incorrect
+      if (optionIndex === selectedAnswer && !answerFeedback.isCorrect) {
         return "bg-red-500 text-white shadow-lg border border-red-400";
+      }
+      // Only show the correct answer as green if the user got it right
+      if (optionIndex === answerFeedback.correctAnswer && answerFeedback.isCorrect) {
+        return "bg-green-500 text-white shadow-lg border border-green-400";
       }
     }
 
