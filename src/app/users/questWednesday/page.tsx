@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Loader2, AlertCircle } from 'lucide-react';
+import { useSound } from '@/hooks/use-sound';
 
 interface QuestData {
   id: string;
@@ -20,6 +21,7 @@ interface QuestData {
 
 export default function QuestWednesday() {
   const router = useRouter();
+  const { play } = useSound();
   
   // State management
   const [loading, setLoading] = useState(true);
@@ -89,18 +91,20 @@ export default function QuestWednesday() {
   useEffect(() => {
     if (userAnswer.every(digit => digit !== null)) {
       setIsComplete(true);
+      play('notification', { volume: 0.3 }); // Play notification when puzzle is complete
     } else {
       setIsComplete(false);
       setIsCorrect(false);
       setShowFeedback(false);
     }
-  }, [userAnswer]);
+  }, [userAnswer, play]);
 
   const handleCheckAnswer = async () => {
     if (!isComplete || !questData) return;
 
     try {
       setSubmitting(true);
+      play('click'); // Click sound when checking
       
       // Extract the 9 digits after "09"
       const userNineDigits = userAnswer.slice(2);
@@ -127,16 +131,20 @@ export default function QuestWednesday() {
         setShowFeedback(true);
         
         if (result.data.correct) {
-          // Success!
+          // Success! Play celebration sound
+          play('win', { volume: 0.6 });
+          setTimeout(() => play('lessonComplete', { volume: 0.5 }), 500);
           console.log('Quest completed!');
         } else {
-          // Wrong answer
+          // Wrong answer - play error sound
+          play('wrong', { volume: 0.5 });
           setAttempts(result.data.attempts);
         }
       }
 
     } catch (err) {
       console.error('Error submitting answer:', err);
+      play('lose', { volume: 0.5 }); // Error sound
       alert(err instanceof Error ? err.message : 'Failed to submit answer');
     } finally {
       setSubmitting(false);
@@ -144,16 +152,19 @@ export default function QuestWednesday() {
   };
 
   const handleContinue = () => {
+    play('click');
     router.push('/users/quest');
   };
 
   const handleDigitClick = (digit: string, index: number) => {
+    play('click', { volume: 0.4 }); // Softer click for digit selection
     setSelectedDigit(digit);
     setSelectedIndex(index);
   };
 
   const handleSlotClick = (slotIndex: number) => {
     if (selectedDigit !== null && userAnswer[slotIndex] === null) {
+      play('correct1', { volume: 0.4 }); // Positive sound for placing digit
       const newAnswer = [...userAnswer];
       newAnswer[slotIndex] = selectedDigit;
       setUserAnswer(newAnswer);
@@ -163,12 +174,14 @@ export default function QuestWednesday() {
   };
 
   const handleSlotRemove = (slotIndex: number) => {
+    play('click', { volume: 0.3 }); // Subtle click for removal
     const newAnswer = [...userAnswer];
     newAnswer[slotIndex] = null;
     setUserAnswer(newAnswer);
   };
 
   const handleReset = () => {
+    play('click');
     const resetAnswer = Array(11).fill(null);
     resetAnswer[0] = '0';
     resetAnswer[1] = '9';
@@ -185,6 +198,7 @@ export default function QuestWednesday() {
 
     try {
       setSubmitting(true);
+      play('click');
       
       const response = await fetch('/api/users/quest/wednesday/reset', {
         method: 'POST',
@@ -213,6 +227,7 @@ export default function QuestWednesday() {
 
     } catch (err) {
       console.error('Error resetting progress:', err);
+      play('lose', { volume: 0.5 });
       alert(err instanceof Error ? err.message : 'Failed to reset progress');
     } finally {
       setSubmitting(false);
@@ -256,7 +271,10 @@ export default function QuestWednesday() {
           <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Quest</h2>
           <p className="text-gray-600 mb-6">{error || 'Quest not found'}</p>
           <button
-            onClick={() => router.push('/users/quest')}
+            onClick={() => {
+              play('click');
+              router.push('/users/quest');
+            }}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
           >
             Back to Quests
@@ -273,7 +291,10 @@ export default function QuestWednesday() {
         <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.push('/users/quest')}
+              onClick={() => {
+                play('click');
+                router.push('/users/quest');
+              }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >
               <X size={24} className="text-gray-600 sm:w-7 sm:h-7 md:w-8 md:h-8" />

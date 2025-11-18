@@ -2,6 +2,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { X, Check, Loader2 } from 'lucide-react';
+import { useSound } from '@/hooks/use-sound';
 
 interface Item {
   id: string;   
@@ -40,6 +41,9 @@ export default function ConfiscatedAllowedGame() {
   const [correctAnswer, setCorrectAnswer] = useState<boolean | null>(null);
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+
+  // Sound hook
+  const { play } = useSound();
 
   // Fetch quest data on mount
   useEffect(() => {
@@ -100,6 +104,9 @@ export default function ConfiscatedAllowedGame() {
   const handleAnswer = async (answer: boolean) => {
     if (showFeedback || !questData) return;
 
+    // Play click sound when button is pressed
+    play('click');
+
     try {
       setSubmitting(true);
 
@@ -134,6 +141,13 @@ export default function ConfiscatedAllowedGame() {
       setCorrectAnswer(data.data.correctAnswer);
       setShowFeedback(true);
 
+      // Play correct or wrong sound
+      if (correct) {
+        play('correct');
+      } else {
+        play('wrong');
+      }
+
       // Update lives and score
       setLives(data.data.livesRemaining);
       setScore(data.data.score);
@@ -141,10 +155,12 @@ export default function ConfiscatedAllowedGame() {
       // Check game state
       if (data.data.isFailed) {
         setTimeout(() => {
+          play('lose'); // Play lose sound when game is lost
           setGameOver(true);
         }, 1500);
       } else if (data.data.isCompleted) {
         setTimeout(() => {
+          play('win'); // Play win sound when game is won
           setGameWon(true);
         }, 1500);
       }
@@ -160,6 +176,9 @@ export default function ConfiscatedAllowedGame() {
   const handleNext = () => {
     if (!questData) return;
 
+    // Play click sound
+    play('click');
+
     if (currentItemIndex < questData.items.length - 1) {
       setCurrentItemIndex(currentItemIndex + 1);
       setShowFeedback(false);
@@ -171,6 +190,9 @@ export default function ConfiscatedAllowedGame() {
 
   const handleRestart = async () => {
     if (!questData) return;
+
+    // Play click sound
+    play('click');
 
     try {
       const response = await fetch('/api/users/quest/thursday/reset', {
@@ -235,13 +257,19 @@ export default function ConfiscatedAllowedGame() {
           <p className="text-gray-600 mb-6">{error || 'No quest available'}</p>
           <div className="space-y-3">
             <button
-              onClick={fetchQuestData}
+              onClick={() => {
+                play('click');
+                fetchQuestData();
+              }}
               className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
             >
               Try Again
             </button>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                play('click');
+                window.history.back();
+              }}
               className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
             >
               Go Back
@@ -307,7 +335,10 @@ export default function ConfiscatedAllowedGame() {
             <p className="text-xl sm:text-2xl text-gray-600 mb-8">You passed the inspection!</p>
             <div className="space-y-3">
               <button
-                onClick={() => window.history.back()}
+                onClick={() => {
+                  play('click');
+                  window.history.back();
+                }}
                 className="w-full py-4 bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
               >
                 CONTINUE
@@ -332,7 +363,10 @@ export default function ConfiscatedAllowedGame() {
         <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                play('click');
+                window.history.back();
+              }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
               aria-label="Go back"
             >
