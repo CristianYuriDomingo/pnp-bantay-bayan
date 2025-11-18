@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Users, BookOpen, Award, TrendingUp, CheckCircle, Clock, Trophy, Zap, ArrowRight, Crown, Target, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, BookOpen, Award, TrendingUp, CheckCircle, Trophy, Zap, ArrowRight, Crown, Target, Gift, ChevronLeft, ChevronRight } from 'lucide-react';
 import Image from 'next/image';
 
 interface Stats {
@@ -13,14 +13,6 @@ interface Stats {
   totalLessons?: number;
   totalBadges?: number;
   totalQuizzes?: number;
-}
-
-interface RecentActivity {
-  id: string;
-  type: 'user_registered' | 'lesson_completed' | 'module_created' | 'quiz_submitted' | 'badge_earned' | 'badge_created';
-  description: string;
-  timestamp: string;
-  user?: string;
 }
 
 interface LeaderboardUser {
@@ -85,7 +77,6 @@ const UserAvatar = ({ image, name, size = 32 }: { image: string | null, name: st
 
 export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [allLeaderboardData, setAllLeaderboardData] = useState<LeaderboardUser[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -129,54 +120,12 @@ export default function AdminPage() {
         console.error('❌ Error fetching leaderboard:', error);
         setAllLeaderboardData([]);
       }
-
-      // Fetch activity
-      if (recentActivity.length === 0) {
-        try {
-          const activityResponse = await fetch('/api/admin/activity');
-          if (activityResponse.ok) {
-            const activityData = await activityResponse.json();
-            setRecentActivity(activityData);
-          }
-        } catch (error) {
-          console.error('Error fetching activity:', error);
-          setRecentActivity([
-            {
-              id: '1',
-              type: 'user_registered',
-              description: 'New user registered',
-              timestamp: new Date().toISOString(),
-              user: 'john.doe@email.com'
-            },
-            {
-              id: '2',
-              type: 'lesson_completed',
-              description: 'Lesson "Crime Prevention" completed',
-              timestamp: new Date(Date.now() - 3600000).toISOString(),
-              user: 'jane.smith@email.com'
-            },
-            {
-              id: '3',
-              type: 'module_created',
-              description: 'New module "Safety Protocols" created',
-              timestamp: new Date(Date.now() - 7200000).toISOString(),
-            },
-            {
-              id: '4',
-              type: 'badge_earned',
-              description: 'Badge "Crime Prevention Expert" earned',
-              timestamp: new Date(Date.now() - 10800000).toISOString(),
-              user: 'alice.brown@email.com'
-            }
-          ]);
-        }
-      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
-  }, [stats, recentActivity.length]);
+  }, [stats]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -184,38 +133,6 @@ export default function AdminPage() {
 
   const getStatValue = (value?: number) => {
     return value?.toString() ?? '0';
-  };
-
-  const getActivityIcon = (type: RecentActivity['type']) => {
-    const icons = {
-      user_registered: Users,
-      lesson_completed: CheckCircle,
-      module_created: BookOpen,
-      quiz_submitted: Clock,
-      badge_earned: Award,
-      badge_created: Trophy
-    };
-    return icons[type];
-  };
-
-  const getActivityColor = (type: RecentActivity['type']) => {
-    const colors = {
-      user_registered: 'blue',
-      lesson_completed: 'green',
-      module_created: 'purple',
-      quiz_submitted: 'yellow',
-      badge_earned: 'orange',
-      badge_created: 'pink'
-    };
-    return colors[type];
-  };
-
-  const formatTimeAgo = (timestamp: string) => {
-    const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
   };
 
   const getProgressPercentage = (level: number) => {
@@ -342,170 +259,118 @@ export default function AdminPage() {
           })}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-              <div className="p-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Zap className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+            </div>
+            <div className="space-y-3">
+              {[
+                { title: 'Create Module', icon: '📚', href: '/admin/content', color: 'blue' },
+                { title: 'Add Quiz', icon: '📝', href: '/admin/quiz', color: 'green' },
+                { title: 'Design Badge', icon: '🏆', href: '/admin/badges', color: 'yellow' },
+                { title: 'Manage Users', icon: '👥', href: '/admin/users', color: 'purple' }
+              ].map((action, index) => (
+                <Link
+                  key={index}
+                  href={action.href}
+                  className={`w-full flex items-center justify-between p-4 rounded-lg border-2 border-${action.color}-100 hover:border-${action.color}-200 hover:bg-${action.color}-50 transition-all group`}
+                >
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-50 rounded-lg">
-                      <Zap className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
+                    <span className="text-2xl">{action.icon}</span>
+                    <span className="font-medium text-gray-900">{action.title}</span>
                   </div>
-                  <span className="text-sm text-gray-500">Live updates</span>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {recentActivity.length > 0 ? (
-                    recentActivity.map((activity) => {
-                      const Icon = getActivityIcon(activity.type);
-                      const color = getActivityColor(activity.type);
-                      return (
-                        <div key={activity.id} className="flex items-start space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                          <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-${color}-50 flex items-center justify-center`}>
-                            <Icon className={`w-5 h-5 text-${color}-600`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                            <div className="flex items-center space-x-2 mt-1">
-                              {activity.user && (
-                                <span className="text-xs text-gray-600">{activity.user}</span>
-                              )}
-                              <span className="text-xs text-gray-400">•</span>
-                              <span className="text-xs text-gray-500">{formatTimeAgo(activity.timestamp)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <div className="text-4xl mb-2">📋</div>
-                      <p>No recent activity to display</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  <ArrowRight className={`w-4 h-4 text-${action.color}-600 opacity-0 group-hover:opacity-100 transition-opacity`} />
+                </Link>
+              ))}
             </div>
           </div>
 
-          {/* Quick Actions & Leaderboard */}
-          <div className="space-y-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <Zap className="w-5 h-5 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { title: 'Create Module', icon: '📚', href: '/admin/content', color: 'blue' },
-                  { title: 'Add Quiz', icon: '📝', href: '/admin/quiz', color: 'green' },
-                  { title: 'Design Badge', icon: '🏆', href: '/admin/badges', color: 'yellow' },
-                  { title: 'Manage Users', icon: '👥', href: '/admin/users', color: 'purple' }
-                ].map((action, index) => (
-                  <Link
-                    key={index}
-                    href={action.href}
-                    className={`w-full flex items-center justify-between p-4 rounded-lg border-2 border-${action.color}-100 hover:border-${action.color}-200 hover:bg-${action.color}-50 transition-all group`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{action.icon}</span>
-                      <span className="font-medium text-gray-900">{action.title}</span>
-                    </div>
-                    <ArrowRight className={`w-4 h-4 text-${action.color}-600 opacity-0 group-hover:opacity-100 transition-opacity`} />
-                  </Link>
-                ))}
+          {/* Improved Leaderboard */}
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Crown className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Top Learners</h3>
               </div>
             </div>
-
-            {/* Improved Leaderboard */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <Crown className="w-5 h-5 text-indigo-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">Top Learners</h3>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                {currentLeaderboardData && currentLeaderboardData.length > 0 ? (
-                  currentLeaderboardData.map((user) => (
-                    <div key={user.userId} className="bg-white rounded-lg border border-gray-100 p-3">
-                      <div className="flex items-start space-x-3">
-                        <PositionBadge rank={user.rank} size="sm" />
-                        <UserAvatar image={user.image} name={user.displayName} size={40} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 truncate max-w-[100px] leading-tight">{user.displayName}</p>
-                              <p className="text-xs text-gray-500">ID: {user.userId.slice(0, 8)}...</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-bold text-indigo-600 flex items-center gap-1">
-                                <Zap size={14} fill="currentColor" />
-                                {user.totalXP} XP
-                              </p>
-                              <p className="text-xs text-gray-500">Level {user.level}</p>
-                            </div>
+            
+            <div className="space-y-3">
+              {currentLeaderboardData && currentLeaderboardData.length > 0 ? (
+                currentLeaderboardData.map((user) => (
+                  <div key={user.userId} className="bg-white rounded-lg border border-gray-100 p-3">
+                    <div className="flex items-start space-x-3">
+                      <PositionBadge rank={user.rank} size="sm" />
+                      <UserAvatar image={user.image} name={user.displayName} size={40} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-[100px] leading-tight">{user.displayName}</p>
+                            <p className="text-xs text-gray-500">ID: {user.userId.slice(0, 8)}...</p>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
-                            <div 
-                              className="bg-gradient-to-r from-green-400 to-blue-500 h-1.5 rounded-full" 
-                              style={{ width: `${getProgressPercentage(user.level)}%` }}
-                            ></div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-indigo-600 flex items-center gap-1">
+                              <Zap size={14} fill="currentColor" />
+                              {user.totalXP} XP
+                            </p>
+                            <p className="text-xs text-gray-500">Level {user.level}</p>
                           </div>
-                          <button
-                            onClick={() => handleAssignReward(user.userId, user.displayName)}
-                            className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-medium rounded-md transition-all"
-                          >
-                            <Gift className="w-3.5 h-3.5" />
-                            <span>Assign Rewards</span>
-                          </button>
                         </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+                          <div 
+                            className="bg-gradient-to-r from-green-400 to-blue-500 h-1.5 rounded-full" 
+                            style={{ width: `${getProgressPercentage(user.level)}%` }}
+                          ></div>
+                        </div>
+                        <button
+                          onClick={() => handleAssignReward(user.userId, user.displayName)}
+                          className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white text-xs font-medium rounded-md transition-all"
+                        >
+                          <Gift className="w-3.5 h-3.5" />
+                          <span>Assign Rewards</span>
+                        </button>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-4xl mb-2">👥</div>
-                    <p className="text-sm">No leaderboard data yet</p>
                   </div>
-                )}
-              </div>
-
-              {/* Improved Pagination - User Leaderboard Style */}
-              {allLeaderboardData.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-indigo-200">
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => setLeaderboardPage(p => Math.max(1, p - 1))}
-                      disabled={leaderboardPage === 1}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft size={14} />
-                      Previous
-                    </button>
-                    <span className="text-xs text-gray-600 font-medium">
-                      Showing {startIndex + 1}-{Math.min(endIndex, allLeaderboardData.length)} of {allLeaderboardData.length}
-                    </span>
-                    <button
-                      onClick={() => setLeaderboardPage(p => p + 1)}
-                      disabled={!hasMore}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <div className="text-4xl mb-2">👥</div>
+                  <p className="text-sm">No leaderboard data yet</p>
                 </div>
               )}
             </div>
+
+            {/* Improved Pagination - User Leaderboard Style */}
+            {allLeaderboardData.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-indigo-200">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setLeaderboardPage(p => Math.max(1, p - 1))}
+                    disabled={leaderboardPage === 1}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft size={14} />
+                    Previous
+                  </button>
+                  <span className="text-xs text-gray-600 font-medium">
+                    Showing {startIndex + 1}-{Math.min(endIndex, allLeaderboardData.length)} of {allLeaderboardData.length}
+                  </span>
+                  <button
+                    onClick={() => setLeaderboardPage(p => p + 1)}
+                    disabled={!hasMore}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
