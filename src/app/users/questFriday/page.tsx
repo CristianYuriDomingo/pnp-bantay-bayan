@@ -2,8 +2,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, Loader2 } from 'lucide-react';
+import { X, Check, Loader2, Lock } from 'lucide-react';
 import { useSoundContext } from '@/contexts/sound-context';
+import { useRouter } from 'next/navigation';
 
 interface RankOption {
   id: string;
@@ -25,6 +26,7 @@ interface QuestData {
 }
 
 export default function GuessTheRank() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [questData, setQuestData] = useState<QuestData | null>(null);
@@ -33,6 +35,7 @@ export default function GuessTheRank() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   const { play } = useSoundContext();
 
@@ -43,8 +46,37 @@ export default function GuessTheRank() {
   const fetchQuestData = async () => {
     try {
       setLoading(true);
+      setAccessError(null);
       const response = await fetch('/api/users/quest/friday');
       const data = await response.json();
+
+      // ========================================
+      // HANDLE ACCESS DENIED
+      // ========================================
+      if (!response.ok) {
+        if (response.status === 403) {
+          // Access forbidden - show error and redirect
+          setAccessError(data.error || 'You cannot access this quest right now');
+          
+          // Redirect after showing error
+          setTimeout(() => {
+            if (data.redirectTo) {
+              router.push(data.redirectTo);
+            } else {
+              router.push('/users/quest');
+            }
+          }, 2000);
+          return;
+        }
+
+        if (response.status === 401) {
+          // Not authenticated
+          router.push('/auth/signin');
+          return;
+        }
+
+        throw new Error(data.error || 'Failed to load quest');
+      }
 
       if (data.success && data.data) {
         setQuestData(data.data);
@@ -54,12 +86,16 @@ export default function GuessTheRank() {
           setGameWon(true);
         }
       } else {
-        console.error('Failed to fetch quest:', data.error);
-        alert('Failed to load quest. Please try again.');
+        throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Error fetching quest:', error);
-      alert('Failed to load quest. Please try again.');
+      setAccessError(error instanceof Error ? error.message : 'Failed to load quest');
+      
+      // Redirect to quest path on error
+      setTimeout(() => {
+        router.push('/users/quest');
+      }, 2000);
     } finally {
       setLoading(false);
     }
@@ -175,6 +211,29 @@ export default function GuessTheRank() {
     }
   };
 
+  // ========================================
+  // ACCESS DENIED SCREEN
+  // ========================================
+  if (accessError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-red-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={40} className="text-red-500" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-800 mb-4">Access Denied</h1>
+            <p className="text-lg text-gray-600 mb-6">{accessError}</p>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Redirecting...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -194,11 +253,11 @@ export default function GuessTheRank() {
           <button
             onClick={() => {
               play('click');
-              window.history.back();
+              router.push('/users/quest');
             }}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
           >
-            Go Back
+            Go to Quest Path
           </button>
         </div>
       </div>
@@ -216,7 +275,7 @@ export default function GuessTheRank() {
               <button
                 onClick={() => {
                   play('click');
-                  window.history.back();
+                  router.push('/users/quest');
                 }}
                 className="w-full py-4 bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
               >
@@ -244,7 +303,7 @@ export default function GuessTheRank() {
             <button
               onClick={() => {
                 play('click');
-                window.history.back();
+                router.push('/users/quest');
               }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >

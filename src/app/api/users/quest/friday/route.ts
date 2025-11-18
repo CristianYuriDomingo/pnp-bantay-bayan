@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateQuestAccess } from '@/lib/quest-access-validator';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,32 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ User authenticated:', session.user.email);
+
+    // ========================================
+    // QUEST ACCESS VALIDATION
+    // ========================================
+    const accessValidation = await validateQuestAccess(session.user.id, 'friday');
+    
+    if (!accessValidation.canAccess) {
+      console.log('🚫 Access denied:', accessValidation.reason);
+      return NextResponse.json(
+        {
+          success: false,
+          error: accessValidation.reason,
+          data: null,
+          shouldRedirect: accessValidation.shouldRedirect,
+          redirectTo: accessValidation.redirectTo,
+        },
+        { 
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
+
+    console.log('✅ Access granted:', accessValidation.reason);
 
     // Fetch the active quest with all rank options
     const quest = await prisma.questFriday.findFirst({
@@ -97,7 +124,7 @@ export async function GET(request: NextRequest) {
       } : null
     };
 
-    console.log('✅ Returning quest data');
+    console.log('✅ Returning quest data with access validation passed');
 
     return NextResponse.json(
       {

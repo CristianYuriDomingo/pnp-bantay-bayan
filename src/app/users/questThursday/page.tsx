@@ -1,7 +1,8 @@
 // app/users/questThursday/page.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, Check, Loader2 } from 'lucide-react';
+import { X, Check, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useSound } from '@/hooks/use-sound';
 
 interface Item {
@@ -27,10 +28,12 @@ interface QuestData {
 }
 
 export default function ConfiscatedAllowedGame() {
+  const router = useRouter();
   const [questData, setQuestData] = useState<QuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [lives, setLives] = useState(3);
@@ -54,9 +57,11 @@ export default function ConfiscatedAllowedGame() {
     try {
       setLoading(true);
       setError(null);
+      setAccessError(null);
 
       const response = await fetch('/api/users/quest/thursday');
 
+      // Check content type before parsing
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error('Server returned invalid response. Please check if you are logged in.');
@@ -64,7 +69,29 @@ export default function ConfiscatedAllowedGame() {
 
       const data = await response.json();
 
+      // ========================================
+      // HANDLE ACCESS DENIED
+      // ========================================
       if (!response.ok) {
+        if (response.status === 403) {
+          // Access forbidden - show error and redirect
+          setAccessError(data.error || 'You cannot access this quest right now');
+          
+          setTimeout(() => {
+            if (data.redirectTo) {
+              router.push(data.redirectTo);
+            } else {
+              router.push('/users/quest');
+            }
+          }, 2000);
+          return;
+        }
+
+        if (response.status === 401) {
+          router.push('/auth/signin');
+          return;
+        }
+
         throw new Error(data.error || 'Failed to fetch quest data');
       }
 
@@ -233,6 +260,29 @@ export default function ConfiscatedAllowedGame() {
     }
   };
 
+  // ========================================
+  // ACCESS DENIED SCREEN
+  // ========================================
+  if (accessError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-red-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={40} className="text-red-500" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-800 mb-4">Access Denied</h1>
+            <p className="text-lg text-gray-600 mb-6">{accessError}</p>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Redirecting...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -251,7 +301,7 @@ export default function ConfiscatedAllowedGame() {
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border p-8 text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-600" />
+            <AlertCircle className="w-8 h-8 text-red-600" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Failed to Load Quest</h2>
           <p className="text-gray-600 mb-6">{error || 'No quest available'}</p>
@@ -268,7 +318,7 @@ export default function ConfiscatedAllowedGame() {
             <button
               onClick={() => {
                 play('click');
-                window.history.back();
+                router.push('/users/quest');
               }}
               className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
             >
@@ -337,7 +387,7 @@ export default function ConfiscatedAllowedGame() {
               <button
                 onClick={() => {
                   play('click');
-                  window.history.back();
+                  router.push('/users/quest');
                 }}
                 className="w-full py-4 bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
               >
@@ -365,7 +415,7 @@ export default function ConfiscatedAllowedGame() {
             <button
               onClick={() => {
                 play('click');
-                window.history.back();
+                router.push('/users/quest');
               }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
               aria-label="Go back"

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, Lock } from 'lucide-react';
 import { useSound } from '@/hooks/use-sound';
 
 interface QuestData {
@@ -27,6 +27,7 @@ export default function QuestWednesday() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const [questData, setQuestData] = useState<QuestData | null>(null);
   
   // Game state
@@ -48,11 +49,41 @@ export default function QuestWednesday() {
     try {
       setLoading(true);
       setError(null);
+      setAccessError(null);
 
       const response = await fetch('/api/users/quest/wednesday');
+      
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned invalid response. Please check if you are logged in.');
+      }
+
       const result = await response.json();
 
+      // ========================================
+      // HANDLE ACCESS DENIED
+      // ========================================
       if (!response.ok) {
+        if (response.status === 403) {
+          // Access forbidden - show error and redirect
+          setAccessError(result.error || 'You cannot access this quest right now');
+          
+          setTimeout(() => {
+            if (result.redirectTo) {
+              router.push(result.redirectTo);
+            } else {
+              router.push('/users/quest');
+            }
+          }, 2000);
+          return;
+        }
+
+        if (response.status === 401) {
+          router.push('/auth/signin');
+          return;
+        }
+
         throw new Error(result.error || 'Failed to fetch quest');
       }
 
@@ -250,6 +281,29 @@ export default function QuestWednesday() {
     return usedCount >= availableCount;
   };
 
+  // ========================================
+  // ACCESS DENIED SCREEN
+  // ========================================
+  if (accessError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-red-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={40} className="text-red-500" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-800 mb-4">Access Denied</h1>
+            <p className="text-lg text-gray-600 mb-6">{accessError}</p>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Redirecting...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -270,15 +324,23 @@ export default function QuestWednesday() {
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-800 mb-2">Failed to Load Quest</h2>
           <p className="text-gray-600 mb-6">{error || 'Quest not found'}</p>
-          <button
-            onClick={() => {
-              play('click');
-              router.push('/users/quest');
-            }}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-          >
-            Back to Quests
-          </button>
+          <div className="space-y-3">
+            <button
+              onClick={fetchQuestData}
+              className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                play('click');
+                router.push('/users/quest');
+              }}
+              className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+            >
+              Back to Quests
+            </button>
+          </div>
         </div>
       </div>
     );

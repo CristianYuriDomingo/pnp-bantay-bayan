@@ -2,8 +2,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Check, X, Loader2 } from 'lucide-react';
-import { useSoundContext } from '../../../contexts/sound-context'; // added import
+import { Check, X, Loader2, Lock } from 'lucide-react';
+import { useSoundContext } from '../../../contexts/sound-context';
+import { useRouter } from 'next/navigation';
 
 interface Question {
   id: string;
@@ -28,10 +29,12 @@ interface QuestData {
 }
 
 export default function QuestTuesday() {
+  const router = useRouter();
   const [questData, setQuestData] = useState<QuestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [lives, setLives] = useState(3);
@@ -44,7 +47,7 @@ export default function QuestTuesday() {
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
-  const { play, preload } = useSoundContext(); // added sound context usage
+  const { play, preload } = useSoundContext();
 
   // Fetch quest data on mount
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function QuestTuesday() {
     try {
       setLoading(true);
       setError(null);
+      setAccessError(null);
 
       const response = await fetch('/api/users/quest/tuesday');
 
@@ -72,7 +76,29 @@ export default function QuestTuesday() {
 
       const data = await response.json();
 
+      // ========================================
+      // HANDLE ACCESS DENIED
+      // ========================================
       if (!response.ok) {
+        if (response.status === 403) {
+          // Access forbidden - show error and redirect
+          setAccessError(data.error || 'You cannot access this quest right now');
+          
+          setTimeout(() => {
+            if (data.redirectTo) {
+              router.push(data.redirectTo);
+            } else {
+              router.push('/users/quest');
+            }
+          }, 2000);
+          return;
+        }
+
+        if (response.status === 401) {
+          router.push('/auth/signin');
+          return;
+        }
+
         throw new Error(data.error || 'Failed to fetch quest data');
       }
 
@@ -115,7 +141,6 @@ export default function QuestTuesday() {
     if (showFeedback || !questData) return;
 
     try {
-      // play click immediately when user selects
       play('click');
 
       setSubmitting(true);
@@ -152,7 +177,6 @@ export default function QuestTuesday() {
       setCorrectAnswer(data.data.correctAnswer);
       setShowFeedback(true);
 
-      // play feedback sound based on correctness
       play(correct ? 'correct' : 'wrong');
 
       // Update lives and score
@@ -198,7 +222,7 @@ export default function QuestTuesday() {
     if (!questData) return;
 
     try {
-      play('click'); // play click on restart
+      play('click');
       const response = await fetch('/api/users/quest/tuesday/reset', {
         method: 'POST',
         headers: {
@@ -238,6 +262,29 @@ export default function QuestTuesday() {
     }
   };
 
+  // ========================================
+  // ACCESS DENIED SCREEN
+  // ========================================
+  if (accessError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-red-50 to-red-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md text-center">
+          <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Lock size={40} className="text-red-500" />
+            </div>
+            <h1 className="text-3xl font-black text-gray-800 mb-4">Access Denied</h1>
+            <p className="text-lg text-gray-600 mb-6">{accessError}</p>
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Redirecting...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Loading state
   if (loading) {
     return (
@@ -268,7 +315,10 @@ export default function QuestTuesday() {
               Try Again
             </button>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                play('click');
+                router.push('/users/quest');
+              }}
               className="w-full px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-medium"
             >
               Go Back
@@ -334,7 +384,10 @@ export default function QuestTuesday() {
             <p className="text-xl sm:text-2xl text-gray-600 mb-8">You passed the safety test!</p>
             <div className="space-y-3">
               <button
-                onClick={() => window.history.back()}
+                onClick={() => {
+                  play('click');
+                  router.push('/users/quest');
+                }}
                 className="w-full py-4 bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
               >
                 CONTINUE
@@ -359,7 +412,10 @@ export default function QuestTuesday() {
         <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-5 md:py-6">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                play('click');
+                router.push('/users/quest');
+              }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >
               <X size={24} className="text-gray-600 sm:w-7 sm:h-7 md:w-8 md:h-8" />

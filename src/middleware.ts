@@ -2,6 +2,7 @@
 
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
+import { getQuestDayFromPath } from "@/lib/quest-access-validator"
 
 export default withAuth(
   function middleware(req) {
@@ -10,6 +11,27 @@ export default withAuth(
       return NextResponse.next()
     }
 
+    // ========================================
+    // QUEST PAGE PROTECTION
+    // ========================================
+    // Check if accessing a quest day page
+    const questDay = getQuestDayFromPath(req.nextUrl.pathname);
+    
+    if (questDay) {
+      // Quest pages require authentication - redirect to sign in if not authenticated
+      if (!req.nextauth.token) {
+        return NextResponse.redirect(new URL("/auth/signin", req.url))
+      }
+      
+      // Let the page component handle detailed access validation
+      // (We can't do async DB calls in middleware)
+      return NextResponse.next()
+    }
+
+    // ========================================
+    // ADMIN/USER DASHBOARD PROTECTION
+    // ========================================
+    
     // Redirect admin users trying to access user dashboard
     if (
       req.nextUrl.pathname.startsWith("/users/dashboard") &&
@@ -25,6 +47,8 @@ export default withAuth(
     ) {
       return NextResponse.redirect(new URL("/users/dashboard", req.url))
     }
+
+    return NextResponse.next()
   },
   {
     callbacks: {
@@ -35,8 +59,14 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    // Only protect these specific routes - DO NOT use catch-all patterns
+    // Protect user dashboard and admin routes
     "/users/dashboard/:path*", 
     "/admin/:path*",
+    // Protect all quest day pages
+    "/users/questMonday",
+    "/users/questTuesday",
+    "/users/questWednesday",
+    "/users/questThursday",
+    "/users/questFriday",
   ],
 }
