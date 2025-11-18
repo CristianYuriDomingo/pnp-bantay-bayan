@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useLessonProgress } from '@/hooks/use-progress';
 import Modal from './Modal';
+import { useSound } from '@/hooks/use-sound'; // <-- added import
 
 export type SlideProps = {
   id: string;
@@ -37,6 +38,7 @@ type CombinedCarouselProps = {
   onClose?: () => void;
   showAsModal?: boolean;
   onExit?: () => void;
+
 };
 
 // Enhanced Speech Bubble Component
@@ -105,6 +107,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   timerDuration = 10,
   onExit
 }) => {
+  const { play } = useSound(); // <-- initialized sound hook
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(timerDuration);
@@ -170,6 +174,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         if (prev <= 1) {
           clearInterval(timer);
           setCanProceed(true);
+          // Play notification sound when timer completes
+          try { play && play('notification', { volume: 0.5 }); } catch (e) {}
           return 0;
         }
         return prev - 1;
@@ -177,7 +183,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentSlide, timerDuration, isLessonCompletedValue]);
+  }, [currentSlide, timerDuration, isLessonCompletedValue, play]); // added 'play' to deps
 
   const markLessonComplete = async () => {
     if (progressUpdating || isLessonCompletedValue) return;
@@ -190,6 +196,9 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     
     if (success) {
       console.log('Lesson progress updated successfully');
+      // Play completion sound
+      try { play && play('lessonComplete', { volume: 0.7 }); } catch (e) {}
+      
       await refetchProgress();
       
       setTimeout(() => {
@@ -219,18 +228,21 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       }
     } else {
       console.error('Failed to update lesson progress:', progressError);
+      try { play && play('wrong', { volume: 0.5 }); } catch (e) {}
       alert('Failed to save your progress. Please try again.');
     }
   };
 
   const nextSlide = () => {
     if (canProceed || isLessonCompletedValue) {
+      try { play && play('click', { volume: 0.4 }); } catch (e) {}
       setCurrentSlide((prev) => (prev === currentSlides.length - 1 ? 0 : prev + 1));
     }
   };
 
   const prevSlide = () => {
     if (currentSlide > 0) {
+      try { play && play('click', { volume: 0.4 }); } catch (e) {}
       setCurrentSlide((prev) => prev - 1);
     }
   };
@@ -240,6 +252,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       console.log('Submission blocked: already submitting or completed');
       return;
     }
+
+    try { play && play('click', { volume: 0.5 }); } catch (e) {}
 
     setIsSubmitting(true);
     try {
@@ -261,6 +275,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
       
     } catch (error) {
       console.error('Error in handleFinish:', error);
+      try { play && play('wrong', { volume: 0.5 }); } catch (e) {}
       alert('Failed to complete lesson. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -359,7 +374,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           <div className="flex items-center justify-center space-x-3 mb-2">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">{moduleTitle}</h2>
             {isLessonCompletedValue && (
-              <span className="bg-gradient-to-r from-green-400 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg animate-pulse">
+              <span className="bg-gradient-to-r from-green-400 to-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
                 ✓ Completed
               </span>
             )}
@@ -422,10 +437,10 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                             onClick={handleFinish}
                             disabled={progressUpdating || isSubmitting}
                             className={`${isLessonCompletedValue 
-                              ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700 shadow-green-200' 
+                              ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-700' 
                               : (progressUpdating || isSubmitting)
                                 ? 'bg-gray-400 border-gray-500 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700 shadow-blue-200'
+                                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-blue-700'
                             } text-white font-semibold py-4 px-8 rounded-xl 
                             transition-all w-full border-b-4 shadow-lg
                             ${!(progressUpdating || isSubmitting) ? 'hover:border-b-2 hover:mb-0.5 hover:translate-y-0.5 hover:shadow-xl active:border-b-0 active:mb-1 active:translate-y-1' : ''}`}
@@ -470,6 +485,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
                     key={slide.id}
                     onClick={() => {
                       if (index <= currentSlide || isLessonCompletedValue) {
+                        try { play && play('click', { volume: 0.3 }); } catch (e) {}
                         setCurrentSlide(index);
                       }
                     }}

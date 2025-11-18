@@ -1,4 +1,4 @@
-// app/api/users/progress/lesson/[lessonId]/route.ts - COMPLETE FIXED VERSION
+// app/api/users/progress/lesson/[lessonId]/route.ts
 import { NextRequest } from 'next/server'
 import { getApiUser, createSuccessResponse, createAuthErrorResponse } from '@/lib/api-auth'
 import { prisma } from '@/lib/prisma'
@@ -13,7 +13,6 @@ function addCacheHeaders(response: Response): Response {
   return response
 }
 
-// Helper function to safely create/update progress with retry logic
 async function safeUpsertProgress(
   userId: string, 
   moduleId: string, 
@@ -26,9 +25,7 @@ async function safeUpsertProgress(
   
   while (attempt < maxRetries) {
     try {
-      // Use a transaction to ensure data consistency
       const result = await prisma.$transaction(async (tx) => {
-        // First, try to find existing progress for THIS SPECIFIC USER
         const existingProgress = await tx.userProgress.findUnique({
           where: {
             userId_moduleId_lessonId: {
@@ -40,7 +37,6 @@ async function safeUpsertProgress(
         });
 
         if (existingProgress) {
-          // Update existing record - ONLY if it belongs to this user
           if (existingProgress.userId !== userId) {
             throw new Error(`Data integrity violation: Progress record belongs to different user`);
           }
@@ -61,7 +57,6 @@ async function safeUpsertProgress(
             }
           });
         } else {
-          // Create new record - explicitly set userId to prevent race condition issues
           return await tx.userProgress.create({
             data: {
               userId: userId,
@@ -75,23 +70,19 @@ async function safeUpsertProgress(
         }
       });
 
-      // If we get here, the operation was successful
       return { success: true, data: result };
 
     } catch (error) {
       attempt++;
       
       if (error instanceof PrismaClientKnownRequestError) {
-        // Handle unique constraint violations (P2002)
         if (error.code === 'P2002' && attempt < maxRetries) {
           console.log(`🔄 Retry attempt ${attempt} for user ${userId} on lesson ${lessonId} due to race condition`);
-          // Wait a small random amount to avoid thundering herd
           await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
           continue;
         }
       }
       
-      // If it's not a retryable error or we've exhausted retries
       console.error(`❌ Failed to upsert progress for user ${userId} after ${attempt} attempts:`, error);
       return { 
         success: false, 
@@ -106,18 +97,26 @@ async function safeUpsertProgress(
   };
 }
 
+// ✅ FIXED: params is now a Promise
 export async function POST(
   request: NextRequest,
-  { params }: { params: { lessonId: string } }
+  { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const user = await getApiUser(request)
-   
+    
     if (!user) {
       return addCacheHeaders(createAuthErrorResponse('Authentication required', 401))
     }
 
-    // ✅ FIX: Fetch complete user data including level and totalXP
+    // ✅ CRITICAL FIX: Await params before using
+    const { lessonId } = await params
+    const body = await request.json()
+    const { timeSpent = 0, progress = 100 } = body
+
+    console.log(`📚 User ${user.email} (ID: ${user.id}) completing lesson ${lessonId}`)
+
+    // Fetch complete user data including level and totalXP
     const fullUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -133,13 +132,6 @@ export async function POST(
       return addCacheHeaders(createAuthErrorResponse('User not found', 404))
     }
 
-    const { lessonId } = params
-    const body = await request.json()
-    const { timeSpent = 0, progress = 100 } = body
-
-    console.log(`📚 User ${fullUser.email} (ID: ${fullUser.id}) completing lesson ${lessonId}`)
-
-    // Verify lesson exists and get module info
     const lesson = await prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
@@ -157,7 +149,7 @@ export async function POST(
       return addCacheHeaders(createAuthErrorResponse('Lesson not found', 404))
     }
 
-    // Check if lesson is already completed to avoid duplicate badge awards
+    // Check if lesson is already completed
     const existingProgress = await prisma.userProgress.findUnique({
       where: {
         userId_moduleId_lessonId: {
@@ -170,7 +162,6 @@ export async function POST(
 
     const isAlreadyCompleted = existingProgress?.completed || false;
 
-    // Use the safe upsert function with retry logic
     const upsertResult = await safeUpsertProgress(
       fullUser.id,
       lesson.moduleId,
@@ -189,7 +180,12 @@ export async function POST(
 
     const lessonProgress = upsertResult.data;
 
-    // Calculate module progress - ONLY for this user with additional verification
+    if (lessonProgress.userId !== fullUser.id) {
+      console.error(`🚨 CRITICAL: Progress record user mismatch!`);
+      return addCacheHeaders(createAuthErrorResponse('Data integrity error', 500));
+    }
+
+    // Calculate module progress
     const allLessonsInModule = lesson.module.lessons.map(l => l.id)
     const completedLessonsInModule = await prisma.userProgress.count({
       where: {
@@ -239,7 +235,7 @@ export async function POST(
       }
     }
 
-    // ✅ UPDATE USER XP AND LEVEL
+    // Update user XP and level
     let totalXPGained = 0;
     let newLevel = fullUser.level;
     let newTotalXP = fullUser.totalXP;
@@ -263,7 +259,6 @@ export async function POST(
       }
     }
 
-    // Enhanced response with XP information
     const response = createSuccessResponse({
       lessonProgress: {
         ...lessonProgress,
@@ -299,9 +294,10 @@ export async function POST(
   }
 }
 
+// ✅ FIXED: params is now a Promise
 export async function GET(
   request: NextRequest,
-  { params }: { params: { lessonId: string } }
+  { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const user = await getApiUser(request)
@@ -310,7 +306,8 @@ export async function GET(
       return addCacheHeaders(createAuthErrorResponse('Authentication required', 401))
     }
 
-    const { lessonId } = params
+    // ✅ CRITICAL FIX: Await params before using
+    const { lessonId } = await params
 
     console.log(`📖 User ${user.email} (ID: ${user.id}) requesting progress for lesson ${lessonId}`)
 
@@ -327,7 +324,6 @@ export async function GET(
       return addCacheHeaders(createAuthErrorResponse('Lesson not found', 404))
     }
 
-    // Get progress - ONLY for this user with explicit verification
     const progress = await prisma.userProgress.findUnique({
       where: {
         userId_moduleId_lessonId: {
@@ -350,9 +346,8 @@ export async function GET(
       return addCacheHeaders(response)
     }
 
-    // Verify the progress record belongs to this user
     if (progress.userId !== user.id) {
-      console.error(`🚨 CRITICAL: Retrieved progress record belongs to different user! Expected: ${user.id}, Got: ${progress.userId}`);
+      console.error(`🚨 CRITICAL: Retrieved progress record belongs to different user!`);
       return addCacheHeaders(createAuthErrorResponse('Data integrity error', 500));
     }
 

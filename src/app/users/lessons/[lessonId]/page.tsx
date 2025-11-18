@@ -138,7 +138,6 @@ export default function LessonPage() {
   return (
     <CombinedCarousel
       slides={slides}
-      themeColor="blue"
       onModuleComplete={handleModuleComplete}
       completedModules={completedModules}
       finishButtonText="Complete Lesson"
@@ -146,14 +145,11 @@ export default function LessonPage() {
       continueButtonText="Continue"
       backButtonText="Previous"
       moduleId={lesson.moduleId}
-      lessonId={lessonId} // FIXED: Added the missing lessonId prop
+      lessonId={lessonId}
       speechBubbleMessages={[lesson.bubbleSpeech || lesson.title]}
       moduleTitle={lesson.title}
       moduleDescription={lesson.description}
-      characterImage={lesson.module.image}
-      iconImage="https://v.placeholder.com/32x32/3B82F6/FFFFFF?text=📚"
       timerDuration={lesson.timer || 10}
-      timerColor="red"
       onExit={handleBackToDashboard}
     />
   );

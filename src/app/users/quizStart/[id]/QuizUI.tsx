@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useUserRank } from '@/hooks/use-rank';
+import { useSound } from '@/hooks/use-sound';
 
 // Confetti animation component
 const Confetti = () => {
@@ -238,6 +239,7 @@ const QuizComplete = ({
   onRetakeQuiz: () => void;
   onClose: () => void;
 }) => {
+  const { play } = useSound();
   const percentage = Math.round((score / totalQuestions) * 100);
   const [showConfetti, setShowConfetti] = useState(true);
   const [randomQuote] = useState(() => {
@@ -253,6 +255,17 @@ const QuizComplete = ({
     ];
     return quotes[Math.floor(Math.random() * quotes.length)];
   });
+  
+  useEffect(() => {
+    // Play completion sound based on score
+    if (percentage >= 80) {
+      play('win', { volume: 0.8 });
+    } else if (percentage >= 60) {
+      play('notification', { volume: 0.6 });
+    } else {
+      play('lose2', { volume: 0.6 });
+    }
+  }, []);
   
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 3000);
@@ -498,6 +511,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { rankInfo } = useUserRank();
+  const { play } = useSound();
   
   const [showInstructions, setShowInstructions] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -631,7 +645,10 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setAnswerFeedback(modifiedFeedback);
 
       if (modifiedFeedback.isCorrect) {
+        play('correct', { volume: 0.7 });
         setScore(score + 1);
+      } else {
+        play('wrong', { volume: 0.6 });
       }
 
       return modifiedFeedback;
@@ -652,7 +669,10 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       setAnswerFeedback(fallbackFeedback);
 
       if (isCorrect) {
+        play('correct', { volume: 0.7 });
         setScore(score + 1);
+      } else {
+        play('wrong', { volume: 0.6 });
       }
 
       return fallbackFeedback;
@@ -709,6 +729,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   }, [timeLeft, quizStarted, showFeedback, isQuizComplete]);
 
   const handleTimeUp = async () => {
+    play('lose', { volume: 0.5 });
     setShowFeedback(true);
     const currentQuestionData = shuffledQuestions[currentQuestion];
     await submitAnswer(currentQuestionData.id, -1, currentQuestionData);
@@ -722,6 +743,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
   const handleAnswerSelect = async (answerIndex: number) => {
     if (showFeedback || timeLeft === 0) return;
 
+    play('click', { volume: 0.3 });
     setSelectedAnswer(answerIndex);
     setShowFeedback(true);
 
