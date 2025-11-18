@@ -34,7 +34,7 @@ const SignUpPage = () => {
     score: 0, label: '', color: '', suggestions: [] 
   });
   
-  // 🆕 NEW: Track verification requirement
+  // Track verification requirement
   const [requiresVerification, setRequiresVerification] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   
@@ -215,7 +215,7 @@ const SignUpPage = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // 🆕 NEW: Check if verification is required
+        // Check if verification is required
         if (data.requiresVerification) {
           setRequiresVerification(true);
           setUserEmail(data.email);
@@ -266,7 +266,7 @@ const SignUpPage = () => {
     return null;
   };
 
-  // 🆕 NEW: Verification required screen
+  // Verification required screen
   if (requiresVerification) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
@@ -607,12 +607,17 @@ const SignUpPage = () => {
           </p>
         </div>
 
-        {/* Footer */}
+        {/* Footer - FIXED: Changed from <a> to <Link> */}
         <div className="text-center mt-8">
           <p className="text-gray-500 text-xs">
             By signing up to Bantay Bayan, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700">Terms</a> and{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700">Privacy Policy</a>.
+            <Link href="/terms" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Terms
+            </Link>
+            {' '}and{' '}
+            <Link href="/privacy" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Privacy Policy
+            </Link>.
           </p>
         </div>
       </div>

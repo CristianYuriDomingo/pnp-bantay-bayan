@@ -7,23 +7,30 @@ import Link from 'next/link';
 export default function AboutPage() {
   return (
     <div className="h-full overflow-y-auto bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link 
-            href="/users/quest"
-            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 text-sm font-medium"
+      {/* Header with X button */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="w-full px-6 py-4 flex justify-end">
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
           >
-            ← Back to Quests
-          </Link>
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              About Us
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Learn more about our mission and values
-            </p>
-          </div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
+        {/* Title */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            About Us
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Learn more about our mission and values
+          </p>
         </div>
 
         {/* Content Sections */}

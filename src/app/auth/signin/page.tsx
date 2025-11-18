@@ -1,3 +1,4 @@
+//src/app/auth/signin/page.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -402,12 +403,17 @@ const SignInPage = () => {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer - FIXED: Changed from <a> to <Link> */}
         <div className="text-center mt-8">
           <p className="text-gray-500 text-xs">
             By signing in to Bantay Bayan, you agree to our{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700">Terms</a> and{' '}
-            <a href="#" className="text-blue-600 hover:text-blue-700">Privacy Policy</a>.
+            <Link href="/terms" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Terms
+            </Link>
+            {' '}and{' '}
+            <Link href="/privacy" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Privacy Policy
+            </Link>.
           </p>
         </div>
       </div>
