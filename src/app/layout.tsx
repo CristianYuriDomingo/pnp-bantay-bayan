@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import type { ReactNode } from "react";
+import { SoundProvider } from '../contexts/sound-context';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,9 +22,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>
-          {children}
-        </Providers>
+        <SoundProvider>
+          <Providers>
+            {children}
+          </Providers>
+        </SoundProvider>
       </body>
     </html>
   );

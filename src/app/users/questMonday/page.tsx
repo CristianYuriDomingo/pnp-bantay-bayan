@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Check, Loader2 } from 'lucide-react';
+import { useSoundContext } from '../../../contexts/sound-context'; // <--- added import
 
 interface Suspect {
   id: string;
@@ -43,11 +44,25 @@ export default function QuestMonday() {
   const [gameWon, setGameWon] = useState(false);
   const [gameFailed, setGameFailed] = useState(false);
   const [completedLevels, setCompletedLevels] = useState<number[]>([]);
+  const { play } = useSoundContext(); // <--- use sound context
 
   // Fetch quest data on mount
   useEffect(() => {
     fetchQuestData();
   }, []);
+
+  // Play win/lose if progress restored
+  useEffect(() => {
+    if (gameWon) {
+      play('win');
+    }
+  }, [gameWon, play]);
+
+  useEffect(() => {
+    if (gameFailed) {
+      play('lose');
+    }
+  }, [gameFailed, play]);
 
   const fetchQuestData = async () => {
     try {
@@ -94,6 +109,7 @@ export default function QuestMonday() {
 
   const handleSuspectClick = (suspectId: string) => {
     if (showFeedback) return;
+    play('click'); // play click sound on selection
     setSelectedSuspect(suspectId);
   };
 
@@ -102,6 +118,7 @@ export default function QuestMonday() {
 
     try {
       setSubmitting(true);
+      play('click'); // feedback for pressing accuse
       const currentLevelData = questData.levels[currentLevel];
 
       const response = await fetch('/api/users/quest/monday/submit', {
@@ -133,6 +150,17 @@ export default function QuestMonday() {
       setShowFeedback(true);
 
       if (correct) {
+        // play different sounds depending on quest completion
+        // if (data.data.isQuestCompleted) {
+        //   play('win');
+        // } else {
+        //   play('correct');
+        // }
+        // <-- changed: don't call play('win') here to avoid duplicate; rely on useEffect(gameWon) to play it
+        if (!data.data.isQuestCompleted) {
+          play('correct');
+        }
+
         const newCompletedLevels = [...completedLevels, currentLevel + 1];
         setCompletedLevels(newCompletedLevels);
 
@@ -145,11 +173,12 @@ export default function QuestMonday() {
             setIsCorrect(false);
           } else {
             // All levels completed
-            setGameWon(true);
+            setGameWon(true); // useEffect will play the win sound once
           }
         }, 1500);
       } else {
-        // Wrong answer - show failed modal after delay
+        // Wrong answer - play wrong/lose sound then show failed modal after delay
+        play('wrong');
         setTimeout(() => {
           setGameFailed(true);
         }, 1500);

@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Check, X, Loader2 } from 'lucide-react';
+import { useSoundContext } from '../../../contexts/sound-context'; // added import
 
 interface Question {
   id: string;
@@ -43,10 +44,19 @@ export default function QuestTuesday() {
   const [gameOver, setGameOver] = useState(false);
   const [gameWon, setGameWon] = useState(false);
 
+  const { play, preload } = useSoundContext(); // added sound context usage
+
   // Fetch quest data on mount
   useEffect(() => {
     fetchQuestData();
   }, []);
+
+  // Preload common sounds once quest data is available
+  useEffect(() => {
+    if (questData) {
+      preload(['click', 'correct', 'wrong', 'win', 'lose', 'notification']);
+    }
+  }, [questData, preload]);
 
   const fetchQuestData = async () => {
     try {
@@ -105,6 +115,9 @@ export default function QuestTuesday() {
     if (showFeedback || !questData) return;
 
     try {
+      // play click immediately when user selects
+      play('click');
+
       setSubmitting(true);
       setSelectedAnswer(answer);
 
@@ -139,6 +152,9 @@ export default function QuestTuesday() {
       setCorrectAnswer(data.data.correctAnswer);
       setShowFeedback(true);
 
+      // play feedback sound based on correctness
+      play(correct ? 'correct' : 'wrong');
+
       // Update lives and score
       setLives(data.data.livesRemaining);
       setScore(data.data.score);
@@ -147,10 +163,12 @@ export default function QuestTuesday() {
       if (data.data.isFailed) {
         setTimeout(() => {
           setGameOver(true);
+          play('lose');
         }, 1500);
       } else if (data.data.isCompleted) {
         setTimeout(() => {
           setGameWon(true);
+          play('win');
         }, 1500);
       }
 
@@ -180,6 +198,7 @@ export default function QuestTuesday() {
     if (!questData) return;
 
     try {
+      play('click'); // play click on restart
       const response = await fetch('/api/users/quest/tuesday/reset', {
         method: 'POST',
         headers: {

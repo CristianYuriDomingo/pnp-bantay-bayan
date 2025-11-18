@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles, Ticket, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { useSoundContext } from '../../../contexts/sound-context'; // added
 
 interface QuestStatus {
   day: string;
@@ -68,6 +69,8 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [claimingReward, setClaimingReward] = useState(false);
   const [claimingDutyPass, setClaimingDutyPass] = useState(false);
+
+  const { play } = useSoundContext(); // added: access sound player
 
   const levels: Level[] = [
     { 
@@ -174,6 +177,12 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     }
   };
 
+  // new wrapper to play click sound before handling the level action
+  const handleLevelButtonClick = (level: Level, questStatus: QuestStatus) => {
+    try { play('click'); } catch (e) { /* no-op if sound unavailable */ }
+    handleLevelClick(level, questStatus);
+  };
+
   const handleUseDutyPass = async () => {
     if (!selectedMissedQuest || !questData) return;
 
@@ -217,6 +226,8 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     if (!questData?.rewardChest.canClaim) return;
 
     try {
+      // play click when user initiates claim
+      try { play('click'); } catch (e) {}
       setClaimingReward(true);
       const response = await fetch('/api/users/weekly-quest/claim-reward', {
         method: 'POST',
@@ -227,6 +238,9 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to claim reward');
       }
+
+      // play success sound
+      try { play('win'); } catch (e) {}
 
       // Show success modal
       setShowRewardModal(true);
@@ -573,7 +587,7 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
                         )}
 
                         <button
-                          onClick={() => questStatus && handleLevelClick(level, questStatus)}
+                          onClick={() => questStatus && handleLevelButtonClick(level, questStatus)}
                           onMouseDown={() => handleMouseDown(level.id)}
                           onMouseUp={handleMouseUp}
                           onMouseLeave={handleMouseUp}
@@ -636,7 +650,7 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
                         )}
 
                         <button
-                          onClick={() => questStatus && handleLevelClick(level, questStatus)}
+                          onClick={() => questStatus && handleLevelButtonClick(level, questStatus)}
                           onMouseDown={() => handleMouseDown(level.id)}
                           onMouseUp={handleMouseUp}
                           onMouseLeave={handleMouseUp}

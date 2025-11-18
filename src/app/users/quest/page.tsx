@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRightColumn } from '../layout';
 import QuestPath from '../components/QuestPath';
+import { SoundProvider } from '../../../contexts/sound-context'; // added
 import QuestCard from '../components/QuestCard';
 import DutyPass from '../components/DutyPass';
 
@@ -99,8 +100,10 @@ export default function QuestPage() {
         <div className="w-full bg-white/10 backdrop-blur-sm rounded-lg p-4">
           {/* Main Content - Quest Path */}
           <div className="space-y-6">
-            <QuestPath onNavigate={handleNavigate} />
-          </div>
+            <SoundProvider>
+              <QuestPath onNavigate={handleNavigate} />
+            </SoundProvider>
+            </div>
         </div>
       </div>
     </div>
