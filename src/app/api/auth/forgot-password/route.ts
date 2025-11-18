@@ -1,7 +1,8 @@
-// app/api/auth/forgot-password/route.ts - Fixed TypeScript errors
+// app/api/auth/forgot-password/route.ts - Updated with Resend integration
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { sendPasswordResetEmail } from '@/lib/email';
 
 // Email validation regex
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,58 +24,6 @@ function validateEmail(email: string): ValidationError[] {
   }
 
   return errors;
-}
-
-// Enhanced email sending function for development
-async function sendPasswordResetEmail(email: string, resetToken: string, userName: string = '') {
-  const resetUrl = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${resetToken}`;
-  
-  console.log(`Sending password reset email to: ${email}`);
-  
-  // For development - log the reset link prominently
-  if (process.env.NODE_ENV === 'development') {
-    console.log('\n' + '='.repeat(80));
-    console.log('PASSWORD RESET EMAIL - DEVELOPMENT MODE');
-    console.log('='.repeat(80));
-    console.log(`User: ${userName || 'Unknown'}`);
-    console.log(`Email: ${email}`);
-    console.log(`Reset Token: ${resetToken}`);
-    console.log(`Reset URL: ${resetUrl}`);
-    console.log(`Expires: ${new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleString()}`);
-    console.log('='.repeat(80));
-    console.log('Copy the Reset URL above and paste it in your browser to reset password');
-    console.log('='.repeat(80) + '\n');
-    
-    // Also write to a file for easier access during development
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const logPath = path.join(process.cwd(), 'password-reset-logs.txt');
-      const timestamp = new Date().toISOString();
-      const logEntry = `[${timestamp}] ${email} | ${resetUrl}\n`;
-      
-      fs.appendFileSync(logPath, logEntry);
-      console.log(`Reset link also saved to: ${logPath}`);
-    } catch (err) {
-      // Fixed TypeScript error - properly type the error
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.log('Could not save to log file:', errorMessage);
-    }
-    
-    return true;
-  }
-
-  // For production - implement actual email sending
-  try {
-    // Example implementation with console output for now
-    console.log(`Would send email to: ${email} with reset URL: ${resetUrl}`);
-    
-    // TODO: Implement your preferred email service here
-    return true;
-  } catch (error) {
-    console.error('Email sending error:', error);
-    throw error;
-  }
 }
 
 export async function POST(request: NextRequest) {
@@ -150,10 +99,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send password reset email
+    // Send password reset email using Resend
     try {
       await sendPasswordResetEmail(user.email, resetToken, user.name || '');
-      console.log('Password reset email processing completed');
+      console.log('Password reset email sent successfully via Resend');
     } catch (emailError) {
       console.error('Failed to send password reset email:', emailError);
       // Even if email fails, return success to prevent revealing email existence

@@ -1,6 +1,7 @@
-// app/api/auth/verify-email/route.ts
+// app/api/auth/verify-email/route.ts - Updated with welcome email
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,13 +69,22 @@ export async function GET(request: NextRequest) {
       where: { id: user.id },
       data: {
         emailVerified: new Date(),
-        status: 'active', // 🆕 Activate the account
+        status: 'active', // Activate the account
         verificationToken: null,
         verificationTokenExpiry: null
       }
     });
 
     console.log('🎉 Email verified successfully for:', user.email);
+
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(user.email, user.name || '');
+      console.log('📧 Welcome email sent successfully');
+    } catch (emailError) {
+      console.error('⚠️  Failed to send welcome email:', emailError);
+      // Don't fail the verification if welcome email fails
+    }
 
     return NextResponse.json(
       {
