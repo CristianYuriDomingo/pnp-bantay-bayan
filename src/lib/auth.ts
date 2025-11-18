@@ -1,4 +1,4 @@
-// lib/auth.ts - Complete Fixed Configuration
+// lib/auth.ts - Updated with email verification check
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
@@ -9,7 +9,6 @@ import bcrypt from "bcryptjs"
 import type { NextAuthOptions } from "next-auth"
 
 export const authOptions: NextAuthOptions = {
-  // adapter: PrismaAdapter(prisma) as any, // COMMENTED OUT - can't use with JWT
   providers: [
     // Google OAuth
     GoogleProvider({
@@ -34,18 +33,40 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null
 
         try {
+          console.log('🔐 Sign-in attempt for:', credentials.email);
+
           // Find user in database
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           })
 
           // Check if user exists and has a password (not OAuth-only user)
-          if (!user || !user.password) return null
+          if (!user || !user.password) {
+            console.log('❌ User not found or no password set');
+            return null;
+          }
+
+          // 🆕 NEW: Check if email is verified
+          if (!user.emailVerified) {
+            console.log('❌ Email not verified for:', user.email);
+            throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
+          }
+
+          // 🆕 NEW: Check if account is active
+          if (user.status !== 'active') {
+            console.log('❌ Account not active:', user.status);
+            throw new Error('Your account is not active. Please contact support.');
+          }
 
           // Verify password
           const isValid = await bcrypt.compare(credentials.password, user.password)
           
-          if (!isValid) return null
+          if (!isValid) {
+            console.log('❌ Invalid password');
+            return null;
+          }
+
+          console.log('✅ Sign-in successful for:', user.email);
 
           return {
             id: user.id,
@@ -56,14 +77,15 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error("Auth error:", error)
-          return null
+          // Re-throw the error so NextAuth can display it
+          throw error;
         }
       }
     })
   ],
   
   session: {
-    strategy: 'jwt', // CHANGED TO JWT - required for middleware to work
+    strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   
@@ -80,24 +102,40 @@ export const authOptions: NextAuthOptions = {
       // Handle OAuth sign-ins - save to database
       if (account && (account.provider === 'google' || account.provider === 'facebook')) {
         try {
+          console.log('🔐 OAuth sign-in for:', user.email);
+
           // Check if user exists
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email! }
           })
           
           if (!existingUser) {
-            // Create new user
+            console.log('✨ Creating new OAuth user:', user.email);
+            // Create new user with verified email (OAuth providers verify emails)
             const newUser = await prisma.user.create({
               data: {
                 email: user.email!,
                 name: user.name!,
                 image: user.image,
-                role: 'user'
+                role: 'user',
+                status: 'active', // 🆕 Active immediately for OAuth users
+                emailVerified: new Date() // 🆕 OAuth emails are pre-verified
               }
             })
             token.id = newUser.id
             token.role = newUser.role
           } else {
+            // 🆕 Update existing OAuth user to mark as verified if not already
+            if (!existingUser.emailVerified) {
+              console.log('🔄 Updating OAuth user to verified:', existingUser.email);
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: {
+                  emailVerified: new Date(),
+                  status: 'active'
+                }
+              });
+            }
             token.id = existingUser.id
             token.role = existingUser.role
           }
@@ -119,8 +157,6 @@ export const authOptions: NextAuthOptions = {
     },
     
     async redirect({ url, baseUrl }) {
-      // FIXED: Handle redirect loops properly
-      
       // If user is on signin page, redirect to dashboard after successful auth
       if (url.startsWith('/auth/signin')) {
         return `${baseUrl}/users/dashboard`
@@ -144,6 +180,8 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
+    // 🆕 NEW: Add verify request page
+    verifyRequest: '/auth/verify-request',
   },
   
   debug: process.env.NODE_ENV === 'development',

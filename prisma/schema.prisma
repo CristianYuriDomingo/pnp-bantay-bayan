@@ -44,6 +44,11 @@ model User {
   password               String?
   role                   String                    @default("user")
   status                 String                    @default("active")
+  
+  // 🆕 NEW: Email Verification Fields
+  verificationToken      String?                   @unique
+  verificationTokenExpiry DateTime?
+  
   totalXP                Int                       @default(0)
   level                  Int                       @default(1)
 
@@ -66,9 +71,9 @@ model User {
 
   // 🆕 NEW: Weekly Quest System Fields
   timezone               String                    @default("Asia/Manila")
-  weeklyQuestStartDate   DateTime?                 // Monday 00:00 of current week
-  lastQuestCompletedAt   DateTime?                 // Last time user completed any quest
-  lastCompletedQuestDay  String?                   // NEW: Track which quest day was last completed ("monday", "tuesday", etc.)
+  weeklyQuestStartDate   DateTime?
+  lastQuestCompletedAt   DateTime?
+  lastCompletedQuestDay  String?
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
   resetToken             String?
@@ -87,14 +92,11 @@ model User {
   questWednesdayProgress QuestWednesdayProgress[]
   questThursdayProgress  QuestThursdayProgress[]
   questFridayProgress    QuestFridayProgress[]
-  
-  // 🆕 NEW: Weekly Quest Progress Relation
   weeklyProgress         WeeklyQuestProgress[]
-  
-  // 🆕 NEW: Duty Pass Unlock Tracking
   dutyPassUnlocks        DutyPassUnlock[]
 
   @@index([resetToken])
+  @@index([verificationToken])  // 🆕 NEW INDEX
   @@index([totalXP])
   @@index([currentRank])
   @@index([leaderboardPosition])

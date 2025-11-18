@@ -1,0 +1,1 @@
+[2025-11-18T03:21:13.854Z] Janwella (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=31359e0ef07f26d3b726283a705f9a3453b9c9c9436ad32408562fe9c730f1eb

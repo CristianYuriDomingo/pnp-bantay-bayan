@@ -1,16 +1,17 @@
+// app/auth/signup/page.tsx - Updated to handle email verification flow
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, User, CheckCircle, XCircle, AlertCircle, Mail as MailIcon } from 'lucide-react';
 import Image from 'next/image';
 
-// Validation patterns - Updated with all standard keyboard special characters
+// Validation patterns
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]{8,}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
+const NAME_REGEX = /^[a-zA-Z\s\-']{2,50}$/;
 
 interface ValidationErrors {
   [key: string]: string;
@@ -32,10 +33,16 @@ const SignUpPage = () => {
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({ 
     score: 0, label: '', color: '', suggestions: [] 
   });
+  
+  // 🆕 NEW: Track verification requirement
+  const [requiresVerification, setRequiresVerification] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  
   const router = useRouter();
   
   const [formData, setFormData] = useState({
-    usernameOrEmail: '',
+    name: '',
+    email: '',
     password: '',
     confirmPassword: ''
   });
@@ -51,36 +58,22 @@ const SignUpPage = () => {
     let score = 0;
     const suggestions: string[] = [];
 
-    // Length check
     if (password.length >= 8) score += 1;
     else suggestions.push('At least 8 characters');
 
-    // Lowercase check
     if (/[a-z]/.test(password)) score += 1;
     else suggestions.push('One lowercase letter');
 
-    // Uppercase check
     if (/[A-Z]/.test(password)) score += 1;
     else suggestions.push('One uppercase letter');
 
-    // Number check
     if (/\d/.test(password)) score += 1;
     else suggestions.push('One number');
 
-    // Special character check - All standard keyboard special characters
     if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) score += 1;
     else suggestions.push('One special character');
 
-    // Bonus points
     if (password.length >= 12) score += 1;
-    // Extra variety bonus
-    const hasMultipleSpecialTypes = [
-      /[!@#$%^&*]/.test(password),
-      /[()_+\-=\[\]{}]/.test(password),
-      /[;':"\\|,.<>\/?]/.test(password),
-      /[`~]/.test(password)
-    ].filter(Boolean).length;
-    if (hasMultipleSpecialTypes >= 2) score += 0.5;
 
     const strengthLevels = [
       { min: 0, max: 1, label: 'Very Weak', color: 'bg-red-500' },
@@ -96,35 +89,28 @@ const SignUpPage = () => {
       score: Math.min(score, 5),
       label: level.label,
       color: level.color,
-      suggestions: suggestions.slice(0, 3) // Show max 3 suggestions
+      suggestions: suggestions.slice(0, 3)
     };
-  };
-
-  const isEmail = (value: string): boolean => {
-    return EMAIL_REGEX.test(value.trim());
   };
 
   const validateForm = () => {
     const newErrors: ValidationErrors = {};
 
-    // Username or Email validation
-    if (touched.usernameOrEmail && formData.usernameOrEmail) {
-      const value = formData.usernameOrEmail.trim();
-      
-      // Check if it's an email
-      if (value.includes('@')) {
-        if (!EMAIL_REGEX.test(value)) {
-          newErrors.usernameOrEmail = 'Please enter a valid email address';
-        }
-      } else {
-        // Validate as username
-        if (!USERNAME_REGEX.test(value)) {
-          newErrors.usernameOrEmail = 'Username must be 3-20 characters (letters, numbers, underscores only)';
-        }
+    // Name validation
+    if (touched.name && formData.name) {
+      if (!NAME_REGEX.test(formData.name.trim())) {
+        newErrors.name = 'Name must be 2-50 characters (letters, spaces, hyphens, apostrophes only)';
       }
     }
 
-    // Password validation and strength calculation
+    // Email validation
+    if (touched.email && formData.email) {
+      if (!EMAIL_REGEX.test(formData.email.trim())) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+    }
+
+    // Password validation
     if (formData.password) {
       const strength = calculatePasswordStrength(formData.password);
       setPasswordStrength(strength);
@@ -134,7 +120,6 @@ const SignUpPage = () => {
           newErrors.password = 'Password must contain at least 8 characters with uppercase, lowercase, number, and special character';
         }
 
-        // Check for common weak passwords
         const commonPasswords = ['password', '123456789', 'qwerty123', 'abc123456', 'password123'];
         if (commonPasswords.includes(formData.password.toLowerCase())) {
           newErrors.password = 'This password is too common. Please choose a stronger one';
@@ -194,19 +179,16 @@ const SignUpPage = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Mark all fields as touched for validation
-    setTouched({ usernameOrEmail: true, password: true, confirmPassword: true });
+    // Mark all fields as touched
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
     
-    // Validate all fields
     validateForm();
     
-    // Check if there are any validation errors
     if (Object.keys(errors).length > 0) {
       return;
     }
 
-    // Final validation before submit
-    if (!formData.usernameOrEmail.trim() || !formData.password || !formData.confirmPassword) {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirmPassword) {
       setErrors({ general: 'Please fill in all required fields' });
       return;
     }
@@ -220,14 +202,12 @@ const SignUpPage = () => {
     setErrors({});
 
     try {
-      const value = formData.usernameOrEmail.trim();
-      const isEmailInput = isEmail(value);
-      
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          [isEmailInput ? 'email' : 'username']: isEmailInput ? value.toLowerCase() : value,
+          name: formData.name.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password
         })
       });
@@ -235,20 +215,25 @@ const SignUpPage = () => {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        // Auto sign in after successful registration
-        const signInResult = await signIn('credentials', {
-          [isEmailInput ? 'email' : 'username']: value,
-          password: formData.password,
-          redirect: false
-        });
-
-        if (signInResult?.ok) {
-          router.push('/users/dashboard');
+        // 🆕 NEW: Check if verification is required
+        if (data.requiresVerification) {
+          setRequiresVerification(true);
+          setUserEmail(data.email);
         } else {
-          setErrors({ general: 'Account created but sign-in failed. Please try signing in manually.' });
+          // Old flow - auto sign in (for OAuth users)
+          const signInResult = await signIn('credentials', {
+            email: formData.email.trim(),
+            password: formData.password,
+            redirect: false
+          });
+
+          if (signInResult?.ok) {
+            router.push('/users/dashboard');
+          } else {
+            setErrors({ general: 'Account created but sign-in failed. Please try signing in manually.' });
+          }
         }
       } else {
-        // Handle validation errors from server
         if (data.errors && Array.isArray(data.errors)) {
           const serverErrors: ValidationErrors = {};
           data.errors.forEach((error: any) => {
@@ -281,6 +266,77 @@ const SignUpPage = () => {
     return null;
   };
 
+  // 🆕 NEW: Verification required screen
+  if (requiresVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-6">
+              <div className="w-40 h-20 flex items-center justify-center">
+                <Image 
+                  src="/DashboardImage/logo.png" 
+                  alt="Bantay Bayan Logo" 
+                  width={160} 
+                  height={80}
+                  className="object-contain"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Verification Notice */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <MailIcon className="w-8 h-8 text-blue-600" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-3 text-center">Verify Your Email</h1>
+            <p className="text-gray-600 mb-4 text-center">
+              We've sent a verification link to:
+            </p>
+            <p className="font-semibold text-gray-800 bg-blue-50 rounded-lg py-2 px-4 border border-blue-200 text-center mb-4">
+              {userEmail}
+            </p>
+            <p className="text-sm text-gray-500 text-center mb-6">
+              Please check your email and click the verification link to activate your account. 
+              The link will expire in 24 hours.
+            </p>
+
+            <div className="space-y-3">
+              <Link
+                href="/auth/resend-verification"
+                className="block w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 text-center"
+              >
+                Resend Verification Email
+              </Link>
+              
+              <Link
+                href="/auth/signin"
+                className="block w-full text-blue-600 hover:text-blue-700 font-medium py-2 transition-colors text-center"
+              >
+                Back to Sign In
+              </Link>
+            </div>
+          </div>
+
+          {/* Help Text */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="font-semibold text-blue-800 mb-2 text-sm">What's next?</h3>
+            <ul className="text-xs text-blue-700 space-y-1">
+              <li>• Check your inbox for the verification email</li>
+              <li>• Click the verification link in the email</li>
+              <li>• Your account will be activated automatically</li>
+              <li>• Check spam folder if you don't see it</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -312,7 +368,7 @@ const SignUpPage = () => {
         {/* Form Container */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="space-y-5 mb-6">
-            {/* Username or Email Field */}
+            {/* Name Field */}
             <div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -320,26 +376,58 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type="text"
-                  name="usernameOrEmail"
-                  placeholder="Username or Email"
-                  value={formData.usernameOrEmail}
+                  name="name"
+                  placeholder="Full Name"
+                  value={formData.name}
                   onChange={handleInputChange}
-                  onBlur={() => handleBlur('usernameOrEmail')}
+                  onBlur={() => handleBlur('name')}
                   required
                   className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
-                    errors.usernameOrEmail ? 'border-red-300 bg-red-50' : 
-                    getFieldStatus('usernameOrEmail') === 'success' ? 'border-green-300 bg-green-50' : 
+                    errors.name ? 'border-red-300 bg-red-50' : 
+                    getFieldStatus('name') === 'success' ? 'border-green-300 bg-green-50' : 
                     'border-gray-300'
                   }`}
                 />
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  {renderFieldIcon('usernameOrEmail')}
+                  {renderFieldIcon('name')}
                 </div>
               </div>
-              {errors.usernameOrEmail && (
+              {errors.name && (
                 <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                   <XCircle className="w-4 h-4" />
-                  {errors.usernameOrEmail}
+                  {errors.name}
+                </p>
+              )}
+            </div>
+
+            {/* Email Field */}
+            <div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MailIcon className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email Address"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  onBlur={() => handleBlur('email')}
+                  required
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                    errors.email ? 'border-red-300 bg-red-50' : 
+                    getFieldStatus('email') === 'success' ? 'border-green-300 bg-green-50' : 
+                    'border-gray-300'
+                  }`}
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  {renderFieldIcon('email')}
+                </div>
+              </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <XCircle className="w-4 h-4" />
+                  {errors.email}
                 </p>
               )}
             </div>
@@ -380,7 +468,7 @@ const SignUpPage = () => {
                 </button>
               </div>
               
-              {/* Password Strength Indicator - Shows immediately when typing */}
+              {/* Password Strength Indicator */}
               {formData.password.length > 0 && (
                 <div className="mt-2 animate-fadeIn">
                   <div className="flex items-center justify-between mb-1">
