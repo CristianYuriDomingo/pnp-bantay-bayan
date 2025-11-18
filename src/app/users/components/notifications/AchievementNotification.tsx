@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { X } from 'lucide-react';
+import { useSoundContext } from '@/contexts/sound-context';
 
 export interface Achievement {
   id: string;
@@ -26,8 +27,12 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
   onClose 
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const { play } = useSoundContext();
 
   useEffect(() => {
+    // Play notification sound when achievement appears
+    play('notification');
+
     // Slide in animation
     setTimeout(() => setIsVisible(true), 100);
 
@@ -40,6 +45,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
   }, []);
 
   const handleClose = () => {
+    play('click');
     setIsVisible(false);
     setTimeout(onClose, 300);
   };

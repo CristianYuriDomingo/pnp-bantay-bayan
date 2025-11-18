@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Check, Loader2 } from 'lucide-react';
+import { useSoundContext } from '@/contexts/sound-context';
 
 interface RankOption {
   id: string;
@@ -32,6 +33,8 @@ export default function GuessTheRank() {
   const [showFeedback, setShowFeedback] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [gameWon, setGameWon] = useState(false);
+
+  const { play } = useSoundContext();
 
   useEffect(() => {
     fetchQuestData();
@@ -64,6 +67,7 @@ export default function GuessTheRank() {
 
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.effectAllowed = 'move';
+    play('click');
   };
 
   const handleDragOver = (e: React.DragEvent, optionId: string) => {
@@ -84,6 +88,7 @@ export default function GuessTheRank() {
   const handleAnswer = async (optionId: string) => {
     if (showFeedback || submitting || !questData) return;
 
+    play('click');
     setSelectedOption(optionId);
     setSubmitting(true);
 
@@ -107,7 +112,13 @@ export default function GuessTheRank() {
         setShowFeedback(true);
 
         if (correct) {
-          setGameWon(true);
+          play('correct');
+          setTimeout(() => {
+            setGameWon(true);
+            play('win');
+          }, 500);
+        } else {
+          play('wrong');
         }
       } else {
         alert('Failed to submit answer. Please try again.');
@@ -121,6 +132,7 @@ export default function GuessTheRank() {
   };
 
   const handleReset = () => {
+    play('click');
     setSelectedOption(null);
     setShowFeedback(false);
     setIsCorrect(false);
@@ -129,6 +141,8 @@ export default function GuessTheRank() {
 
   const handleRestart = async () => {
     if (!questData) return;
+
+    play('click');
 
     try {
       const response = await fetch('/api/users/quest/friday/reset', {
@@ -178,7 +192,10 @@ export default function GuessTheRank() {
         <div className="text-center max-w-md">
           <p className="text-xl text-gray-800 mb-4">No active quest available</p>
           <button
-            onClick={() => window.history.back()}
+            onClick={() => {
+              play('click');
+              window.history.back();
+            }}
             className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
           >
             Go Back
@@ -197,7 +214,10 @@ export default function GuessTheRank() {
             <p className="text-xl text-gray-600 mb-8">You identified the rank correctly!</p>
             <div className="space-y-3">
               <button
-                onClick={() => window.history.back()}
+                onClick={() => {
+                  play('click');
+                  window.history.back();
+                }}
                 className="w-full py-4 bg-gradient-to-b from-green-400 to-green-500 hover:from-green-500 hover:to-green-600 text-white rounded-2xl font-bold text-lg shadow-lg transition-transform active:scale-95"
               >
                 CONTINUE
@@ -222,7 +242,10 @@ export default function GuessTheRank() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                play('click');
+                window.history.back();
+              }}
               className="p-2 sm:p-3 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0"
             >
               <X size={28} className="text-gray-600 sm:w-8 sm:h-8" />
