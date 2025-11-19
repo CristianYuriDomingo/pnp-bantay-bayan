@@ -8,8 +8,13 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  // Skip static page generation for dynamic routes
-  outputFileTracing: true,
+  // REMOVED: outputFileTracing is not a valid option
+  // If you need to configure output tracing, use:
+  // experimental: {
+  //   outputFileTracingIncludes: {
+  //     '/api/**/*': ['./node_modules/**/*'],
+  //   },
+  // },
   
   // Configure external image domains
   images: {
