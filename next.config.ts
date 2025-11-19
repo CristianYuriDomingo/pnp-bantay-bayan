@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Skip static page generation for dynamic routes
+  outputFileTracing: true,
+  
   // Configure external image domains
   images: {
     remotePatterns: [
