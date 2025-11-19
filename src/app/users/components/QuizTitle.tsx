@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 interface Quiz {
   id: string;
@@ -35,7 +36,6 @@ export default function ParentQuizTitle({
   onParentQuizClick
 }: ParentQuizTitleProps) {
   const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
 
   const handleClick = () => {
     onParentQuizClick(parentQuiz);
@@ -53,32 +53,29 @@ export default function ParentQuizTitle({
         onClick={handleClick}
         style={imageError ? fallbackBackground : {}}
       >
-        {!imageError && (
-          <img
-            src="/QuizImage/PoliceTape.png"
-            alt={`${parentQuiz.title} Background`}
-            className="w-full h-auto object-cover rounded-2xl border-4 border-[#d4d4d4]"
-            onError={() => setImageError(true)}
-            onLoad={() => setImageLoaded(true)}
-            style={{ display: imageLoaded ? 'block' : 'none' }}
-          />
-        )}
-        
-        {!imageLoaded && !imageError && (
-          <div className="w-full h-48 bg-gray-300 rounded-2xl border-4 border-[#d4d4d4] flex items-center justify-center">
-            <div className="text-gray-500">Loading...</div>
-          </div>
-        )}
-        
-        {imageError && (
-          <div className="w-full h-48 rounded-2xl border-4 border-[#d4d4d4] flex items-center justify-center">
-            <div className="text-white text-center">
-              <div className="text-lg font-semibold">Image not found</div>
-              <div className="text-sm opacity-75">PoliceTape.png</div>
+        {/* Background Image Container */}
+        <div className="relative w-full aspect-[16/9] min-h-[192px]">
+          {!imageError ? (
+            <Image
+              src="/QuizImage/PoliceTape.png"
+              alt={`${parentQuiz.title} Background`}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover rounded-2xl"
+              priority
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-white text-center">
+                <div className="text-lg font-semibold">Image not found</div>
+                <div className="text-sm opacity-75">PoliceTape.png</div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
         
+        {/* Title Overlay */}
         <div className="absolute inset-0 flex items-center justify-center p-4">
           <h2
             className="text-white font-extrabold uppercase text-center drop-shadow-md"
@@ -94,8 +91,9 @@ export default function ParentQuizTitle({
           </h2>
         </div>
         
+        {/* Subject Domain Badge */}
         {parentQuiz.subjectDomain && (
-          <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+          <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-md z-10">
             {parentQuiz.subjectDomain.replace('_', ' ')}
           </div>
         )}

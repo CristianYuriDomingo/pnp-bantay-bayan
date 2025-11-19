@@ -1,5 +1,6 @@
 // app/users/components/DutyPass.tsx
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Ticket, Loader2, CheckCircle, Calendar } from 'lucide-react';
 
 interface DutyPassStatus {
@@ -18,6 +19,7 @@ export default function DutyPass() {
   const [isHovered, setIsHovered] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     fetchStatus();
@@ -26,7 +28,6 @@ export default function DutyPass() {
   const fetchStatus = async () => {
     try {
       setLoading(true);
-      // FIXED: Use the correct endpoint
       const response = await fetch('/api/users/duty-pass/claim');
       
       if (!response.ok) {
@@ -50,7 +51,6 @@ export default function DutyPass() {
       setClaiming(true);
       setError(null);
       
-      // FIXED: Use the correct endpoint
       const response = await fetch('/api/users/duty-pass/claim', {
         method: 'POST',
       });
@@ -147,15 +147,28 @@ export default function DutyPass() {
               opacity: status?.canClaim ? 1 : 0.6
             }}
           >
-            <img
-              src="/Quest/DutyPass.png"
-              alt="Duty Pass"
-              className="w-20 h-20 object-contain"
-            />
+            <div className="relative w-20 h-20">
+              {!imageError ? (
+                <Image
+                  src="/Quest/DutyPass.png"
+                  alt="Duty Pass"
+                  fill
+                  sizes="80px"
+                  className="object-contain"
+                  priority
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                // Fallback if image fails to load
+                <div className="w-full h-full bg-blue-100 dark:bg-blue-800 rounded-lg flex items-center justify-center">
+                  <Ticket className="w-10 h-10 text-blue-500" />
+                </div>
+              )}
+            </div>
             
             {/* Pass count badge */}
             {status && status.dutyPasses > 0 && (
-              <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-md border-2 border-white">
+              <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold shadow-md border-2 border-white dark:border-gray-700">
                 {status.dutyPasses}
               </div>
             )}
@@ -175,16 +188,15 @@ export default function DutyPass() {
               )}
             </div>
             
-            {/* UPDATED: Removed "You have _ passes" text */}
             <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
               Protects your streak for one full day. Use on missed quests to maintain progress!
             </p>
 
             {/* Success message */}
             {showSuccess && (
-              <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+              <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-lg flex items-center gap-2">
                 <CheckCircle size={16} className="text-green-500" />
-                <span className="text-green-700 text-sm font-medium">
+                <span className="text-green-700 dark:text-green-300 text-sm font-medium">
                   Duty pass claimed successfully! +1
                 </span>
               </div>
@@ -197,6 +209,7 @@ export default function DutyPass() {
               onMouseLeave={() => setIsHovered(false)}
               disabled={!status?.canClaim || claiming}
               className={getButtonClass()}
+              aria-label={getButtonText()}
             >
               {claiming && <Loader2 size={16} className="animate-spin" />}
               {showSuccess && <CheckCircle size={16} />}

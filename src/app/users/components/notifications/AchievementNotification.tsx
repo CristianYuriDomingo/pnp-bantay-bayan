@@ -27,6 +27,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
   onClose 
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { play } = useSoundContext();
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
             <button
               onClick={handleClose}
               className="absolute right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-colors"
+              aria-label="Close notification"
             >
               <X className="w-5 h-5" />
             </button>
@@ -85,12 +87,23 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
           <div className="p-6 relative">
             {/* TOP RIGHT: Mascot Image (smaller) */}
             <div className="absolute top-4 right-4">
-              <div className="w-24 h-24 flex items-center justify-center">
-                <img 
-                  src="/achievements/notification.png"
-                  alt="Achievement Mascot"
-                  className="w-full h-full object-contain"
-                />
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                {!imageError ? (
+                  <Image 
+                    src="/achievements/notification.png"
+                    alt="Achievement Mascot"
+                    fill
+                    sizes="96px"
+                    className="object-contain"
+                    priority
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  // Fallback if image fails to load
+                  <div className="w-full h-full bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-4xl">🎉</span>
+                  </div>
+                )}
               </div>
             </div>
 
