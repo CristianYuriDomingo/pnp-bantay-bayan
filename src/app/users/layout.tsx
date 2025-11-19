@@ -34,38 +34,70 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
   const { isReady } = useAchievementNotification();
   const hasCheckedInitial = useRef(false);
   const lastPathname = useRef(pathname);
+  const isCheckingRef = useRef(false);
 
-  useEffect(() => {
-    if (!user || !isReady) return;
-
-    if (!hasCheckedInitial.current) {
-      console.log('🚀 Initial achievement check');
-      hasCheckedInitial.current = true;
-      setTimeout(() => {
-        checkAndNotifyNewAchievements();
-      }, 300);
+  // Safe achievement check wrapper
+  const safeCheckAchievements = async () => {
+    if (!user || !isReady || isCheckingRef.current) {
+      return;
     }
+
+    isCheckingRef.current = true;
+    try {
+      await checkAndNotifyNewAchievements();
+    } catch (error) {
+      console.error('Error in achievement check:', error);
+    } finally {
+      isCheckingRef.current = false;
+    }
+  };
+
+  // Initial check on mount
+  useEffect(() => {
+    if (!user || !isReady || hasCheckedInitial.current) return;
+
+    console.log('🚀 Initial achievement check');
+    hasCheckedInitial.current = true;
+    
+    // Delay to ensure everything is mounted
+    const timer = setTimeout(() => {
+      safeCheckAchievements();
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [user, isReady]);
 
+  // Check on route change
   useEffect(() => {
-    if (!user || !isReady) return;
+    if (!user || !isReady || !hasCheckedInitial.current) return;
     
-    if (hasCheckedInitial.current && lastPathname.current !== pathname) {
+    if (lastPathname.current !== pathname) {
       console.log('🔄 Route changed, checking achievements');
       lastPathname.current = pathname;
-      checkAndNotifyNewAchievements();
+      
+      // Small delay to let the page settle
+      const timer = setTimeout(() => {
+        safeCheckAchievements();
+      }, 300);
+
+      return () => clearTimeout(timer);
     }
   }, [pathname, user, isReady]);
 
+  // Periodic check
   useEffect(() => {
-    if (!user || !isReady) return;
+    if (!user || !isReady || !hasCheckedInitial.current) return;
 
+    console.log('⏰ Setting up periodic achievement check');
     const interval = setInterval(() => {
       console.log('⏰ Periodic achievement check');
-      checkAndNotifyNewAchievements();
-    }, 15000);
+      safeCheckAchievements();
+    }, 30000); // Check every 30 seconds instead of 15
 
-    return () => clearInterval(interval);
+    return () => {
+      console.log('🛑 Clearing achievement check interval');
+      clearInterval(interval);
+    };
   }, [user, isReady]);
 
   const isLessonPage = pathname.includes('/lessons/');
