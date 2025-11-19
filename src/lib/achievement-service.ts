@@ -130,6 +130,7 @@ export class AchievementService {
 
   /**
    * 🔥 FIXED: Dynamic unlock criteria - calculates targets based on available badges
+   * NOW PREVENTS 0 >= 0 BUG!
    */
   private static async checkDynamicUnlockCriteria(
     achievement: any,
@@ -179,10 +180,22 @@ export class AchievementService {
     console.log(`      - User has: ${userCount}`);
     console.log(`      - Total available: ${totalAvailable}`);
 
+    // 🔥 FIX #1: If no badges exist in the system, return false immediately
+    if (totalAvailable === 0) {
+      console.log(`      - ❌ No badges available in system yet`);
+      return false;
+    }
+
+    // 🔥 FIX #2: User must have earned at least one badge
+    if (userCount === 0) {
+      console.log(`      - ❌ User has not earned any badges yet`);
+      return false;
+    }
+
     // 🔥 FIXED: Determine milestone type and check
     if (code.includes('starter') || name.includes('starter')) {
-      // STARTER: Need at least 1 badge
-      const qualifies = userCount >= 1;
+      // STARTER: Need at least 1 badge (and 1 must exist in system)
+      const qualifies = userCount >= 1 && totalAvailable >= 1;
       console.log(`      - STARTER: Need 1, qualifies: ${qualifies}`);
       return qualifies;
     }
@@ -190,14 +203,16 @@ export class AchievementService {
     if (code.includes('master') || name.includes('master')) {
       // MASTER: Need 50% of available badges
       const required = Math.ceil(totalAvailable / 2);
-      const qualifies = userCount >= required;
+      // 🔥 FIX #3: Must actually have badges, not just meet 0 >= 0
+      const qualifies = userCount >= required && userCount > 0;
       console.log(`      - MASTER: Need ${required} (50% of ${totalAvailable}), qualifies: ${qualifies}`);
       return qualifies;
     }
     
     if (code.includes('legend') || name.includes('legend')) {
       // LEGEND: Need 100% of available badges
-      const qualifies = userCount >= totalAvailable && totalAvailable > 0;
+      // 🔥 FIX #4: All three conditions must be true
+      const qualifies = userCount >= totalAvailable && totalAvailable > 0 && userCount > 0;
       console.log(`      - LEGEND: Need ${totalAvailable} (100%), qualifies: ${qualifies}`);
       return qualifies;
     }

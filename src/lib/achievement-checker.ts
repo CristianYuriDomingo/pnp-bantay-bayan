@@ -404,7 +404,7 @@ async function checkBadgeCount(
   return qualifies;
 }
 
-// Check dynamic badge milestones (Starter/Master/Legend)
+// 🔥 FIXED: Check dynamic badge milestones (Starter/Master/Legend)
 async function checkDynamicBadgeMilestone(
   achievementCode: string,
   badgeType: string,
@@ -426,10 +426,22 @@ async function checkDynamicBadgeMilestone(
   console.log('         - Total available badges:', totalBadges);
   console.log('         - User has:', currentCount);
 
+  // 🔥 FIX: If no badges exist in system, can't earn any milestone
+  if (totalBadges === 0) {
+    console.log('         - ❌ No badges available in system yet');
+    return false;
+  }
+
+  // 🔥 FIX: User must have at least earned something
+  if (currentCount === 0) {
+    console.log('         - ❌ User has not earned any badges yet');
+    return false;
+  }
+
   // Determine milestone type from achievement code
   if (achievementCode.includes('-starter')) {
-    // Starter: 1 badge
-    const qualifies = currentCount >= 1;
+    // Starter: 1 badge (and at least 1 badge must exist)
+    const qualifies = currentCount >= 1 && totalBadges >= 1;
     console.log('         - STARTER milestone: Need 1, qualifies:', qualifies);
     return qualifies;
   }
@@ -437,14 +449,16 @@ async function checkDynamicBadgeMilestone(
   if (achievementCode.includes('-master')) {
     // Master: 50% of total
     const required = Math.ceil(totalBadges / 2);
-    const qualifies = currentCount >= required;
+    // 🔥 FIX: Must have at least 1 badge AND meet the percentage
+    const qualifies = currentCount >= required && currentCount > 0;
     console.log('         - MASTER milestone: Need', required, '(50%), qualifies:', qualifies);
     return qualifies;
   }
   
   if (achievementCode.includes('-legend')) {
     // Legend: 100% of total
-    const qualifies = currentCount >= totalBadges && totalBadges > 0;
+    // 🔥 FIX: Must have earned ALL badges
+    const qualifies = currentCount >= totalBadges && totalBadges > 0 && currentCount > 0;
     console.log('         - LEGEND milestone: Need', totalBadges, '(100%), qualifies:', qualifies);
     return qualifies;
   }
@@ -608,3 +622,4 @@ export async function markAchievementNotificationSeen(
     return false;
   }
 }
+
