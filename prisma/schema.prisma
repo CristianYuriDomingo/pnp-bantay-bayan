@@ -61,7 +61,7 @@ model User {
   lastActiveDate         DateTime                  @default(now())
 
   // Duty Pass & Streak System Fields (EXISTING)
-  dutyPasses             Int                       @default(0)
+  dutyPasses             Int                       @default(1)
   lastDutyPassClaim      DateTime?
   dutyPassUsedDates      Json?                     @default("[]")
   currentStreak          Int                       @default(0)

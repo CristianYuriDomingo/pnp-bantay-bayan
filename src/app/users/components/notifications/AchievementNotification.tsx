@@ -61,7 +61,7 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
         onClick={handleClose}
       />
 
-      {/* Modal */}
+      {/* Modal - Fixed size container */}
       <div
         className={`fixed top-4 right-4 z-[9999] transform transition-all duration-300 ${
           isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
@@ -69,8 +69,8 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
         style={{ width: '90%', maxWidth: '400px' }}
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          {/* Blue Header */}
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 relative flex items-center justify-center">
+          {/* Blue Header - Fixed height */}
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3 relative flex items-center justify-center h-14">
             <button
               onClick={handleClose}
               className="absolute right-4 text-white hover:bg-white hover:bg-opacity-20 rounded-full p-1 transition-colors"
@@ -83,10 +83,10 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
             </h2>
           </div>
 
-          {/* Content */}
-          <div className="p-6 relative">
-            {/* TOP RIGHT: Mascot Image (smaller) */}
-            <div className="absolute top-4 right-4">
+          {/* Content - Fixed height with scroll */}
+          <div className="p-6 relative h-48 flex flex-col">
+            {/* TOP RIGHT: Mascot Image (smaller) - Absolute positioned */}
+            <div className="absolute top-4 right-4 flex-shrink-0">
               <div className="relative w-24 h-24 flex items-center justify-center">
                 {!imageError ? (
                   <Image 
@@ -107,25 +107,27 @@ export const AchievementNotification: React.FC<AchievementNotificationProps> = (
               </div>
             </div>
 
-            {/* Text Content (with right padding to avoid image overlap) */}
-            <div className="pr-28">
-              {/* Achievement Name */}
-              <h3 className="text-3xl font-bold text-gray-900 mb-3 leading-tight">
+            {/* Scrollable Text Content */}
+            <div className="pr-28 flex-1 overflow-y-auto">
+              {/* Achievement Name - Limit to 2 lines */}
+              <h3 className="text-2xl font-bold text-gray-900 mb-2 leading-tight line-clamp-2">
                 {achievement.name}
               </h3>
 
-              {/* Achievement Description */}
-              <p className="text-gray-500 text-lg mb-6 leading-relaxed">
+              {/* Achievement Description - Scrollable if too long */}
+              <p className="text-gray-500 text-base mb-4 leading-relaxed">
                 {achievement.description}
               </p>
+            </div>
 
-              {/* XP Reward */}
-              {achievement.xpReward > 0 && (
+            {/* XP Reward - Fixed at bottom */}
+            {achievement.xpReward > 0 && (
+              <div className="pt-2 pr-28 flex-shrink-0">
                 <div className="inline-block bg-gradient-to-r from-blue-400 to-blue-500 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-md">
                   +{achievement.xpReward} XP
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
