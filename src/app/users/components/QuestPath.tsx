@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Lock, Trophy, Flame, Target, Zap, Crown, Shield, Sparkles, Ticket, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
-import { useSoundContext } from '../../../contexts/sound-context'; // added
+import { useSoundContext } from '../../../contexts/sound-context';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 
 interface QuestStatus {
   day: string;
@@ -49,17 +50,62 @@ interface Level {
   color: string;
   points: number;
   route: string;
-  iconImage: string; // Added for static images
+  iconImage: string;
 }
 
 interface QuestPathProps {
   onNavigate?: (route: string) => void;
 }
 
+// API functions
+const fetchWeeklyStatus = async (): Promise<WeeklyQuestData> => {
+  const response = await fetch('/api/users/weekly-quest/status');
+  if (!response.ok) {
+    throw new Error('Failed to fetch weekly quest status');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to load quest data');
+  }
+  return result.data;
+};
+
+const useDutyPass = async (questDay: string) => {
+  const response = await fetch('/api/users/weekly-quest/use-duty-pass', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questDay }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to use duty pass');
+  }
+  return result;
+};
+
+const claimReward = async () => {
+  const response = await fetch('/api/users/weekly-quest/claim-reward', {
+    method: 'POST',
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to claim reward');
+  }
+  return result;
+};
+
+const claimDutyPass = async () => {
+  const response = await fetch('/api/users/duty-pass/claim', {
+    method: 'POST',
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || 'Failed to claim duty pass');
+  }
+  return result;
+};
+
 export default function QuestPath({ onNavigate }: QuestPathProps) {
-  const [questData, setQuestData] = useState<WeeklyQuestData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [pressedLevel, setPressedLevel] = useState<number | null>(null);
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [showDutyPassPopup, setShowDutyPassPopup] = useState(false);
@@ -70,7 +116,128 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
   const [claimingReward, setClaimingReward] = useState(false);
   const [claimingDutyPass, setClaimingDutyPass] = useState(false);
 
-  const { play } = useSoundContext(); // added: access sound player
+  const { play } = useSoundContext();
+  const queryClient = useQueryClient();
+
+  // React Query for data fetching with caching
+  const {
+    data: questData,
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['weeklyQuestStatus'],
+    queryFn: fetchWeeklyStatus,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 2,
+    refetchOnWindowFocus: false,
+  });
+
+  // Mutations for optimistic updates
+  const useDutyPassMutation = useMutation({
+    mutationFn: useDutyPass,
+    onMutate: async (questDay: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['weeklyQuestStatus'] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<WeeklyQuestData>(['weeklyQuestStatus']);
+
+      // Optimistically update to the new value
+      if (previousData) {
+        queryClient.setQueryData<WeeklyQuestData>(['weeklyQuestStatus'], old => {
+          if (!old) return old;
+          return {
+            ...old,
+            dutyPasses: old.dutyPasses - 1,
+            quests: old.quests.map(quest => 
+              quest.day === questDay 
+                ? { ...quest, canAccess: true, isMissed: false, needsDutyPass: false }
+                : quest
+            )
+          };
+        });
+      }
+
+      return { previousData };
+    },
+    onError: (err, questDay, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['weeklyQuestStatus'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      // Refetch to ensure we have correct data
+      queryClient.invalidateQueries({ queryKey: ['weeklyQuestStatus'] });
+    },
+  });
+
+  const claimRewardMutation = useMutation({
+    mutationFn: claimReward,
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['weeklyQuestStatus'] });
+      const previousData = queryClient.getQueryData<WeeklyQuestData>(['weeklyQuestStatus']);
+
+      if (previousData) {
+        queryClient.setQueryData<WeeklyQuestData>(['weeklyQuestStatus'], old => {
+          if (!old) return old;
+          return {
+            ...old,
+            rewardChest: {
+              ...old.rewardChest,
+              isClaimed: true,
+              canClaim: false
+            }
+          };
+        });
+      }
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['weeklyQuestStatus'], context.previousData);
+      }
+    },
+    onSuccess: () => {
+      try { play('win'); } catch (e) { }
+      setShowRewardModal(true);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['weeklyQuestStatus'] });
+    },
+  });
+
+  const claimDutyPassMutation = useMutation({
+    mutationFn: claimDutyPass,
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['weeklyQuestStatus'] });
+      const previousData = queryClient.getQueryData<WeeklyQuestData>(['weeklyQuestStatus']);
+
+      if (previousData) {
+        queryClient.setQueryData<WeeklyQuestData>(['weeklyQuestStatus'], old => {
+          if (!old) return old;
+          return {
+            ...old,
+            dutyPasses: old.dutyPasses + 1,
+            canClaimDutyPass: false
+          };
+        });
+      }
+
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['weeklyQuestStatus'], context.previousData);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['weeklyQuestStatus'] });
+    },
+  });
 
   const levels: Level[] = [
     { 
@@ -130,44 +297,13 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     },
   ];
 
-  useEffect(() => {
-    fetchWeeklyStatus();
-  }, []);
-
-  const fetchWeeklyStatus = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('/api/users/weekly-quest/status');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch weekly quest status');
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setQuestData(result.data);
-      } else {
-        throw new Error(result.error || 'Failed to load quest data');
-      }
-    } catch (err: any) {
-      console.error('Error fetching weekly quest status:', err);
-      setError(err.message || 'Failed to load quest data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLevelClick = (level: Level, questStatus: QuestStatus) => {
-    // If quest is missed, show duty pass modal
     if (questStatus.isMissed && questStatus.needsDutyPass) {
       setSelectedMissedQuest({ day: level.day, index: level.id });
       setShowMissedQuestModal(true);
       return;
     }
 
-    // If quest can be accessed, navigate to it
     if (questStatus.canAccess) {
       if (onNavigate) {
         onNavigate(level.route);
@@ -177,9 +313,8 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     }
   };
 
-  // new wrapper to play click sound before handling the level action
   const handleLevelButtonClick = (level: Level, questStatus: QuestStatus) => {
-    try { play('click'); } catch (e) { /* no-op if sound unavailable */ }
+    try { play('click'); } catch (e) { }
     handleLevelClick(level, questStatus);
   };
 
@@ -188,26 +323,11 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
 
     try {
       setUsingDutyPass(true);
-      const response = await fetch('/api/users/weekly-quest/use-duty-pass', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ questDay: selectedMissedQuest.day }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to use duty pass');
-      }
-
-      // Refresh quest status
-      await fetchWeeklyStatus();
+      await useDutyPassMutation.mutateAsync(selectedMissedQuest.day);
       
-      // Close modal
       setShowMissedQuestModal(false);
       setSelectedMissedQuest(null);
 
-      // Navigate to unlocked quest
       const level = levels[selectedMissedQuest.index];
       if (onNavigate) {
         onNavigate(level.route);
@@ -226,27 +346,9 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     if (!questData?.rewardChest.canClaim) return;
 
     try {
-      // play click when user initiates claim
-      try { play('click'); } catch (e) {}
+      try { play('click'); } catch (e) { }
       setClaimingReward(true);
-      const response = await fetch('/api/users/weekly-quest/claim-reward', {
-        method: 'POST',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to claim reward');
-      }
-
-      // play success sound
-      try { play('win'); } catch (e) {}
-
-      // Show success modal
-      setShowRewardModal(true);
-
-      // Refresh quest status
-      await fetchWeeklyStatus();
+      await claimRewardMutation.mutateAsync();
     } catch (err: any) {
       console.error('Error claiming reward:', err);
       alert(err.message || 'Failed to claim reward');
@@ -260,21 +362,8 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
 
     try {
       setClaimingDutyPass(true);
-      const response = await fetch('/api/users/duty-pass/claim', {
-        method: 'POST',
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to claim duty pass');
-      }
-
-      // Refresh quest status
-      await fetchWeeklyStatus();
-      
-      // Show success message (you could add a toast notification here)
-      alert(result.message);
+      await claimDutyPassMutation.mutateAsync();
+      alert('Duty pass claimed successfully!');
     } catch (err: any) {
       console.error('Error claiming duty pass:', err);
       alert(err.message || 'Failed to claim duty pass');
@@ -293,13 +382,10 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     
     if (isCompleted) return 'completed';
     
-    // If quest can be accessed (either current day OR unlocked with duty pass), show as available
     if (questStatus.canAccess) return 'available';
     
-    // If quest is missed AND needs duty pass, show as missed
     if (questStatus.isMissed && questStatus.needsDutyPass) return 'missed';
     
-    // Default to locked
     return 'locked';
   };
 
@@ -309,7 +395,7 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
     return { x: curve, y: baseY };
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50 flex items-center justify-center">
         <div className="text-center">
@@ -326,9 +412,9 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
         <div className="text-center max-w-md mx-auto p-6">
           <AlertCircle className="text-red-500 mx-auto mb-4" size={48} />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Oops!</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{error.message}</p>
           <button
-            onClick={fetchWeeklyStatus}
+            onClick={() => refetch()}
             className="px-6 py-3 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition-colors"
           >
             Try Again
@@ -857,7 +943,6 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
                 <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-12 -mb-12"></div>
                 
                 <div className="relative text-center">
-               
                   <h2 className="text-2xl font-bold text-white mb-1">
                     Missed Quest!
                   </h2>

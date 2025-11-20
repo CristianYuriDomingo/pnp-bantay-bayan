@@ -360,10 +360,19 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     refetchProgress();
   };
 
-  // Handle exit with confirmation
+  // Handle exit with confirmation - ONLY if lesson is not completed
   const handleExitClick = () => {
     try { play && play('click', { volume: 0.3 }); } catch (e) {}
-    setShowExitConfirmation(true);
+    
+    // If lesson is completed, exit immediately without confirmation
+    if (isLessonCompletedValue) {
+      if (onExit) {
+        onExit();
+      }
+    } else {
+      // If lesson is not completed, show confirmation modal
+      setShowExitConfirmation(true);
+    }
   };
 
   const handleConfirmExit = () => {
@@ -702,8 +711,8 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
         </div>
       </div>
 
-      {/* Exit Confirmation Modal */}
-      {showExitConfirmation && (
+      {/* Exit Confirmation Modal - ONLY show if lesson is NOT completed */}
+      {showExitConfirmation && !isLessonCompletedValue && (
         <ExitConfirmation
           onConfirm={handleConfirmExit}
           onCancel={handleCancelExit}
