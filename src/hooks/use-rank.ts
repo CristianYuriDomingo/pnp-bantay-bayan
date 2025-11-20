@@ -28,7 +28,6 @@ export function useUserRank() {
   const [rankData, setRankData] = useState<UserRankData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   const fetchRankData = useCallback(async () => {
     if (!user) {
@@ -40,23 +39,15 @@ export function useUserRank() {
       setLoading(true)
       setError(null)
       
-      const response = await createCacheBustingFetch(`/api/leaderboard/user`)
+      const response = await createCacheBustingFetch(`/api/users/${user.id}/rank`)
       const result = await response.json()
 
       if (result.success) {
-        // ✅ Check if user is admin
-        if (result.data.isAdmin) {
-          setIsAdmin(true)
-          setRankData(null)
-          console.log('👤 Admin user detected - excluded from rankings')
-        } else {
-          setIsAdmin(false)
-          setRankData(result.data)
-          const starIndicator = isStarRank(result.data.pnpRank) ? '⭐' : ''
-          console.log(
-            `✅ User rank loaded: ${result.data.pnpRank}${starIndicator} (#${result.data.rank}) | Base: ${result.data.baseRank}`
-          )
-        }
+        setRankData(result.data)
+        const starIndicator = isStarRank(result.data.currentRank) ? '⭐' : ''
+        console.log(
+          `✅ User rank loaded: ${result.data.currentRank}${starIndicator} (#${result.data.leaderboardPosition}) | Base: ${result.data.baseRank}`
+        )
       } else {
         setError(result.error || 'Failed to fetch rank data')
       }
@@ -83,11 +74,11 @@ export function useUserRank() {
     }
   }, [fetchRankData])
 
-  const rankInfo = rankData ? getRankInfo(rankData.pnpRank) : null
+  const rankInfo = rankData ? getRankInfo(rankData.currentRank) : null
   const baseRankInfo = rankData?.baseRank ? getRankInfo(rankData.baseRank) : null
-  const nextRank = rankData ? getNextRank(rankData.pnpRank) : null
+  const nextRank = rankData ? getNextRank(rankData.currentRank) : null
   const nextRankInfo = nextRank ? getRankInfo(nextRank) : null
-  const isCurrentlyStarRank = rankData ? isStarRank(rankData.pnpRank) : false
+  const isCurrentlyStarRank = rankData ? isStarRank(rankData.currentRank) : false
 
   return {
     rankData,
@@ -96,7 +87,6 @@ export function useUserRank() {
     nextRank,
     nextRankInfo,
     isStarRank: isCurrentlyStarRank,
-    isAdmin, // ✅ NEW: Flag to indicate admin user
     loading,
     error,
     refresh: fetchRankData

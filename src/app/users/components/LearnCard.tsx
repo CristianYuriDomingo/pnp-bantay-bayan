@@ -1,7 +1,8 @@
-// components/LearnCard.tsx - UPDATED: Entire card is clickable
+// components/LearnCard.tsx - With Auto-Refresh
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOverallProgress } from '@/hooks/use-progress';
 import { useAllBadges } from '@/hooks/use-all-badges';
 
@@ -60,9 +61,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, imageSrc }) =>
                 alt="Modal Image"
                 fill
                 className="object-cover"
-                onError={() => {
-                  /* no-op: if image fails, it will show alt space */
-                }}
+                priority
+                sizes="128px"
               />
             </div>
           </div>
@@ -91,6 +91,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
   isAvailable = true
 }) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { overallProgress, loading: progressLoading } = useOverallProgress();
   const { badges, loading: badgesLoading } = useAllBadges();
   
@@ -98,20 +99,77 @@ const LearnCard: React.FC<LearnCardProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [badgeModalOpen, setBadgeModalOpen] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState<BadgeDisplay | null>(null);
-  const [moduleLessons, setModuleLessons] = useState<Lesson[]>([]);
-  const [lessonsLoading, setLessonsLoading] = useState(false);
-  const [lessonsError, setLessonsError] = useState<string | null>(null);
 
   const openModal = () => setIsModalOpen(true);
   const closeModal = () => setIsModalOpen(false);
+
+  // Fetch module lessons with React Query
+  const { 
+    data: moduleLessons = [], 
+    isLoading: lessonsLoading,
+    error: lessonsError,
+    refetch: refetchLessons
+  } = useQuery({
+    queryKey: ['moduleLessons', moduleId],
+    queryFn: async (): Promise<Lesson[]> => {
+      const response = await fetch(`/api/users/lessons?moduleId=${moduleId}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch lessons');
+      }
+      
+      return data.data;
+    },
+    enabled: !!moduleId,
+    staleTime: 2 * 60 * 1000, // 2 minutes - shorter for faster updates
+    gcTime: 5 * 60 * 1000,
+  });
+
+  // Listen for progress and badge events to refresh
+  useEffect(() => {
+    const handleProgressRefresh = () => {
+      console.log(`🔄 Progress refresh event - invalidating module ${moduleId} data`);
+      // Invalidate this specific module's data
+      queryClient.invalidateQueries({ queryKey: ['moduleLessons', moduleId] });
+      queryClient.invalidateQueries({ queryKey: ['moduleProgress', moduleId] });
+    };
+
+    const handleBadgesAwarded = () => {
+      console.log(`🏅 Badges awarded - refreshing module ${moduleId} badges`);
+      // Badges are already invalidated by the hook, but we can force a UI update
+      queryClient.invalidateQueries({ queryKey: ['allBadges'] });
+    };
+
+    const handleLessonCompleted = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { moduleId: completedModuleId } = customEvent.detail;
+      
+      // Only refresh if this is our module
+      if (completedModuleId === moduleId) {
+        console.log(`✅ Lesson completed in module ${moduleId} - refreshing`);
+        queryClient.invalidateQueries({ queryKey: ['moduleLessons', moduleId] });
+        queryClient.invalidateQueries({ queryKey: ['moduleProgress', moduleId] });
+      }
+    };
+
+    window.addEventListener('progressRefresh', handleProgressRefresh);
+    window.addEventListener('badgesAwarded', handleBadgesAwarded);
+    window.addEventListener('lessonCompleted', handleLessonCompleted);
+    
+    return () => {
+      window.removeEventListener('progressRefresh', handleProgressRefresh);
+      window.removeEventListener('badgesAwarded', handleBadgesAwarded);
+      window.removeEventListener('lessonCompleted', handleLessonCompleted);
+    };
+  }, [moduleId, queryClient]);
 
   // Get progress data for this module
   const moduleProgress = overallProgress?.moduleProgress?.[moduleId];
   const completedLessons = moduleProgress?.completedLessons?.length || 0;
   const totalLessons = moduleProgress?.totalLessons || 0;
-  // removed unused 'completionPercentage'
 
-  // Filter badges for this module AND its lessons (EXCLUDING quiz badges)
+  // Filter badges for this module AND its lessons
   const moduleBadges: BadgeDisplay[] = React.useMemo(() => {
     if (!badges || badgesLoading || !moduleLessons.length) return [];
     
@@ -156,34 +214,6 @@ const LearnCard: React.FC<LearnCardProps> = ({
       .slice(0, 3);
   }, [badges, badgesLoading, moduleId, title, moduleLessons]);
 
-  // Fetch lessons when component mounts or moduleId changes
-  useEffect(() => {
-    const fetchLessons = async () => {
-      if (moduleId) {
-        setLessonsLoading(true);
-        setLessonsError(null);
-        
-        try {
-          const response = await fetch(`/api/users/lessons?moduleId=${moduleId}`);
-          const data = await response.json();
-          
-          if (data.success) {
-            setModuleLessons(data.data);
-          } else {
-            setLessonsError(data.error || 'Failed to fetch lessons');
-          }
-        } catch (error) {
-          console.error('Error fetching lessons:', error);
-          setLessonsError('Failed to fetch lessons');
-        } finally {
-          setLessonsLoading(false);
-        }
-      }
-    };
-
-    fetchLessons();
-  }, [moduleId]);
-
   const handleLessonClick = (lessonId: string) => {
     closeModal();
     router.push(`/users/lessons/${lessonId}`);
@@ -192,7 +222,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
 
   // Function to handle badge click
   const handleBadgeClick = (e: React.MouseEvent, badge: BadgeDisplay) => {
-    e.stopPropagation(); // Prevent card click
+    e.stopPropagation();
     setSelectedBadge(badge);
     setBadgeModalOpen(true);
   };
@@ -237,11 +267,13 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 alt={title}
                 fill
                 className="object-cover"
+                sizes="(max-width: 640px) 180px, (max-width: 768px) 220px, 250px"
                 onError={() => {
                   console.log('Image failed to load:', imageSrc);
                   setImageError(true);
                 }}
                 priority={false}
+                loading="lazy"
               />
             </div>
           ) : (
@@ -277,6 +309,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
                         alt={badge.name}
                         fill
                         className={`object-contain ${isModuleBadge ? 'rounded-full' : ''}`}
+                        sizes={isModuleBadge ? "48px" : "32px"}
                         onError={(e) => {
                           const ev = e as React.SyntheticEvent<HTMLImageElement, Event>;
                           (ev.currentTarget as HTMLImageElement).style.display = 'none';
@@ -293,7 +326,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
             </div>
           )}
                   
-          {/* Button positioned in bottom-right corner of image - Non-interactive, design only */}
+          {/* Button positioned in bottom-right corner of image */}
           <div className="absolute bottom-3 right-3">
             <div
               className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors duration-200 pointer-events-none ${
@@ -307,7 +340,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
           </div>
         </div>
 
-        {/* Content Section with Fading Gradient Overlay - takes up 30% of card height */}
+        {/* Content Section with Fading Gradient Overlay */}
         <div className="relative bg-white py-3 px-4 h-[30%] flex flex-col justify-center">
           <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 via-blue-300/10 to-transparent"></div>
                   
@@ -339,13 +372,9 @@ const LearnCard: React.FC<LearnCardProps> = ({
               </div>
             ) : lessonsError ? (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-600 text-sm">{lessonsError}</p>
+                <p className="text-red-600 text-sm">{(lessonsError as Error).message}</p>
                 <button 
-                  onClick={() => {
-                    setLessonsError(null);
-                    setIsModalOpen(false);
-                    setTimeout(() => setIsModalOpen(true), 100);
-                  }}
+                  onClick={() => refetchLessons()}
                   className="mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
                 >
                   Retry
@@ -378,7 +407,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
         </div>
       </Modal>
 
-      {/* Badge Detail Modal - NO TOP IMAGE */}
+      {/* Badge Detail Modal */}
       <Modal isOpen={badgeModalOpen} onClose={() => setBadgeModalOpen(false)} imageSrc="">
         {selectedBadge && (
           <div className="p-4 flex flex-col items-center">
@@ -388,6 +417,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
                 alt={selectedBadge.name}
                 fill
                 className="object-contain"
+                sizes="96px"
                 onError={(e) => {
                   const ev = e as React.SyntheticEvent<HTMLImageElement, Event>;
                   (ev.currentTarget as HTMLImageElement).style.display = 'none';

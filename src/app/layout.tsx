@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import type { ReactNode } from "react";
 import { SoundProvider } from '../contexts/sound-context';
-import SWRProvider from '../components/providers/SWRProvider';
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,13 +23,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <SWRProvider>
           <SoundProvider>
             <Providers>
               {children}
             </Providers>
           </SoundProvider>
-        </SWRProvider>
       </body>
     </html>
   );

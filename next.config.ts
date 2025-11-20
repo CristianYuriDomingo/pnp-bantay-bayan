@@ -7,47 +7,34 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-
-  // REMOVED: outputFileTracing is not a valid option
-  // If you need to configure output tracing, use:
-  // experimental: {
-  //   outputFileTracingIncludes: {
-  //     '/api/**/*': ['./node_modules/**/*'],
-  //   },
-  // },
   
   // Configure external image domains
   images: {
     remotePatterns: [
-      // Google OAuth profile images
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
         port: '',
         pathname: '/**',
       },
-      // Facebook OAuth profile images
       {
         protocol: 'https',
         hostname: 'platform-lookaside.fbsbx.com',
         port: '',
         pathname: '/platform/profilepic/**',
       },
-      // GitHub OAuth profile images
       {
         protocol: 'https',
         hostname: 'avatars.githubusercontent.com',
         port: '',
         pathname: '/**',
       },
-      // Discord OAuth profile images
       {
         protocol: 'https',
         hostname: 'cdn.discordapp.com',
         port: '',
         pathname: '/avatars/**',
       },
-      // Placeholder images
       {
         protocol: 'https',
         hostname: 'via.placeholder.com',
@@ -60,27 +47,51 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      // Unsplash images
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
       },
-      // Add more domains as needed
     ],
-    // Image optimization settings
+    // OPTIMIZED: Better image formats and caching
     formats: ['image/webp', 'image/avif'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60, // Cache images for 60 seconds
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 3600, // Cache images for 1 hour instead of 60 seconds
+    dangerouslyAllowSVG: true, // If you use SVG images
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+
+  // OPTIMIZED: Development performance improvements
+  ...(process.env.NODE_ENV === 'development' && {
+    // Disable React Strict Mode in dev to prevent double renders
+    reactStrictMode: false,
+  }),
+
+  // Production optimization
+  ...(process.env.NODE_ENV === 'production' && {
+    reactStrictMode: true,
+    // Enable SWC minification
+    swcMinify: true,
+  }),
 
   // Add security and cache headers
   async headers() {
     return [
       {
-        // Apply cache headers to all API routes
+        // OPTIMIZED: Cache static assets longer
+        source: "/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        // Apply cache headers to API routes
         source: "/api/:path*",
         headers: [
           {
@@ -94,10 +105,6 @@ const nextConfig: NextConfig = {
           {
             key: "Expires",
             value: "0",
-          },
-          {
-            key: "Surrogate-Control",
-            value: "no-store",
           },
         ],
       },
@@ -121,18 +128,25 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
         ],
       },
     ];
   },
 
-  // Optional: Disable CSS optimization for dev
+  // OPTIMIZED: Experimental features for better performance
   experimental: {
-    optimizeCss: false,
+    // Optimize CSS
+    optimizeCss: process.env.NODE_ENV === 'production',
+    // Enable modern optimizations
+    optimizePackageImports: ['lucide-react', '@tanstack/react-query'],
+  },
+
+  // Compiler optimizations
+  compiler: {
+    // Remove console logs in production
+    removeConsole: process.env.NODE_ENV === 'production' ? {
+      exclude: ['error', 'warn'],
+    } : false,
   },
 };
 

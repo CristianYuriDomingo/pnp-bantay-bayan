@@ -1,6 +1,7 @@
-// src/hooks/use-user-badges.ts
+// src/hooks/use-user-badges.ts - INSTANT DUOLINGO-STYLE ⚡
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'
 
 export interface UserBadge {
@@ -34,109 +35,152 @@ export interface BadgeAwardResult {
   success: boolean;
 }
 
-// Helper function for cache-busting
-function createCacheBustingFetch(url: string, options: RequestInit = {}) {
-  const separator = url.includes('?') ? '&' : '?';
-  const cacheBustingUrl = `${url}${separator}t=${Date.now()}&u=${Math.random()}`;
-  
-  return fetch(cacheBustingUrl, {
-    ...options,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...options.headers,
-    },
-  });
+interface UserBadgesResponse {
+  badges: UserBadge[];
+  statistics: BadgeStats;
+  userId: string;
 }
 
+async function fetchUserBadgesData(userId: string, userEmail?: string | null): Promise<UserBadgesResponse> {
+  console.log(`Fetching badges for user ${userEmail}`)
+  
+  const response = await fetch('/api/users/badges')
+  
+  const contentType = response.headers.get('content-type')
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response')
+  }
+  
+  const result = await response.json()
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch badges')
+  }
+
+  const data = result.data
+  
+  if (data.userId !== userId) {
+    console.error('Security violation: Received badge data for different user')
+    throw new Error('Data integrity error - user mismatch')
+  }
+  
+  console.log(`Badge data loaded for ${userEmail}: ${data.badges.length} badges earned`)
+  
+  return {
+    badges: data.badges.map((badge: any) => ({
+      ...badge,
+      earnedAt: new Date(badge.earnedAt)
+    })),
+    statistics: data.statistics,
+    userId: data.userId
+  }
+}
+
+// ============================================================================
+// REACT QUERY HOOK - INSTANT MODE ⚡
+// ============================================================================
+
 /**
- * Hook to manage user badges
+ * Hook to get user's earned badges - INSTANT UPDATES
+ * ⚡ SAME AS PROGRESS: 0ms staleTime for instant badge updates
  */
 export function useUserBadges() {
-  const [badges, setBadges] = useState<UserBadge[]>([]);
-  const [statistics, setStatistics] = useState<BadgeStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const userId = useCurrentUserId();
-  const { user } = useCurrentUser();
+  const userId = useCurrentUserId()
+  const { user } = useCurrentUser()
+  const queryClient = useQueryClient()
+  
+  const { 
+    data, 
+    isLoading: loading, 
+    error: queryError,
+    refetch,
+    isFetching // Shows background refresh
+  } = useQuery({
+    queryKey: ['userBadges', userId],
+    queryFn: () => fetchUserBadgesData(userId!, user?.email),
+    enabled: !!userId,
+    
+    // ⚡ INSTANT MODE - MATCH PROGRESS SETTINGS
+    staleTime: 0, // ALWAYS fresh - instant updates!
+    gcTime: 2 * 60 * 1000, // 2 minutes (same as progress)
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  })
 
-  const fetchUserBadges = useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Fetching badges for user ${user?.email}`);
-      
-      const response = await createCacheBustingFetch('/api/users/badges');
-      const result = await response.json();
-
-      if (result.success) {
-        const data = result.data;
-        
-        // Security check: Verify the data belongs to current user
-        if (data.userId !== userId) {
-          console.error('Security violation: Received badge data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
-          setError('Data integrity error - user mismatch');
-          return;
-        }
-        
-        setBadges(data.badges.map((badge: any) => ({
-          ...badge,
-          earnedAt: new Date(badge.earnedAt)
-        })));
-        
-        setStatistics(data.statistics);
-        
-        console.log(`Badge data loaded for ${user?.email}: ${data.badges.length} badges earned`);
-      } else {
-        setError(result.error || 'Failed to fetch badges');
-      }
-    } catch (err) {
-      console.error('Error fetching user badges:', err);
-      setError('Failed to fetch badges');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, user?.email]);
-
+  // Listen for badge and progress events - INSTANT
   useEffect(() => {
-    fetchUserBadges();
-  }, [fetchUserBadges]);
+    if (!userId) return;
+
+    const handleBadgesAwarded = () => {
+      console.log('🎉 Badge awarded! Instant refresh userBadges...')
+      queryClient.invalidateQueries({ 
+        queryKey: ['userBadges', userId],
+        refetchType: 'active'
+      })
+    }
+
+    const handleProgressRefresh = () => {
+      console.log('🔄 Progress refresh - updating userBadges...')
+      queryClient.invalidateQueries({ 
+        queryKey: ['userBadges', userId],
+        refetchType: 'active'
+      })
+    }
+
+    const handleLessonComplete = () => {
+      console.log('✅ Lesson complete - checking userBadges...')
+      queryClient.invalidateQueries({ 
+        queryKey: ['userBadges', userId],
+        refetchType: 'active'
+      })
+    }
+
+    window.addEventListener('badgesAwarded', handleBadgesAwarded)
+    window.addEventListener('progressRefresh', handleProgressRefresh)
+    window.addEventListener('lessonCompleted', handleLessonComplete)
+    
+    return () => {
+      window.removeEventListener('badgesAwarded', handleBadgesAwarded)
+      window.removeEventListener('progressRefresh', handleProgressRefresh)
+      window.removeEventListener('lessonCompleted', handleLessonComplete)
+    }
+  }, [queryClient, userId])
+
+  const error = queryError?.message || null
+  const badges = data?.badges || []
+  const statistics = data?.statistics || null
 
   return {
     badges,
     statistics,
     loading,
+    isFetching, // NEW: shows background refresh
     error,
-    refetch: fetchUserBadges
-  };
+    refetch
+  }
 }
 
-/**
- * Hook to trigger badge awards (called after lesson completion)
- */
+// ============================================================================
+// BADGE AWARDING MUTATION
+// ============================================================================
+
 export function useBadgeAwarding() {
-  const [awarding, setAwarding] = useState(false);
-  const [lastAwardResult, setLastAwardResult] = useState<BadgeAwardResult | null>(null);
-  const userId = useCurrentUserId();
-  const { user } = useCurrentUser();
+  const userId = useCurrentUserId()
+  const { user } = useCurrentUser()
+  const queryClient = useQueryClient()
 
-  const awardBadges = useCallback(async (lessonId: string, moduleId: string): Promise<BadgeAwardResult | null> => {
-    if (!userId || awarding) return null;
-
-    try {
-      setAwarding(true);
+  const { 
+    mutateAsync: awardBadgesMutation, 
+    isPending: awarding,
+    data: lastAwardResult 
+  } = useMutation({
+    mutationFn: async ({ lessonId, moduleId }: { lessonId: string; moduleId: string }) => {
+      console.log(`Checking badge awards for user ${user?.email}: lesson ${lessonId}`)
       
-      console.log(`Checking badge awards for user ${user?.email}: lesson ${lessonId}`);
-      
-      const response = await createCacheBustingFetch('/api/users/badges/award', {
+      const response = await fetch('/api/users/badges/award', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,127 +190,130 @@ export function useBadgeAwarding() {
           moduleId,
           type: 'lesson'
         }),
-      });
+      })
 
-      const result = await response.json();
+      const result = await response.json()
 
-      if (result.success) {
-        const data = result.data;
-        
-        // Security check
-        if (data.userId !== userId) {
-          console.error('Security violation in badge award response');
-          return null;
-        }
-        
-        const awardResult: BadgeAwardResult = {
-          newBadges: data.newBadges.map((badge: any) => ({
-            ...badge,
-            earnedAt: new Date(badge.earnedAt)
-          })),
-          badgeCount: data.badgeCount,
-          success: data.success
-        };
-        
-        setLastAwardResult(awardResult);
-        
-        if (awardResult.badgeCount > 0) {
-          console.log(`Badge awards for ${user?.email}: ${awardResult.badgeCount} new badges!`);
-          
-          // Dispatch event for other components to listen
-          window.dispatchEvent(new CustomEvent('badgesAwarded', {
-            detail: {
-              userId: userId,
-              newBadges: awardResult.newBadges,
-              badgeCount: awardResult.badgeCount
-            }
-          }));
-        }
-        
-        return awardResult;
-      } else {
-        console.error('Badge award failed:', result.error);
-        return null;
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to award badges')
       }
-    } catch (err) {
-      console.error('Error awarding badges:', err);
-      return null;
-    } finally {
-      setAwarding(false);
+
+      const data = result.data
+      
+      if (data.userId !== userId) {
+        throw new Error('Security violation in badge award response')
+      }
+      
+      const awardResult: BadgeAwardResult = {
+        newBadges: data.newBadges.map((badge: any) => ({
+          ...badge,
+          earnedAt: new Date(badge.earnedAt)
+        })),
+        badgeCount: data.badgeCount,
+        success: data.success
+      }
+      
+      if (awardResult.badgeCount > 0) {
+        console.log(`🎉 Badge awards for ${user?.email}: ${awardResult.badgeCount} new badges!`)
+        
+        window.dispatchEvent(new CustomEvent('badgesAwarded', {
+          detail: {
+            userId: userId,
+            newBadges: awardResult.newBadges,
+            badgeCount: awardResult.badgeCount
+          }
+        }))
+      }
+      
+      return awardResult
+    },
+    onSuccess: () => {
+      // Instant invalidation of all badge queries
+      queryClient.invalidateQueries({ queryKey: ['userBadges'] })
+      queryClient.invalidateQueries({ queryKey: ['allBadges'] })
     }
-  }, [userId, user?.email, awarding]);
+  })
 
   return {
-    awardBadges,
+    awardBadges: async (lessonId: string, moduleId: string) => {
+      try {
+        return await awardBadgesMutation({ lessonId, moduleId })
+      } catch (err) {
+        console.error('Error awarding badges:', err)
+        return null
+      }
+    },
     awarding,
-    lastAwardResult
-  };
+    lastAwardResult: lastAwardResult || null
+  }
 }
 
-/**
- * Hook for badge notifications (to show newly earned badges to user)
- */
+// ============================================================================
+// BADGE NOTIFICATIONS
+// ============================================================================
+
 export function useBadgeNotifications() {
-  const [newBadges, setNewBadges] = useState<UserBadge[]>([]);
-  const [showNotification, setShowNotification] = useState(false);
+  const [newBadges, setNewBadges] = useState<UserBadge[]>([])
+  const [showNotification, setShowNotification] = useState(false)
 
   useEffect(() => {
     const handleBadgesAwarded = (event: CustomEvent) => {
-      const { newBadges: earnedBadges, badgeCount } = event.detail;
+      const { newBadges: earnedBadges, badgeCount } = event.detail
       
       if (badgeCount > 0) {
-        setNewBadges(earnedBadges);
-        setShowNotification(true);
+        setNewBadges(earnedBadges)
+        setShowNotification(true)
         
-        // Auto-hide after 10 seconds
+        // Auto-dismiss after 10 seconds
         setTimeout(() => {
-          setShowNotification(false);
-        }, 10000);
+          setShowNotification(false)
+        }, 10000)
       }
-    };
+    }
 
-    window.addEventListener('badgesAwarded', handleBadgesAwarded as EventListener);
+    window.addEventListener('badgesAwarded', handleBadgesAwarded as EventListener)
     
     return () => {
-      window.removeEventListener('badgesAwarded', handleBadgesAwarded as EventListener);
-    };
-  }, []);
+      window.removeEventListener('badgesAwarded', handleBadgesAwarded as EventListener)
+    }
+  }, [])
 
   const dismissNotification = useCallback(() => {
-    setShowNotification(false);
-    setNewBadges([]);
-  }, []);
+    setShowNotification(false)
+    setNewBadges([])
+  }, [])
 
   return {
     newBadges,
     showNotification,
     dismissNotification
-  };
+  }
 }
 
-/**
- * Utility functions for badge display
- */
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 export function getRarityColor(rarity: string): string {
   switch (rarity) {
-    case 'Common': return 'text-gray-600 bg-gray-100 border-gray-300';
-    case 'Rare': return 'text-blue-600 bg-blue-100 border-blue-300';
-    case 'Epic': return 'text-purple-600 bg-purple-100 border-purple-300';
-    case 'Legendary': return 'text-yellow-600 bg-yellow-100 border-yellow-300';
-    default: return 'text-gray-600 bg-gray-100 border-gray-300';
+    case 'Common': return 'text-gray-600 bg-gray-100 border-gray-300'
+    case 'Rare': return 'text-blue-600 bg-blue-100 border-blue-300'
+    case 'Epic': return 'text-purple-600 bg-purple-100 border-purple-300'
+    case 'Legendary': return 'text-yellow-600 bg-yellow-100 border-yellow-300'
+    default: return 'text-gray-600 bg-gray-100 border-gray-300'
   }
 }
 
 export function getRarityIcon(rarity: string): string {
   switch (rarity) {
-    case 'Common': return '🥉';
-    case 'Rare': return '🥈';
-    case 'Epic': return '🥇';
-    case 'Legendary': return '👑';
-    default: return '🏅';
+    case 'Common': return '🥉'
+    case 'Rare': return '🥈'
+    case 'Epic': return '🥇'
+    case 'Legendary': return '👑'
+    default: return '🏅'
   }
 }
 
 export function formatBadgeCategory(category: string): string {
-  return category.replace(/([A-Z])/g, ' $1').trim();
+  return category.replace(/([A-Z])/g, ' $1').trim()
 }

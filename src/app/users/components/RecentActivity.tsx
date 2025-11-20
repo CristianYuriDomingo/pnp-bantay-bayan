@@ -1,7 +1,9 @@
-// app/users/components/RecentActivity.tsx - Updated with scrollable container
+// app/users/components/RecentActivity.tsx - WITH REACT QUERY CACHING ⚡
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCurrentUserId, useCurrentUser } from '@/hooks/use-current-user';
 
 interface ActivityItem {
   id: string;
@@ -12,38 +14,124 @@ interface ActivityItem {
   relativeTime: string;
 }
 
+interface ActivityResponse {
+  activities: ActivityItem[];
+  userId: string;
+}
+
+// ============================================================================
+// FETCH FUNCTION
+// ============================================================================
+
+async function fetchRecentActivityData(userId: string, userEmail?: string | null): Promise<ActivityResponse> {
+  console.log(`Fetching recent activity for user ${userEmail}`);
+  
+  const response = await fetch('/api/users/activity');
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch activity');
+  }
+
+  const data = result.data;
+  
+  // Optional: Verify userId if API returns it
+  // if (data.userId && data.userId !== userId) {
+  //   throw new Error('Data integrity error - user mismatch');
+  // }
+  
+  console.log(`Activity loaded for ${userEmail}: ${data.length} activities`);
+  
+  return {
+    activities: data,
+    userId: userId
+  };
+}
+
+// ============================================================================
+// MAIN COMPONENT WITH CACHING
+// ============================================================================
+
 export default function RecentActivity() {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const userId = useCurrentUserId();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // React Query with INSTANT caching
+  const { 
+    data, 
+    isLoading: loading, 
+    error: queryError,
+    isFetching,
+    refetch
+  } = useQuery({
+    queryKey: ['recentActivity', userId],
+    queryFn: () => fetchRecentActivityData(userId!, user?.email),
+    enabled: !!userId,
+    
+    // ⚡ INSTANT MODE - matches progress/badges
+    staleTime: 0, // Always fresh
+    gcTime: 2 * 60 * 1000, // Cache for 2 minutes
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  });
+
+  const activities = data?.activities || [];
+  const error = queryError?.message || null;
+
+  // Auto-refresh when lessons/modules complete
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleActivityUpdate = () => {
+      console.log('🔄 Activity update detected - refreshing...');
+      queryClient.invalidateQueries({ 
+        queryKey: ['recentActivity', userId],
+        refetchType: 'active'
+      });
+    };
+
+    const handleLessonComplete = () => {
+      console.log('✅ Lesson completed - updating activity...');
+      queryClient.invalidateQueries({ 
+        queryKey: ['recentActivity', userId],
+        refetchType: 'active'
+      });
+    };
+
+    const handleProgressRefresh = () => {
+      console.log('🔄 Progress refresh - updating activity...');
+      queryClient.invalidateQueries({ 
+        queryKey: ['recentActivity', userId],
+        refetchType: 'active'
+      });
+    };
+
+    // Listen to events
+    window.addEventListener('lessonCompleted', handleLessonComplete);
+    window.addEventListener('progressRefresh', handleProgressRefresh);
+    window.addEventListener('activityUpdate', handleActivityUpdate);
+    
+    return () => {
+      window.removeEventListener('lessonCompleted', handleLessonComplete);
+      window.removeEventListener('progressRefresh', handleProgressRefresh);
+      window.removeEventListener('activityUpdate', handleActivityUpdate);
+    };
+  }, [queryClient, userId]);
 
   // Show only first 3 items initially
   const displayedActivities = isExpanded ? activities : activities.slice(0, 3);
   const hasMoreActivities = activities.length > 3;
-
-  useEffect(() => {
-    const fetchActivity = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/users/activity');
-        const result = await response.json();
-
-        if (result.success) {
-          setActivities(result.data);
-        } else {
-          setError(result.error || 'Failed to load activity');
-        }
-      } catch (err) {
-        console.error('Error fetching recent activity:', err);
-        setError('Failed to load activity');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchActivity();
-  }, []);
 
   const getActivityIcon = (type: ActivityItem['type']) => {
     switch (type) {
@@ -98,6 +186,7 @@ export default function RecentActivity() {
 
   return (
     <div className="p-6">
+      {/* Header */}
       <h3 className="text-lg font-semibold text-gray-800 mb-4">
         Recent Activity
       </h3>
@@ -105,6 +194,12 @@ export default function RecentActivity() {
       {error ? (
         <div className="text-center py-8">
           <p className="text-red-500 text-sm">{error}</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-2 text-sm text-blue-600 hover:text-blue-700"
+          >
+            Try again
+          </button>
         </div>
       ) : activities.length === 0 ? (
         <div className="text-center py-8">

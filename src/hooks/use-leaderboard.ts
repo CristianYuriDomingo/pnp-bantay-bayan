@@ -1,7 +1,8 @@
-// hooks/use-leaderboard.ts
+// hooks/use-leaderboard.ts - WITH REACT QUERY CACHING
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './use-current-user'
+import { useEffect } from 'react'
 import { 
   LeaderboardEntry, 
   LeaderboardStats, 
@@ -16,120 +17,152 @@ interface UseLeaderboardOptions {
   autoRefresh?: boolean; // Auto-refresh every 5 minutes
 }
 
-function createCacheBustingFetch(url: string, options: RequestInit = {}) {
-  const separator = url.includes('?') ? '&' : '?';
-  const cacheBustingUrl = `${url}${separator}t=${Date.now()}`;
+// ============================================================================
+// FETCH FUNCTIONS
+// ============================================================================
+
+async function fetchLeaderboardData(
+  limit: number, 
+  page: number, 
+  forceRefresh: boolean = false
+): Promise<LeaderboardResponse> {
+  const url = `/api/leaderboard?limit=${limit}&page=${page}${forceRefresh ? '&refresh=true' : ''}`;
+  console.log(`📊 Fetching leaderboard: ${url}`);
   
-  return fetch(cacheBustingUrl, {
-    ...options,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...options.headers,
+  const response = await fetch(url);
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch leaderboard');
+  }
+
+  const data: LeaderboardResponse = result.data;
+  
+  // Convert date strings to Date objects
+  const processedLeaderboard = data.leaderboard.map(entry => ({
+    ...entry,
+    createdAt: new Date(entry.createdAt)
+  }));
+  
+  const processedCurrentUser = data.currentUser ? {
+    ...data.currentUser,
+    createdAt: new Date(data.currentUser.createdAt)
+  } : null;
+  
+  console.log(`✅ Leaderboard loaded: ${processedLeaderboard.length} entries, current user rank: ${processedCurrentUser?.rank || 'N/A'}`);
+  
+  return {
+    leaderboard: processedLeaderboard,
+    currentUser: processedCurrentUser,
+    stats: {
+      ...data.stats,
+      lastUpdated: new Date(data.stats.lastUpdated)
     },
-  });
+    pagination: data.pagination
+  };
 }
 
-export function useLeaderboard(options: UseLeaderboardOptions = {}) {
-  const { limit = 25, page = 1, autoRefresh = false } = options
-  const { user } = useCurrentUser()
+async function fetchUserRankData(userId: string | null): Promise<UserRankInfo> {
+  if (!userId) {
+    throw new Error('User ID required');
+  }
+
+  const response = await fetch('/api/leaderboard/user');
   
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [currentUserEntry, setCurrentUserEntry] = useState<LeaderboardEntry | null>(null)
-  const [stats, setStats] = useState<LeaderboardStats | null>(null)
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 25,
-    total: 0,
-    hasMore: false
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
 
-  const fetchLeaderboard = useCallback(async (forceRefresh = false) => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const url = `/api/leaderboard?limit=${limit}&page=${page}${forceRefresh ? '&refresh=true' : ''}`
-      console.log(`📊 Fetching leaderboard: ${url}`)
-      
-      const response = await createCacheBustingFetch(url)
-      const result = await response.json()
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch user rank');
+  }
 
-      if (result.success) {
-        const data: LeaderboardResponse = result.data
-        
-        // Convert date strings to Date objects
-        const processedLeaderboard = data.leaderboard.map(entry => ({
-          ...entry,
-          createdAt: new Date(entry.createdAt)
-        }))
-        
-        const processedCurrentUser = data.currentUser ? {
-          ...data.currentUser,
-          createdAt: new Date(data.currentUser.createdAt)
-        } : null
-        
-        setLeaderboard(processedLeaderboard)
-        setCurrentUserEntry(processedCurrentUser)
-        setStats({
-          ...data.stats,
-          lastUpdated: new Date(data.stats.lastUpdated)
-        })
-        setPagination(data.pagination)
-        setLastUpdated(new Date())
-        
-        console.log(`✅ Leaderboard loaded: ${processedLeaderboard.length} entries, current user rank: ${processedCurrentUser?.rank || 'N/A'}`)
-      } else {
-        setError(result.error || 'Failed to fetch leaderboard')
-      }
-    } catch (err) {
-      console.error('❌ Error fetching leaderboard:', err)
-      setError('Failed to fetch leaderboard')
-    } finally {
-      setLoading(false)
-    }
-  }, [limit, page])
+  console.log(`✅ User rank loaded: #${result.data.rank}, Level ${result.data.level}`);
+  
+  return result.data;
+}
 
-  // Initial fetch
+// ============================================================================
+// REACT QUERY HOOKS
+// ============================================================================
+
+/**
+ * Hook for leaderboard data with caching and auto-refresh
+ */
+export function useLeaderboard(options: UseLeaderboardOptions = {}) {
+  const { limit = 25, page = 1, autoRefresh = false } = options;
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+  
+  const { 
+    data, 
+    isLoading: loading, 
+    error: queryError,
+    refetch,
+    dataUpdatedAt
+  } = useQuery({
+    queryKey: ['leaderboard', limit, page],
+    queryFn: () => fetchLeaderboardData(limit, page),
+    staleTime: 3 * 60 * 1000, // 3 minutes - leaderboard changes frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+  });
+
+  // Auto-refresh every 5 minutes if enabled
   useEffect(() => {
-    fetchLeaderboard()
-  }, [fetchLeaderboard])
-
-  // Auto-refresh every 5 minutes
-  useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh) return;
 
     const interval = setInterval(() => {
-      console.log('🔄 Auto-refreshing leaderboard...')
-      fetchLeaderboard()
-    }, 5 * 60 * 1000) // 5 minutes
+      console.log('🔄 Auto-refreshing leaderboard...');
+      refetch();
+    }, 5 * 60 * 1000); // 5 minutes
 
-    return () => clearInterval(interval)
-  }, [autoRefresh, fetchLeaderboard])
+    return () => clearInterval(interval);
+  }, [autoRefresh, refetch]);
 
   // Listen for XP gain events to refresh leaderboard
   useEffect(() => {
     const handleXPGain = () => {
-      console.log('💎 XP gain detected, refreshing leaderboard...')
-      fetchLeaderboard(true)
-    }
+      console.log('💎 XP gain detected, invalidating leaderboard cache...');
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+      queryClient.invalidateQueries({ queryKey: ['userRank'] });
+    };
 
-    window.addEventListener('xpGained', handleXPGain)
-    window.addEventListener('badgesAwarded', handleXPGain)
+    window.addEventListener('xpGained', handleXPGain);
+    window.addEventListener('badgesAwarded', handleXPGain);
     
     return () => {
-      window.removeEventListener('xpGained', handleXPGain)
-      window.removeEventListener('badgesAwarded', handleXPGain)
-    }
-  }, [fetchLeaderboard])
+      window.removeEventListener('xpGained', handleXPGain);
+      window.removeEventListener('badgesAwarded', handleXPGain);
+    };
+  }, [queryClient]);
 
-  const refresh = useCallback(() => {
-    fetchLeaderboard(true)
-  }, [fetchLeaderboard])
+  const error = queryError?.message || null;
+  const leaderboard = data?.leaderboard || [];
+  const currentUserEntry = data?.currentUser || null;
+  const stats = data?.stats || null;
+  const pagination = data?.pagination || {
+    page: 1,
+    limit: 25,
+    total: 0,
+    hasMore: false
+  };
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+
+  const refresh = async () => {
+    console.log('🔄 Manual refresh triggered...');
+    await refetch();
+  };
 
   return {
     leaderboard,
@@ -140,64 +173,52 @@ export function useLeaderboard(options: UseLeaderboardOptions = {}) {
     error,
     lastUpdated,
     refresh
-  }
+  };
 }
 
 /**
- * Hook for getting detailed current user rank info
+ * Hook for getting detailed current user rank info - WITH CACHING
  */
 export function useUserRank() {
-  const { user } = useCurrentUser()
-  const [rankInfo, setRankInfo] = useState<UserRankInfo | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchUserRank = useCallback(async () => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await createCacheBustingFetch('/api/leaderboard/user')
-      const result = await response.json()
-
-      if (result.success) {
-        setRankInfo(result.data)
-        console.log(`✅ User rank loaded: #${result.data.rank}, Level ${result.data.level}`)
-      } else {
-        setError(result.error || 'Failed to fetch user rank')
-      }
-    } catch (err) {
-      console.error('❌ Error fetching user rank:', err)
-      setError('Failed to fetch user rank')
-    } finally {
-      setLoading(false)
-    }
-  }, [user])
-
-  useEffect(() => {
-    fetchUserRank()
-  }, [fetchUserRank])
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+  
+  const { 
+    data: rankInfo, 
+    isLoading: loading, 
+    error: queryError,
+    refetch 
+  } = useQuery({
+    queryKey: ['userRank', user?.id],
+    queryFn: () => fetchUserRankData(user?.id || null),
+    enabled: !!user,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+  });
 
   // Refresh on XP/badge events
   useEffect(() => {
-    window.addEventListener('xpGained', fetchUserRank)
-    window.addEventListener('badgesAwarded', fetchUserRank)
+    const handleXPGain = () => {
+      console.log('💎 XP gain detected, invalidating user rank cache...');
+      queryClient.invalidateQueries({ queryKey: ['userRank'] });
+    };
+
+    window.addEventListener('xpGained', handleXPGain);
+    window.addEventListener('badgesAwarded', handleXPGain);
     
     return () => {
-      window.removeEventListener('xpGained', fetchUserRank)
-      window.removeEventListener('badgesAwarded', fetchUserRank)
-    }
-  }, [fetchUserRank])
+      window.removeEventListener('xpGained', handleXPGain);
+      window.removeEventListener('badgesAwarded', handleXPGain);
+    };
+  }, [queryClient]);
+
+  const error = queryError?.message || null;
 
   return {
-    rankInfo,
+    rankInfo: rankInfo || null,
     loading,
     error,
-    refresh: fetchUserRank
-  }
+    refresh: refetch
+  };
 }

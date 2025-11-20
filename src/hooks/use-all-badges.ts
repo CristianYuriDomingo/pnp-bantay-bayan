@@ -1,7 +1,8 @@
-// src/hooks/use-all-badges.ts
+// src/hooks/use-all-badges.ts - WITH REACT QUERY CACHING
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'
+import { useEffect } from 'react'
 
 export interface BadgeWithProgress {
   id: string;
@@ -10,7 +11,7 @@ export interface BadgeWithProgress {
   image: string;
   category: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
-  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';  // ← FIXED LINE
+  triggerType: 'module_complete' | 'lesson_complete' | 'quiz_mastery' | 'parent_quiz_mastery' | 'manual';
   triggerValue: string;
   prerequisites?: string[];
   earnedAt: Date | null;
@@ -33,111 +34,131 @@ export interface BadgeStats {
   latestBadge: BadgeWithProgress | null;
 }
 
-// Helper function for cache-busting
-function createCacheBustingFetch(url: string, options: RequestInit = {}) {
-  const separator = url.includes('?') ? '&' : '?';
-  const cacheBustingUrl = `${url}${separator}t=${Date.now()}&u=${Math.random()}`;
-  
-  return fetch(cacheBustingUrl, {
-    ...options,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...options.headers,
-    },
-  });
+interface BadgeResponse {
+  badges: BadgeWithProgress[];
+  statistics: BadgeStats;
+  userId: string;
 }
 
+// ============================================================================
+// FETCH FUNCTION
+// ============================================================================
+
+async function fetchAllBadgesData(userId: string, userEmail?: string | null): Promise<BadgeResponse> {
+  console.log(`Fetching all badges for user ${userEmail}`);
+  
+  const response = await fetch('/api/users/badges/public');
+  
+  // Check if response is actually JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch badges');
+  }
+
+  const data = result.data;
+  
+  // Security check: Verify the data belongs to current user
+  if (data.userId !== userId) {
+    console.error('Security violation: Received badge data for different user');
+    console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
+    throw new Error('Data integrity error - user mismatch');
+  }
+  
+  // Convert dates
+  const badgesWithDates = data.badges.map((badge: any) => ({
+    ...badge,
+    earnedAt: badge.earnedAt ? new Date(badge.earnedAt) : null,
+    createdAt: new Date(badge.createdAt),
+    updatedAt: new Date(badge.updatedAt)
+  }));
+  
+  console.log(`All badges loaded for ${userEmail}: ${data.badges.length} total badges, ${data.statistics.totalEarned} earned`);
+  
+  return {
+    badges: badgesWithDates,
+    statistics: data.statistics,
+    userId: data.userId
+  };
+}
+
+// ============================================================================
+// REACT QUERY HOOK
+// ============================================================================
+
 /**
- * Hook to get all badges with user progress (earned/unearned)
+ * Hook to get all badges with user progress (earned/unearned) - WITH CACHING
  */
 export function useAllBadges() {
-  const [badges, setBadges] = useState<BadgeWithProgress[]>([]);
-  const [statistics, setStatistics] = useState<BadgeStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const userId = useCurrentUserId();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
 
-  const fetchAllBadges = useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+  const { 
+    data, 
+    isLoading: loading, 
+    error: queryError,
+    refetch 
+  } = useQuery({
+    queryKey: ['allBadges', userId],
+    queryFn: () => fetchAllBadgesData(userId!, user?.email),
+    enabled: !!userId,
+    staleTime: 30 * 1000, // 30 seconds - very short for instant updates
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Fetching all badges for user ${user?.email}`);
-      
-      const response = await createCacheBustingFetch('/api/users/badges/public');
-      const result = await response.json();
-
-      if (result.success) {
-        const data = result.data;
-        
-        // Security check: Verify the data belongs to current user
-        if (data.userId !== userId) {
-          console.error('Security violation: Received badge data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
-          setError('Data integrity error - user mismatch');
-          return;
-        }
-        
-        // Convert dates
-        const badgesWithDates = data.badges.map((badge: any) => ({
-          ...badge,
-          earnedAt: badge.earnedAt ? new Date(badge.earnedAt) : null,
-          createdAt: new Date(badge.createdAt),
-          updatedAt: new Date(badge.updatedAt)
-        }));
-        
-        setBadges(badgesWithDates);
-        setStatistics(data.statistics);
-        
-        console.log(`All badges loaded for ${user?.email}: ${data.badges.length} total badges, ${data.statistics.totalEarned} earned`);
-      } else {
-        setError(result.error || 'Failed to fetch badges');
-      }
-    } catch (err) {
-      console.error('Error fetching all badges:', err);
-      setError('Failed to fetch badges');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, user?.email]);
-
+  // Listen for badge awards and invalidate cache
   useEffect(() => {
-    fetchAllBadges();
-  }, [fetchAllBadges]);
+    const handleBadgesAwarded = (event: Event) => {
+      console.log('Badge awarded event detected, invalidating badge cache...');
+      
+      // Invalidate immediately (no delay)
+      queryClient.invalidateQueries({ queryKey: ['allBadges', userId] });
+      
+      // Also invalidate progress queries since badges are tied to progress
+      queryClient.invalidateQueries({ queryKey: ['overallProgress', userId] });
+    };
 
-  // Listen for badge awards and refresh
-  useEffect(() => {
-    const handleBadgesAwarded = () => {
-      console.log('Badge awarded event detected, refreshing badge collection...');
-      fetchAllBadges();
+    const handleProgressRefresh = () => {
+      console.log('Progress refresh detected, invalidating badge cache...');
+      queryClient.invalidateQueries({ queryKey: ['allBadges', userId] });
     };
 
     window.addEventListener('badgesAwarded', handleBadgesAwarded);
+    window.addEventListener('progressRefresh', handleProgressRefresh);
     
     return () => {
       window.removeEventListener('badgesAwarded', handleBadgesAwarded);
+      window.removeEventListener('progressRefresh', handleProgressRefresh);
     };
-  }, [fetchAllBadges]);
+  }, [queryClient, userId]);
+
+  const error = queryError?.message || null;
+  const badges = data?.badges || [];
+  const statistics = data?.statistics || null;
 
   return {
     badges,
     statistics,
     loading,
     error,
-    refetch: fetchAllBadges
+    refetch
   };
 }
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 /**
- * Utility functions for badge filtering and sorting
+ * Group badges by category with sorting
  */
 export function groupBadgesByCategory(badges: BadgeWithProgress[]) {
   const categoryMap = new Map<string, BadgeWithProgress[]>();
@@ -165,10 +186,16 @@ export function groupBadgesByCategory(badges: BadgeWithProgress[]) {
   }));
 }
 
+/**
+ * Filter badges by earned status
+ */
 export function filterBadgesByEarned(badges: BadgeWithProgress[], earnedOnly = false) {
   return earnedOnly ? badges.filter(b => b.isEarned) : badges;
 }
 
+/**
+ * Filter badges by rarity
+ */
 export function filterBadgesByRarity(badges: BadgeWithProgress[], rarity?: string) {
   return rarity ? badges.filter(b => b.rarity === rarity) : badges;
 }

@@ -1,9 +1,11 @@
-// app/users/components/RecommendedNext.tsx - FIXED NEXT LESSON LOGIC
+// app/users/components/RecommendedNext.tsx - WITH REACT QUERY CACHING ⚡
 'use client';
 
 import { useOverallProgress } from '@/hooks/use-progress';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCurrentUserId, useCurrentUser } from '@/hooks/use-current-user';
 
 interface ModuleRecommendation {
   id: string;
@@ -17,251 +19,274 @@ interface ModuleRecommendation {
   nextLessonTitle?: string;
 }
 
+interface ModuleData {
+  id: string;
+  title: string;
+  imageSrc?: string;
+  totalLessons: number;
+  allLessons: Array<{ id: string; title: string }>;
+}
+
+interface ModulesResponse {
+  modules: ModuleData[];
+  timestamp: number;
+  userId: string;
+}
+
+// ============================================================================
+// FETCH FUNCTION
+// ============================================================================
+
+async function fetchModulesData(userId: string, userEmail?: string | null): Promise<ModulesResponse> {
+  console.log(`📡 Fetching modules for user ${userEmail}`);
+  
+  // Cache busting with timestamp
+  const cacheBuster = `t=${Date.now()}&r=${Math.random()}`;
+  const response = await fetch(`/api/users/modules?${cacheBuster}`, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    }
+  });
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch modules');
+  }
+
+  console.log(`✅ Modules loaded for ${userEmail}: ${result.data.length} modules`);
+  
+  return {
+    modules: result.data,
+    timestamp: result.timestamp || Date.now(),
+    userId: userId
+  };
+}
+
+// ============================================================================
+// HELPER FUNCTION - Find Next Lesson
+// ============================================================================
+
+function findNextLesson(module: ModuleData, moduleProgress: any): {
+  nextLessonId: string | undefined;
+  nextLessonTitle: string | undefined;
+} {
+  if (!module.allLessons || module.allLessons.length === 0) {
+    return {
+      nextLessonId: undefined,
+      nextLessonTitle: undefined
+    };
+  }
+
+  const completedLessonIds = moduleProgress?.completedLessons || [];
+  
+  console.log(`🔍 Finding next lesson for module ${module.title}:`, {
+    totalLessons: module.allLessons.length,
+    completedLessons: completedLessonIds.length,
+    completedLessonIds
+  });
+
+  // Find the first lesson that hasn't been completed
+  const nextLesson = module.allLessons.find((lesson: any) => 
+    !completedLessonIds.includes(lesson.id)
+  );
+
+  if (nextLesson) {
+    console.log(`✅ Next lesson found: ${nextLesson.title} (${nextLesson.id})`);
+    return {
+      nextLessonId: nextLesson.id,
+      nextLessonTitle: nextLesson.title
+    };
+  } else {
+    console.log(`⚠️ No incomplete lessons found for module ${module.title}`);
+    return {
+      nextLessonId: undefined,
+      nextLessonTitle: undefined
+    };
+  }
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export default function RecommendedNext() {
-  const { overallProgress, loading, error, refetch } = useOverallProgress();
-  const [recommendations, setRecommendations] = useState<ModuleRecommendation[]>([]);
-  const [loadingModules, setLoadingModules] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [lastRefresh, setLastRefresh] = useState<number>(Date.now());
+  const userId = useCurrentUserId();
+  const { user } = useCurrentUser();
+  const { overallProgress, loading: progressLoading, error: progressError } = useOverallProgress();
+  const queryClient = useQueryClient();
   const router = useRouter();
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   // Number of items to show at once
   const ITEMS_PER_VIEW = 2;
 
-  // Enhanced refetch function with delayed refresh for data consistency
-  const refreshProgress = useCallback(async (delay: number = 0) => {
-    console.log(`🔄 Scheduling progress refresh with ${delay}ms delay...`);
+  // ⚡ REACT QUERY - Fetch modules with INSTANT caching
+  const { 
+    data: modulesData, 
+    isLoading: modulesLoading, 
+    error: modulesQueryError,
+    isFetching,
+    refetch: refetchModules
+  } = useQuery({
+    queryKey: ['userModules', userId],
+    queryFn: () => fetchModulesData(userId!, user?.email),
+    enabled: !!userId,
     
-    // Clear any existing timeout
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
+    // ⚡ INSTANT MODE - matches progress/badges
+    staleTime: 0, // Always fresh
+    gcTime: 2 * 60 * 1000, // Cache for 2 minutes
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  });
 
-    const performRefresh = async () => {
-      console.log('📊 Executing progress refresh...');
-      await refetch();
-      setLastRefresh(Date.now());
-      console.log('✅ Progress refresh completed');
-    };
-
-    if (delay > 0) {
-      refreshTimeoutRef.current = setTimeout(performRefresh, delay);
-    } else {
-      await performRefresh();
-    }
-  }, [refetch]);
-
-  // Enhanced event listeners with better timing
+  // Listen for events and invalidate cache INSTANTLY
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'lessonCompleted') {
-        console.log('📚 Lesson completion detected via storage, refreshing with delay...');
-        // Add delay to allow server-side processing to complete
-        refreshProgress(2000); // 2 second delay
-      }
-    };
+    if (!userId) return;
 
-    const handleFocus = () => {
-      console.log('👁️ Page focused, checking for updates...');
-      refreshProgress(500); // Short delay for focus events
-    };
-
-    const handleLessonComplete = (e: CustomEvent) => {
-      console.log('🎉 Direct lesson completion event detected:', e.detail);
-      // Longer delay for direct events as they happen immediately
-      refreshProgress(3000); // 3 second delay
+    const handleLessonComplete = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      console.log('✅ Lesson completed - refreshing recommendations:', detail);
+      
+      // Invalidate both modules and progress
+      queryClient.invalidateQueries({ 
+        queryKey: ['userModules', userId],
+        refetchType: 'active'
+      });
     };
 
     const handleProgressRefresh = () => {
-      console.log('🔄 Manual progress refresh requested');
-      refreshProgress(0); // Immediate for manual refresh
+      console.log('🔄 Progress refresh - updating recommendations');
+      queryClient.invalidateQueries({ 
+        queryKey: ['userModules', userId],
+        refetchType: 'active'
+      });
     };
 
-    // Add event listeners
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('lessonCompleted', handleLessonComplete as EventListener);
-    window.addEventListener('progressRefresh', handleProgressRefresh);
+    const handleLessonStarted = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      console.log('🚀 Lesson started:', detail);
+      // Optional: Could mark as "in progress" in UI
+    };
 
-    return () => {
-      if (refreshTimeoutRef.current) {
-        clearTimeout(refreshTimeoutRef.current);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'lessonCompleted') {
+        console.log('📚 Storage change detected - refreshing');
+        queryClient.invalidateQueries({ 
+          queryKey: ['userModules', userId],
+          refetchType: 'active'
+        });
       }
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('lessonCompleted', handleLessonComplete as EventListener);
-      window.removeEventListener('progressRefresh', handleProgressRefresh);
     };
-  }, [refreshProgress]);
 
-  // FIXED: Function to find the actual next lesson that should be taken
-  const findNextLesson = (module: any, moduleProgress: any) => {
-    if (!module.allLessons || module.allLessons.length === 0) {
-      return {
-        nextLessonId: null,
-        nextLessonTitle: null
-      };
+    window.addEventListener('lessonCompleted', handleLessonComplete);
+    window.addEventListener('progressRefresh', handleProgressRefresh);
+    window.addEventListener('lessonStarted', handleLessonStarted);
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('lessonCompleted', handleLessonComplete);
+      window.removeEventListener('progressRefresh', handleProgressRefresh);
+      window.removeEventListener('lessonStarted', handleLessonStarted);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [queryClient, userId]);
+
+  // ============================================================================
+  // PROCESS RECOMMENDATIONS - Combines modules + progress
+  // ============================================================================
+
+  const recommendations: ModuleRecommendation[] = (() => {
+    if (!modulesData || !overallProgress) {
+      return [];
     }
 
-    const completedLessonIds = moduleProgress?.completedLessons || [];
-    
-    console.log(`🔍 Finding next lesson for module ${module.title}:`, {
-      totalLessons: module.allLessons.length,
-      completedLessons: completedLessonIds.length,
-      completedLessonIds
+    console.log('🔍 Processing recommendations with fresh data:', {
+      totalModules: modulesData.modules.length,
+      progressModules: Object.keys(overallProgress.moduleProgress).length,
+      dataTimestamp: modulesData.timestamp
     });
 
-    // Find the first lesson that hasn't been completed
-    const nextLesson = module.allLessons.find((lesson: any) => 
-      !completedLessonIds.includes(lesson.id)
-    );
+    return modulesData.modules
+      .map((module) => {
+        const moduleProgress = overallProgress.moduleProgress[module.id];
+        const completionPercentage = moduleProgress?.percentage || 0;
+        
+        // Find the actual next lesson
+        const { nextLessonId, nextLessonTitle } = findNextLesson(module, moduleProgress);
+        
+        const recommendation = {
+          id: module.id,
+          title: module.title,
+          category: 'Learning Module',
+          image: module.imageSrc,
+          completionPercentage,
+          totalLessons: module.totalLessons || 0,
+          completedLessons: moduleProgress?.completedLessons?.length || 0,
+          nextLessonId,
+          nextLessonTitle
+        };
 
-    if (nextLesson) {
-      console.log(`✅ Next lesson found: ${nextLesson.title} (${nextLesson.id})`);
-      return {
-        nextLessonId: nextLesson.id,
-        nextLessonTitle: nextLesson.title
-      };
-    } else {
-      console.log(`⚠️ No incomplete lessons found for module ${module.title}`);
-      return {
-        nextLessonId: null,
-        nextLessonTitle: null
-      };
-    }
-  };
-
-  // Fetch module recommendations with enhanced caching and debugging
-  const fetchRecommendations = useCallback(async () => {
-    if (!overallProgress) {
-      console.log('⏳ No progress data available yet, skipping recommendation fetch');
-      return;
-    }
-
-    try {
-      setLoadingModules(true);
-      
-      // Enhanced cache busting with multiple parameters
-      const cacheBuster = `t=${Date.now()}&r=${Math.random()}&refresh=${lastRefresh}`;
-      console.log(`📡 Fetching modules with cache buster: ${cacheBuster}`);
-      
-      const response = await fetch(`/api/users/modules?${cacheBuster}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        }
+        console.log('🎯 Module processed:', {
+          moduleId: module.id,
+          title: module.title,
+          completion: completionPercentage,
+          totalLessons: recommendation.totalLessons,
+          completedLessons: recommendation.completedLessons,
+          hasNextLesson: !!recommendation.nextLessonId,
+          nextLessonTitle: recommendation.nextLessonTitle
+        });
+        
+        return recommendation;
+      })
+      .filter((module) => {
+        const hasLessons = module.totalLessons > 0;
+        const notComplete = module.completionPercentage < 100;
+        const hasValidNext = module.nextLessonId && module.nextLessonTitle;
+        
+        // Only show modules with a valid next lesson
+        const shouldShow = hasLessons && notComplete && hasValidNext;
+        
+        console.log(`🔎 Filter decision for ${module.title}:`, {
+          hasLessons,
+          notComplete,
+          hasValidNext,
+          completionPercentage: module.completionPercentage,
+          shouldShow
+        });
+        
+        return shouldShow;
+      })
+      .sort((a, b) => {
+        // Prioritize modules with some progress but not complete
+        if (a.completionPercentage > 0 && a.completionPercentage < 100 && 
+            b.completionPercentage === 0) return -1;
+        if (a.completionPercentage === 0 && 
+            b.completionPercentage > 0 && b.completionPercentage < 100) return 1;
+        
+        // Sort by progress descending
+        return b.completionPercentage - a.completionPercentage;
       });
-      
-      const result = await response.json();
+  })();
 
-      if (result.success) {
-        const progressData = overallProgress;
-        
-        console.log('🔍 Processing recommendations with data:', {
-          totalModules: result.data.length,
-          progressModules: Object.keys(progressData.moduleProgress).length,
-          dataTimestamp: result.timestamp,
-          progressAge: Date.now() - lastRefresh
-        });
-        
-        // Enhanced module processing with FIXED next lesson logic
-        const moduleRecommendations: ModuleRecommendation[] = result.data
-          .map((module: any) => {
-            const moduleProgress = progressData.moduleProgress[module.id];
-            const completionPercentage = moduleProgress?.percentage || 0;
-            
-            // FIXED: Find the actual next lesson instead of always using first lesson
-            const { nextLessonId, nextLessonTitle } = findNextLesson(module, moduleProgress);
-            
-            // Create recommendation object
-            const recommendation = {
-              id: module.id,
-              title: module.title,
-              category: 'Learning Module',
-              image: module.imageSrc,
-              completionPercentage,
-              totalLessons: module.totalLessons || 0,
-              completedLessons: moduleProgress?.completedLessons?.length || 0,
-              nextLessonId,
-              nextLessonTitle
-            };
-
-            console.log('🎯 Module processed:', {
-              moduleId: module.id,
-              title: module.title,
-              completion: completionPercentage,
-              totalLessons: recommendation.totalLessons,
-              completedLessons: recommendation.completedLessons,
-              hasNextLesson: !!recommendation.nextLessonId,
-              nextLessonTitle: recommendation.nextLessonTitle,
-              nextLessonId: recommendation.nextLessonId
-            });
-            
-            return recommendation;
-          })
-          .filter((module: ModuleRecommendation) => {
-            const hasLessons = module.totalLessons > 0;
-            const notComplete = module.completionPercentage < 100;
-            const hasValidNext = module.nextLessonId && module.nextLessonTitle;
-            
-            // FIXED: Only show modules that have a valid next lesson to take
-            const shouldShow = hasLessons && notComplete && hasValidNext;
-            
-            console.log(`🔎 Filter decision for ${module.title}:`, {
-              hasLessons,
-              notComplete,
-              hasValidNext,
-              completionPercentage: module.completionPercentage,
-              nextLessonId: module.nextLessonId,
-              shouldShow
-            });
-            
-            return shouldShow;
-          })
-          .sort((a: ModuleRecommendation, b: ModuleRecommendation) => {
-            // Prioritize modules with some progress but not complete
-            if (a.completionPercentage > 0 && a.completionPercentage < 100 && 
-                b.completionPercentage === 0) return -1;
-            if (a.completionPercentage === 0 && 
-                b.completionPercentage > 0 && b.completionPercentage < 100) return 1;
-            
-            // Among incomplete modules, sort by progress descending
-            return b.completionPercentage - a.completionPercentage;
-          });
-
-        console.log('✅ Final recommendations generated:', {
-          count: moduleRecommendations.length,
-          recommendations: moduleRecommendations.map(r => ({
-            title: r.title,
-            completion: r.completionPercentage,
-            nextLesson: r.nextLessonTitle,
-            nextLessonId: r.nextLessonId
-          }))
-        });
-        
-        setRecommendations(moduleRecommendations);
-      } else {
-        console.error('❌ Failed to fetch modules:', result.error);
-      }
-    } catch (err) {
-      console.error('❌ Error fetching module recommendations:', err);
-    } finally {
-      setLoadingModules(false);
-    }
-  }, [overallProgress, lastRefresh]);
-
-  // Refetch recommendations when progress data changes
-  useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations]);
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
 
   const handleModuleClick = async (moduleId: string, lessonId?: string) => {
     if (lessonId) {
       console.log(`🚀 Starting lesson ${lessonId} in module ${moduleId}`);
       
-      // Dispatch event for other components
       window.dispatchEvent(new CustomEvent('lessonStarted', { 
         detail: { lessonId, moduleId } 
       }));
@@ -289,7 +314,12 @@ export default function RecommendedNext() {
     }
   };
 
-  // Navigation functions
+  const handleForceRefresh = async () => {
+    console.log('🔄 Force refresh triggered by user');
+    await refetchModules();
+  };
+
+  // Navigation
   const goToPrevious = () => {
     setCurrentIndex(prev => Math.max(0, prev - ITEMS_PER_VIEW));
   };
@@ -300,40 +330,18 @@ export default function RecommendedNext() {
     );
   };
 
-  // Force refresh button
-  const handleForceRefresh = async () => {
-    console.log('🔄 Force refresh triggered by user');
-    setLastRefresh(Date.now());
-    await refreshProgress(0);
-  };
-
-  // Calculate what to show
+  // Calculate display
   const displayedRecommendations = recommendations.slice(currentIndex, currentIndex + ITEMS_PER_VIEW);
   const canGoPrevious = currentIndex > 0;
   const canGoNext = currentIndex + ITEMS_PER_VIEW < recommendations.length;
   const totalPages = Math.ceil(recommendations.length / ITEMS_PER_VIEW);
   const currentPage = Math.floor(currentIndex / ITEMS_PER_VIEW) + 1;
 
-  if (loading || loadingModules) {
-    return (
-      <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-4 bg-gray-200 rounded w-32 mb-4"></div>
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center p-3 bg-blue-50 rounded-lg">
-                <div className="w-10 h-10 bg-gray-200 rounded mr-3"></div>
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-24"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // ============================================================================
+  // RENDER STATES
+  // ============================================================================
+
+  const error = progressError || modulesQueryError?.message || null;
 
   if (error) {
     return (
@@ -344,12 +352,6 @@ export default function RecommendedNext() {
         <div className="text-center py-8">
           <p className="text-gray-600">Unable to load recommendations</p>
           <p className="text-sm text-red-500 mt-2">{error}</p>
-          <button
-            onClick={handleForceRefresh}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
-            Try Again
-          </button>
         </div>
       </div>
     );
@@ -366,35 +368,22 @@ export default function RecommendedNext() {
             {!overallProgress ? 'Loading progress data...' : 
              'Great job! You\'ve completed all available modules.'}
           </p>
-          <button
-            onClick={handleForceRefresh}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
-          >
-            Refresh
-          </button>
         </div>
       </div>
     );
   }
 
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
+
   return (
     <div className="p-6">
       {/* Header with navigation */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <h3 className="text-lg font-semibold text-blue-600">
-            Recommended Next
-          </h3>
-          <button
-            onClick={handleForceRefresh}
-            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-            title="Refresh recommendations"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
+        <h3 className="text-lg font-semibold text-blue-600">
+          Recommended Next
+        </h3>
         
         {/* Navigation Controls */}
         {recommendations.length > ITEMS_PER_VIEW && (
@@ -449,7 +438,7 @@ export default function RecommendedNext() {
               </svg>
             </div>
             
-            {/* Module Info with simplified progress indicator */}
+            {/* Module Info */}
             <div className="flex-1 text-left">
               <h4 className="font-medium text-gray-900">
                 {module.nextLessonTitle || 'Continue Learning'}

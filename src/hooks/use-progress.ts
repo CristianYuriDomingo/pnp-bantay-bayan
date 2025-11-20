@@ -1,7 +1,8 @@
-// src/hooks/use-progress.ts - UPDATED with Badge Integration
+// src/hooks/use-progress.ts - INSTANT DUOLINGO-STYLE with SMART CACHING ⚡
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUserId, useCurrentUser } from './use-current-user'
+import { useEffect } from 'react'
 
 export interface LessonProgress {
   completed: boolean;
@@ -11,7 +12,6 @@ export interface LessonProgress {
   userId?: string;
 }
 
-// NEW: Badge-related interfaces
 export interface BadgeInfo {
   newBadges: any[];
   badgeCount: number;
@@ -22,7 +22,7 @@ export interface BadgeInfo {
 export interface LessonCompletionResult {
   lessonProgress: LessonProgress;
   moduleProgress: any;
-  badges?: BadgeInfo; // NEW: Badge information in response
+  badges?: BadgeInfo;
 }
 
 export interface ModuleProgress {
@@ -63,383 +63,490 @@ export interface OverallProgress {
   };
 }
 
-// Helper function to create cache-busting fetch requests
-function createCacheBustingFetch(url: string, options: RequestInit = {}) {
-  const separator = url.includes('?') ? '&' : '?';
-  const cacheBustingUrl = `${url}${separator}t=${Date.now()}&u=${Math.random()}`;
+// ============================================================================
+// FETCH FUNCTIONS with better error handling
+// ============================================================================
+
+async function fetchLessonProgressData(lessonId: string, userId: string, userEmail?: string | null): Promise<LessonProgress> {
+  console.log(`Fetching lesson progress for user ${userEmail}: lesson ${lessonId}`);
   
-  return fetch(cacheBustingUrl, {
-    ...options,
+  const response = await fetch(`/api/users/progress/lesson/${lessonId}`);
+  
+  // Check if response is actually JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (result.success) {
+    const data = result.data;
+    
+    if (data.userId && data.userId !== userId) {
+      console.error('Security violation: Received progress data for different user');
+      throw new Error('Data integrity error - user mismatch');
+    }
+    
+    console.log(`Lesson progress loaded for ${userEmail}: ${data.completed ? 'completed' : 'in progress'}`);
+    
+    return {
+      completed: data.completed,
+      progress: data.progress,
+      timeSpent: data.timeSpent,
+      completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+      userId: data.userId
+    };
+  } else {
+    console.log(`No progress found for ${userEmail} on lesson ${lessonId}`);
+    // Return default progress
+    return {
+      completed: false,
+      progress: 0,
+      timeSpent: 0,
+      userId: userId
+    };
+  }
+}
+
+async function fetchModuleProgressData(moduleId: string, userId: string, userEmail?: string | null): Promise<ModuleProgress> {
+  console.log(`Fetching module progress for user ${userEmail}: module ${moduleId}`);
+  
+  const response = await fetch(`/api/users/progress/module/${moduleId}`);
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch module progress');
+  }
+
+  const data = result.data;
+  
+  if (data.userId && data.userId !== userId) {
+    throw new Error('Data integrity error - user mismatch');
+  }
+  
+  if (userEmail && data.userEmail && data.userEmail !== userEmail) {
+    throw new Error('Data integrity error - email mismatch');
+  }
+  
+  console.log(`Module progress loaded for ${userEmail}: ${data.completedLessons}/${data.totalLessons} lessons (${data.percentage}%)`);
+  
+  return {
+    moduleId: data.moduleId,
+    title: data.title,
+    image: data.image,
+    totalLessons: data.totalLessons,
+    completedLessons: data.completedLessons,
+    percentage: data.percentage,
+    completed: data.completed,
+    completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+    userId: data.userId,
+    userEmail: data.userEmail,
+    lessons: data.lessons.map((lesson: any) => ({
+      id: lesson.id,
+      title: lesson.title,
+      description: lesson.description,
+      completed: lesson.completed,
+      progress: lesson.progress,
+      timeSpent: lesson.timeSpent,
+      completedAt: lesson.completedAt ? new Date(lesson.completedAt) : undefined
+    }))
+  };
+}
+
+async function fetchOverallProgressData(userId: string, userEmail?: string | null): Promise<OverallProgress> {
+  console.log(`Fetching overall progress for user ${userEmail}`);
+  
+  const response = await fetch('/api/users/progress');
+  
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response. Check if API endpoint exists.');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to fetch overall progress');
+  }
+
+  const data = result.data;
+  
+  if (data.userId !== userId) {
+    throw new Error('Data integrity error - user mismatch');
+  }
+  
+  if (userEmail && data.userEmail !== userEmail) {
+    throw new Error('Data integrity error - email mismatch');
+  }
+  
+  // Validate nested data
+  const moduleProgressEntries = Object.values(data.moduleProgress || {});
+  const invalidModuleEntries = moduleProgressEntries.filter((entry: any) => 
+    entry.userId && entry.userId !== userId
+  );
+  
+  const lessonProgressEntries = Object.values(data.lessonProgress || {});
+  const invalidLessonEntries = lessonProgressEntries.filter((entry: any) => 
+    entry.userId && entry.userId !== userId
+  );
+  
+  if (invalidModuleEntries.length > 0 || invalidLessonEntries.length > 0) {
+    throw new Error('Data integrity error - mixed user data');
+  }
+  
+  console.log(`Overall progress loaded for ${userEmail}: ${data.statistics.completedModules}/${data.statistics.totalModules} modules completed (${data.statistics.overallProgress}%)`);
+  
+  return data;
+}
+
+async function updateLessonProgressData(
+  lessonId: string, 
+  userId: string, 
+  timeSpent: number, 
+  progress: number,
+  userEmail?: string | null
+): Promise<LessonCompletionResult> {
+  console.log(`${userEmail} completing lesson ${lessonId} with ${timeSpent}s spent`);
+  
+  const response = await fetch(`/api/users/progress/lesson/${lessonId}`, {
+    method: 'POST',
     headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...options.headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      timeSpent,
+      progress,
+      userId: userId
+    }),
+  });
+
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    throw new Error('Server returned non-JSON response');
+  }
+  
+  const result = await response.json();
+
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to update lesson progress');
+  }
+
+  const data = result.data as LessonCompletionResult;
+  
+  if (data.moduleProgress?.userId && data.moduleProgress.userId !== userId) {
+    throw new Error('Data integrity error - user mismatch in response');
+  }
+  
+  console.log(`Successfully completed lesson ${lessonId} for ${userEmail}`);
+  
+  return data;
+}
+
+// ============================================================================
+// REACT QUERY HOOKS - INSTANT + SMART CACHING ⚡
+// ============================================================================
+
+/**
+ * Hook to get and update progress for a specific lesson
+ * ⚡ INSTANT: Uses optimistic updates for 0ms perceived delay
+ * 💾 CACHED: Keeps data for 2 min for smooth back navigation
+ */
+export function useLessonProgress(lessonId: string) {
+  const userId = useCurrentUserId();
+  const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
+
+  // Query for fetching lesson progress
+  const { 
+    data: lessonProgress, 
+    isLoading: loading, 
+    error: queryError,
+    refetch,
+    isFetching // Shows background refetching
+  } = useQuery({
+    queryKey: ['lessonProgress', lessonId, userId],
+    queryFn: () => fetchLessonProgressData(lessonId, userId!, user?.email),
+    enabled: !!userId && !!lessonId,
+    
+    // ⚡ INSTANT MODE
+    staleTime: 0, // Always refetch for latest data
+    gcTime: 2 * 60 * 1000, // Keep in cache 2 min (for back button)
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true, // Update when user returns to tab
+    refetchOnMount: true, // Always check on mount
+    retry: 2,
+  });
+
+  // Real-time event listeners for instant cross-component updates
+  useEffect(() => {
+    if (!userId) return;
+
+    const handleProgressUpdate = () => {
+      // Instant invalidation - refetches immediately
+      queryClient.invalidateQueries({ 
+        queryKey: ['lessonProgress', lessonId, userId],
+        refetchType: 'active' // Only refetch if component is mounted
+      });
+    };
+
+    window.addEventListener('progressRefresh', handleProgressUpdate);
+    window.addEventListener('lessonCompleted', handleProgressUpdate);
+    
+    return () => {
+      window.removeEventListener('progressRefresh', handleProgressUpdate);
+      window.removeEventListener('lessonCompleted', handleProgressUpdate);
+    };
+  }, [queryClient, userId, lessonId]);
+
+  // Mutation with OPTIMISTIC UPDATES (UI updates before server responds)
+  const { 
+    mutateAsync: updateProgressMutation, 
+    isPending: updating,
+    data: mutationResult 
+  } = useMutation({
+    mutationFn: async ({ timeSpent, progress }: { timeSpent: number; progress: number }) => {
+      if (!userId || !lessonId) throw new Error('Missing userId or lessonId');
+      
+      const result = await updateLessonProgressData(lessonId, userId, timeSpent, progress, user?.email);
+      
+      // Handle badge information
+      if (result.badges) {
+        if (result.badges.success && result.badges.badgeCount > 0) {
+          console.log(`Badge success! ${user?.email} earned ${result.badges.badgeCount} new badges`);
+          
+          // Dispatch badge notification event
+          window.dispatchEvent(new CustomEvent('badgesAwarded', {
+            detail: {
+              userId: userId,
+              newBadges: result.badges.newBadges,
+              badgeCount: result.badges.badgeCount,
+              lessonId: lessonId
+            }
+          }));
+          
+          // Dispatch lesson completion event with badge info
+          window.dispatchEvent(new CustomEvent('lessonCompleted', {
+            detail: { 
+              lessonId, 
+              moduleId: result.moduleProgress?.moduleId, 
+              timestamp: Date.now(),
+              badges: result.badges
+            }
+          }));
+        } else if (result.badges.errors && result.badges.errors.length > 0) {
+          console.warn('Badge awarding had errors:', result.badges.errors);
+        }
+      }
+      
+      return result;
+    },
+    // ⚡ OPTIMISTIC UPDATE - UI feels instant!
+    onMutate: async ({ timeSpent, progress }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['lessonProgress', lessonId, userId] });
+      
+      // Snapshot the previous value for rollback
+      const previousProgress = queryClient.getQueryData(['lessonProgress', lessonId, userId]);
+      
+      // Optimistically update the UI immediately
+      queryClient.setQueryData(['lessonProgress', lessonId, userId], {
+        completed: progress >= 100,
+        progress,
+        timeSpent,
+        userId,
+        completedAt: progress >= 100 ? new Date() : undefined
+      });
+      
+      // Return context for potential rollback
+      return { previousProgress };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      console.error('Error updating progress, rolling back:', err);
+      if (context?.previousProgress) {
+        queryClient.setQueryData(['lessonProgress', lessonId, userId], context.previousProgress);
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate ALL related queries instantly
+      queryClient.invalidateQueries({ queryKey: ['lessonProgress', lessonId, userId] });
+      queryClient.invalidateQueries({ queryKey: ['moduleProgress', data.moduleProgress?.moduleId, userId] });
+      queryClient.invalidateQueries({ queryKey: ['overallProgress', userId] });
+      queryClient.invalidateQueries({ queryKey: ['allBadges', userId] });
+      queryClient.invalidateQueries({ queryKey: ['userBadges', userId] });
+      
+      // Broadcast to other components (no delay!)
+      window.dispatchEvent(new CustomEvent('progressRefresh', {
+        detail: { timestamp: Date.now() }
+      }));
     },
   });
+
+  const error = queryError?.message || null;
+  const lastBadgeResult = mutationResult?.badges || null;
+
+  return {
+    lessonProgress: lessonProgress || null,
+    loading,
+    updating,
+    isFetching, // New: shows background refresh
+    error,
+    lastBadgeResult,
+    updateProgress: async (timeSpent: number, progress: number = 100) => {
+      try {
+        await updateProgressMutation({ timeSpent, progress });
+        return true;
+      } catch (err) {
+        console.error('Error updating lesson progress:', err);
+        return false;
+      }
+    },
+    refetch
+  };
 }
 
 /**
- * Hook to get and update progress for a specific lesson - USER SPECIFIC WITH BADGE SUPPORT
+ * Hook to get module progress
+ * ⚡ INSTANT: Always fresh data
+ * 💾 CACHED: Keeps data for 2 min for smooth navigation
  */
-export function useLessonProgress(lessonId: string) {
-  const [lessonProgress, setLessonProgress] = useState<LessonProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // NEW: Badge-related state
-  const [lastBadgeResult, setLastBadgeResult] = useState<BadgeInfo | null>(null);
-  
-  const userId = useCurrentUserId();
-  const { user } = useCurrentUser();
-
-  const fetchLessonProgress = useCallback(async () => {
-    if (!userId || !lessonId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Fetching lesson progress for user ${user?.email}: lesson ${lessonId}`)
-      
-      const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        const data = result.data;
-        
-        if (data.userId && data.userId !== userId) {
-          console.error('Security violation: Received progress data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
-          setError('Data integrity error - user mismatch');
-          return;
-        }
-        
-        setLessonProgress({
-          completed: data.completed,
-          progress: data.progress,
-          timeSpent: data.timeSpent,
-          completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
-          userId: data.userId
-        });
-        
-        console.log(`Lesson progress loaded for ${user?.email}: ${data.completed ? 'completed' : 'in progress'}`)
-      } else {
-        console.log(`No progress found for ${user?.email} on lesson ${lessonId}`)
-        setLessonProgress({
-          completed: false,
-          progress: 0,
-          timeSpent: 0,
-          userId: userId
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching lesson progress:', err);
-      setError('Failed to fetch lesson progress');
-      setLessonProgress({
-        completed: false,
-        progress: 0,
-        timeSpent: 0,
-        userId: userId
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, lessonId, user?.email]);
-
-  const updateLessonProgress = useCallback(async (timeSpent: number, progress: number = 100) => {
-    if (!userId || !lessonId || updating) return false;
-
-    try {
-      setUpdating(true);
-      setError(null);
-      
-      console.log(`${user?.email} completing lesson ${lessonId} with ${timeSpent}s spent`)
-      
-      const response = await createCacheBustingFetch(`/api/users/progress/lesson/${lessonId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          timeSpent,
-          progress,
-          userId: userId
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        const data = result.data as LessonCompletionResult;
-        
-        if (data.moduleProgress?.userId && data.moduleProgress.userId !== userId) {
-          console.error('Security violation: Received progress data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${data.moduleProgress.userId}`);
-          setError('Data integrity error - user mismatch in response');
-          return false;
-        }
-        
-        setLessonProgress({
-          completed: true,
-          progress: progress,
-          timeSpent: timeSpent,
-          completedAt: new Date(),
-          userId: userId
-        });
-
-        // NEW: Handle badge information
-        if (data.badges) {
-          setLastBadgeResult(data.badges);
-          
-          if (data.badges.success && data.badges.badgeCount > 0) {
-            console.log(`Badge success! ${user?.email} earned ${data.badges.badgeCount} new badges`);
-            
-            // Dispatch badge notification event
-            window.dispatchEvent(new CustomEvent('badgesAwarded', {
-              detail: {
-                userId: userId,
-                newBadges: data.badges.newBadges,
-                badgeCount: data.badges.badgeCount,
-                lessonId: lessonId
-              }
-            }));
-            
-            // Also dispatch general lesson completion event with badge info
-            window.dispatchEvent(new CustomEvent('lessonCompleted', {
-              detail: { 
-                lessonId, 
-                moduleId: data.moduleProgress?.moduleId, 
-                timestamp: Date.now(),
-                badges: data.badges
-              }
-            }));
-          } else if (data.badges.errors && data.badges.errors.length > 0) {
-            console.warn('Badge awarding had errors:', data.badges.errors);
-          }
-        }
-        
-        // Dispatch progress refresh event
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('progressRefresh', {
-            detail: { timestamp: Date.now() }
-          }));
-          
-          // Store completion info for cross-component communication
-          localStorage.setItem('lessonCompleted', JSON.stringify({
-            lessonId,
-            moduleId: data.moduleProgress?.moduleId,
-            timestamp: Date.now(),
-            badges: data.badges
-          }));
-          
-          // Clean up after 2 seconds
-          setTimeout(() => {
-            localStorage.removeItem('lessonCompleted');
-          }, 2000);
-        }, 1000);
-        
-        console.log(`Successfully completed lesson ${lessonId} for ${user?.email}`)
-        return true;
-      } else {
-        setError(result.error || 'Failed to update lesson progress');
-        return false;
-      }
-    } catch (err) {
-      console.error('Error updating lesson progress:', err);
-      setError('Failed to update lesson progress');
-      return false;
-    } finally {
-      setUpdating(false);
-    }
-  }, [userId, lessonId, updating, user?.email]);
-
-  useEffect(() => {
-    fetchLessonProgress();
-  }, [fetchLessonProgress]);
-
-  return {
-    lessonProgress,
-    loading,
-    updating,
-    error,
-    lastBadgeResult, // NEW: Expose badge result
-    updateProgress: updateLessonProgress,
-    refetch: fetchLessonProgress
-  };
-}
-
-// Rest of the existing hooks remain the same...
 export function useModuleProgress(moduleId: string) {
-  const [moduleProgress, setModuleProgress] = useState<ModuleProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const userId = useCurrentUserId();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
 
-  const fetchModuleProgress = useCallback(async () => {
-    if (!userId || !moduleId) {
-      setLoading(false);
-      return;
-    }
+  const { 
+    data: moduleProgress, 
+    isLoading: loading, 
+    error: queryError,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['moduleProgress', moduleId, userId],
+    queryFn: () => fetchModuleProgressData(moduleId, userId!, user?.email),
+    enabled: !!userId && !!moduleId,
+    
+    staleTime: 0, // Always fresh
+    gcTime: 2 * 60 * 1000, // Cache for 2 min
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Fetching module progress for user ${user?.email}: module ${moduleId}`)
-      
-      const response = await createCacheBustingFetch(`/api/users/progress/module/${moduleId}`);
-      const result = await response.json();
+  // Listen for lesson completions in this module
+  useEffect(() => {
+    if (!userId) return;
 
-      if (result.success) {
-        const data = result.data;
-        
-        if (data.userId && data.userId !== userId) {
-          console.error('Security violation: Received progress data for different user');
-          console.error(`Expected userId: ${userId}, Received: ${data.userId}`);
-          setError('Data integrity error - user mismatch');
-          return;
-        }
-        
-        if (data.userEmail && data.userEmail !== user?.email) {
-          console.error('Security violation: Email mismatch in progress data');
-          console.error(`Expected email: ${user?.email}, Received: ${data.userEmail}`);
-          setError('Data integrity error - email mismatch');
-          return;
-        }
-        
-        setModuleProgress({
-          moduleId: data.moduleId,
-          title: data.title,
-          image: data.image,
-          totalLessons: data.totalLessons,
-          completedLessons: data.completedLessons,
-          percentage: data.percentage,
-          completed: data.completed,
-          completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
-          userId: data.userId,
-          userEmail: data.userEmail,
-          lessons: data.lessons.map((lesson: any) => ({
-            id: lesson.id,
-            title: lesson.title,
-            description: lesson.description,
-            completed: lesson.completed,
-            progress: lesson.progress,
-            timeSpent: lesson.timeSpent,
-            completedAt: lesson.completedAt ? new Date(lesson.completedAt) : undefined
-          }))
+    const handleLessonComplete = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.moduleId === moduleId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['moduleProgress', moduleId, userId],
+          refetchType: 'active'
         });
-        
-        console.log(`Module progress loaded for ${user?.email}: ${data.completedLessons}/${data.totalLessons} lessons (${data.percentage}%)`)
-      } else {
-        setError(result.error || 'Failed to fetch module progress');
       }
-    } catch (err) {
-      console.error('Error fetching module progress:', err);
-      setError('Failed to fetch module progress');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, moduleId, user?.email]);
+    };
 
-  useEffect(() => {
-    fetchModuleProgress();
-  }, [fetchModuleProgress]);
+    const handleProgressUpdate = () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['moduleProgress', moduleId, userId],
+        refetchType: 'active'
+      });
+    };
+
+    window.addEventListener('lessonCompleted', handleLessonComplete);
+    window.addEventListener('progressRefresh', handleProgressUpdate);
+    
+    return () => {
+      window.removeEventListener('lessonCompleted', handleLessonComplete);
+      window.removeEventListener('progressRefresh', handleProgressUpdate);
+    };
+  }, [queryClient, userId, moduleId]);
+
+  const error = queryError?.message || null;
 
   return {
-    moduleProgress,
+    moduleProgress: moduleProgress || null,
     loading,
+    isFetching,
     error,
-    refetch: fetchModuleProgress
+    refetch
   };
 }
 
+/**
+ * Hook to get overall progress
+ * ⚡ INSTANT: Always fresh data
+ * 💾 CACHED: Keeps data for 3 min for dashboard
+ */
 export function useOverallProgress() {
-  const [overallProgress, setOverallProgress] = useState<OverallProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const userId = useCurrentUserId();
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
 
-  const fetchOverallProgress = useCallback(async () => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+  const { 
+    data: overallProgress, 
+    isLoading: loading, 
+    error: queryError,
+    refetch,
+    isFetching
+  } = useQuery({
+    queryKey: ['overallProgress', userId],
+    queryFn: () => fetchOverallProgressData(userId!, user?.email ?? undefined),
+    enabled: !!userId,
+    
+    staleTime: 0, // Always fresh
+    gcTime: 3 * 60 * 1000, // Cache for 3 min (dashboard data)
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  });
 
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log(`Fetching overall progress for user ${user?.email}`)
-      
-      const response = await createCacheBustingFetch('/api/users/progress');
-      const result = await response.json();
-
-      if (result.success) {
-        const data = result.data;
-        
-        if (data.userId !== userId) {
-          console.error('Security violation: Received progress data for different user');
-          console.error(`Expected user ID: ${userId}, Received: ${data.userId}`);
-          setError('Data integrity error - user mismatch');
-          return;
-        }
-        
-        if (data.userEmail !== user?.email) {
-          console.error('Security violation: Email mismatch in progress data');
-          console.error(`Expected email: ${user?.email}, Received: ${data.userEmail}`);
-          setError('Data integrity error - email mismatch');
-          return;
-        }
-        
-        const moduleProgressEntries = Object.values(data.moduleProgress || {});
-        const invalidModuleEntries = moduleProgressEntries.filter((entry: any) => 
-          entry.userId && entry.userId !== userId
-        );
-        
-        const lessonProgressEntries = Object.values(data.lessonProgress || {});
-        const invalidLessonEntries = lessonProgressEntries.filter((entry: any) => 
-          entry.userId && entry.userId !== userId
-        );
-        
-        if (invalidModuleEntries.length > 0 || invalidLessonEntries.length > 0) {
-          console.error('Security violation: Mixed user data in progress entries');
-          setError('Data integrity error - mixed user data');
-          return;
-        }
-        
-        setOverallProgress(data);
-        
-        console.log(`Overall progress loaded for ${user?.email}: ${data.statistics.completedModules}/${data.statistics.totalModules} modules completed (${data.statistics.overallProgress}%)`)
-      } else {
-        setError(result.error || 'Failed to fetch overall progress');
-      }
-    } catch (err) {
-      console.error('Error fetching overall progress:', err);
-      setError('Failed to fetch overall progress');
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, user?.email]);
-
+  // Global progress updates
   useEffect(() => {
-    fetchOverallProgress();
-  }, [fetchOverallProgress]);
+    if (!userId) return;
+
+    const handleProgressUpdate = () => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['overallProgress', userId],
+        refetchType: 'active'
+      });
+    };
+
+    window.addEventListener('progressRefresh', handleProgressUpdate);
+    window.addEventListener('lessonCompleted', handleProgressUpdate);
+    window.addEventListener('badgesAwarded', handleProgressUpdate);
+    
+    return () => {
+      window.removeEventListener('progressRefresh', handleProgressUpdate);
+      window.removeEventListener('lessonCompleted', handleProgressUpdate);
+      window.removeEventListener('badgesAwarded', handleProgressUpdate);
+    };
+  }, [queryClient, userId]);
+
+  const error = queryError?.message || null;
 
   return {
-    overallProgress,
+    overallProgress: overallProgress || null,
     loading,
+    isFetching,
     error,
-    refetch: fetchOverallProgress
+    refetch
   };
 }
 
-// Utility functions remain the same
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 export function isLessonCompleted(lessonId: string, overallProgress: OverallProgress | null, currentUserId?: string): boolean {
   if (!overallProgress) return false;
   
@@ -475,7 +582,6 @@ export function getModuleCompletionPercentage(moduleId: string, overallProgress:
 
 export function useUserStats() {
   const { overallProgress, loading, error } = useOverallProgress();
-  const { user } = useCurrentUser();
   
   const userStats = overallProgress ? {
     userId: overallProgress.userId,

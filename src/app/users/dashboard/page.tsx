@@ -3,8 +3,9 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import LearnCard from '../components/LearnCard';
 import SearchBar from '../components/SearchBar';
 import DashboardStats from '../components/DashboardStats';
@@ -17,12 +18,50 @@ import { useRightColumn } from '../layout';
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setRightColumnContent } = useRightColumn();
-  
-  // State for modules data
-  const [modules, setModules] = useState<UserModule[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  // Fetch modules with React Query
+  const { 
+    data: modules = [], 
+    isLoading: loading, 
+    error: fetchError,
+    refetch: loadModules 
+  } = useQuery({
+    queryKey: ['userModules'],
+    queryFn: async (): Promise<UserModule[]> => {
+      const response = await fetchUserModules();
+      
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load modules');
+      }
+      
+      return response.data;
+    },
+    enabled: status === 'authenticated' && session?.user?.role !== 'admin',
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1,
+  });
+
+  // Prefetch module lessons on page load for better performance
+  useEffect(() => {
+    if (modules.length > 0) {
+      modules.forEach(module => {
+        queryClient.prefetchQuery({
+          queryKey: ['moduleLessons', module.id],
+          queryFn: async () => {
+            const response = await fetch(`/api/users/lessons?moduleId=${module.id}`);
+            const data = await response.json();
+            return data.success ? data.data : [];
+          },
+          staleTime: 5 * 60 * 1000,
+        });
+      });
+    }
+  }, [modules, queryClient]);
+
+  const error = fetchError?.message || null;
 
   // Memoize right column content to prevent unnecessary re-renders
   const rightColumnContent = useMemo(() => (
@@ -86,33 +125,6 @@ export default function DashboardPage() {
     }
   }, [status, session, router]);
 
-  // Memoized load modules function
-  const loadModules = useCallback(async () => {
-    if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      try {
-        setLoading(true);
-        setError(null); // Clear previous errors
-        const response = await fetchUserModules();
-        
-        if (response.success) {
-          setModules(response.data);
-        } else {
-          setError(response.error || 'Failed to load modules');
-        }
-      } catch (err) {
-        setError('Failed to load modules. Please try again.');
-        console.error('Error loading modules:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [status, session]);
-
-  // Fetch modules data when component mounts
-  useEffect(() => {
-    loadModules();
-  }, [loadModules]);
-
   // Memoized module click handler
   const onModuleClick = useCallback((moduleId: string, title: string) => {
     handleModuleClick(moduleId, title);
@@ -171,7 +183,7 @@ export default function DashboardPage() {
             </div>
             <p className="text-red-600 dark:text-red-400 mb-3">{error}</p>
             <button 
-              onClick={loadModules} 
+              onClick={() => loadModules()} 
               className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Retry
