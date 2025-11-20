@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useLessonProgress } from '@/hooks/use-progress';
 import Modal from './Modal';
-import { useSound } from '@/hooks/use-sound'; // <-- added import
+import { useSound } from '@/hooks/use-sound';
 
 export type SlideProps = {
   id: string;
@@ -38,7 +38,69 @@ type CombinedCarouselProps = {
   onClose?: () => void;
   showAsModal?: boolean;
   onExit?: () => void;
+};
 
+// Exit Confirmation Modal
+const ExitConfirmation = ({ onConfirm, onCancel }: {
+  onConfirm: () => void;
+  onCancel: () => void;
+}) => {
+  const [isConfirmActive, setIsConfirmActive] = useState(false);
+  const [isCancelActive, setIsCancelActive] = useState(false);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="max-w-md w-full mx-auto p-6 bg-white shadow-2xl rounded-2xl border border-red-100">
+        <div className="flex justify-center mb-5">
+          <div className="relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-red-200 to-red-100 rounded-lg blur opacity-30"></div>
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center relative">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-center text-gray-800 mb-3">
+          Exit <span className="text-red-600">Lesson?</span>
+        </h2>
+
+        <p className="text-gray-700 text-center text-base mb-6">
+          Are you sure you want to leave? Your progress will be <strong className="text-red-600">saved</strong>, but you'll need to complete the lesson later.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            className={`flex-1 relative px-6 py-3 text-base font-bold text-gray-700 bg-gray-200 rounded-xl transition-all duration-150 ease-out ${
+              isCancelActive ? 'translate-y-1 shadow-none' : 'shadow-[0_4px_0_0_#9ca3af]'
+            }`}
+            onMouseDown={() => setIsCancelActive(true)}
+            onMouseUp={() => {
+              setIsCancelActive(false);
+              onCancel();
+            }}
+            onMouseLeave={() => setIsCancelActive(false)}
+          >
+            Continue Lesson
+          </button>
+          <button
+            className={`flex-1 relative px-6 py-3 text-base font-bold text-white bg-red-500 rounded-xl transition-all duration-150 ease-out ${
+              isConfirmActive ? 'translate-y-1 shadow-none' : 'shadow-[0_4px_0_0_#dc2626]'
+            }`}
+            onMouseDown={() => setIsConfirmActive(true)}
+            onMouseUp={() => {
+              setIsConfirmActive(false);
+              onConfirm();
+            }}
+            onMouseLeave={() => setIsConfirmActive(false)}
+          >
+            Exit Lesson
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Enhanced Speech Bubble Component
@@ -115,6 +177,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
   const [canProceed, setCanProceed] = useState(false);
   const [startTime, setStartTime] = useState<Date>(new Date());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
 
   const { 
     lessonProgress, 
@@ -292,6 +355,28 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
     }
   };
 
+  // Fixed: Wrap refetchProgress in a proper onClick handler
+  const handleRetryProgress = () => {
+    refetchProgress();
+  };
+
+  // Handle exit with confirmation
+  const handleExitClick = () => {
+    try { play && play('click', { volume: 0.3 }); } catch (e) {}
+    setShowExitConfirmation(true);
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitConfirmation(false);
+    if (onExit) {
+      onExit();
+    }
+  };
+
+  const handleCancelExit = () => {
+    setShowExitConfirmation(false);
+  };
+
   if (progressLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
@@ -311,8 +396,9 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
             <p className="font-bold">Error Loading Lesson</p>
             <p className="text-sm">{progressError}</p>
           </div>
+          {/* Fixed: Use the wrapped handler instead of refetchProgress directly */}
           <button
-            onClick={refetchProgress}
+            onClick={handleRetryProgress}
             className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
           >
             Try Again
@@ -358,7 +444,7 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           
           {onExit && (
             <button
-              onClick={onExit}
+              onClick={handleExitClick}
               className="ml-4 text-gray-600 hover:text-gray-800 transition-all focus:outline-none hover:scale-110 flex-shrink-0"
               aria-label="Exit lesson"
             >
@@ -615,6 +701,14 @@ const CarouselContent: React.FC<CombinedCarouselProps> = ({
           )}
         </div>
       </div>
+
+      {/* Exit Confirmation Modal */}
+      {showExitConfirmation && (
+        <ExitConfirmation
+          onConfirm={handleConfirmExit}
+          onCancel={handleCancelExit}
+        />
+      )}
     </div>
   );
 };
