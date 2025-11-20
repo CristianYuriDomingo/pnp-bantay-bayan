@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { useUserRank } from '@/hooks/use-rank';
 import { User, Calendar, Mail, Camera, Edit3, Check, X, Loader2 } from 'lucide-react';
@@ -15,81 +16,166 @@ interface UserProfile {
   status: string;
 }
 
+interface UpdateProfileData {
+  name: string;
+  image?: string;
+}
+
+// ============================================================================
+// FETCH FUNCTIONS
+// ============================================================================
+
+async function fetchUserProfile(userId: string): Promise<UserProfile> {
+  console.log(`📋 Fetching profile for user: ${userId}`);
+  
+  const response = await fetch('/api/users/profile', {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
+  }
+  
+  const data = await response.json();
+  console.log(`✅ Profile loaded for: ${data.data.email}`);
+  
+  return data.data;
+}
+
+async function updateUserProfile(profileData: UpdateProfileData): Promise<UserProfile> {
+  console.log('🔄 Updating profile:', {
+    name: profileData.name,
+    imageIncluded: !!profileData.image
+  });
+  
+  const response = await fetch('/api/users/profile', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify(profileData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || errorData.message || 'Failed to update profile');
+  }
+
+  const data = await response.json();
+  console.log(`✅ Profile updated successfully`);
+  
+  return data.data;
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 const ProfileSettings = () => {
   const { user: contextUser, isLoading: contextLoading, isAuthenticated } = useCurrentUser();
   const { rankData, rankInfo, loading: rankLoading } = useUserRank();
+  const queryClient = useQueryClient();
   
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [editForm, setEditForm] = useState({
     name: '',
     image: ''
   });
-  
-  // Track if image was actually changed by user
   const [imageChanged, setImageChanged] = useState(false);
 
-  // Fetch user profile data
+  // ⚡ INSTANT PROFILE FETCH with caching
+  const { 
+    data: user, 
+    isLoading: profileLoading,
+    error: profileError,
+    refetch
+  } = useQuery<UserProfile>({
+    queryKey: ['userProfile', contextUser?.id],
+    queryFn: () => fetchUserProfile(contextUser!.id),
+    enabled: !!contextUser?.id && isAuthenticated,
+    
+    // ⚡ INSTANT MODE
+    staleTime: 0, // Always fresh
+    gcTime: 5 * 60 * 1000, // Keep in cache 5 min
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
+  });
+
+  // Initialize edit form when user data loads (replaces onSuccess)
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (contextLoading) {
-        return;
-      }
+    if (user) {
+      setEditForm({
+        name: user.name || '',
+        image: user.image || ''
+      });
+      setError('');
+    }
+  }, [user]);
+
+  // Handle profile error (replaces onError)
+  useEffect(() => {
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      setError(profileError.message);
+    }
+  }, [profileError]);
+
+  // ⚡ OPTIMISTIC UPDATE MUTATION
+  const { 
+    mutateAsync: updateProfile, 
+    isPending: isSaving 
+  } = useMutation({
+    mutationFn: updateUserProfile,
+    
+    // ⚡ OPTIMISTIC UPDATE - UI feels instant!
+    onMutate: async (newProfileData) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['userProfile', contextUser?.id] });
       
-      if (!isAuthenticated || !contextUser) {
-        setIsLoading(false);
-        return;
+      // Snapshot previous value for rollback
+      const previousProfile = queryClient.getQueryData<UserProfile>(['userProfile', contextUser?.id]);
+      
+      // Optimistically update UI
+      queryClient.setQueryData<UserProfile>(['userProfile', contextUser?.id], (old) => ({
+        ...old!,
+        name: newProfileData.name,
+        image: newProfileData.image || old?.image
+      }));
+      
+      return { previousProfile };
+    },
+    
+    onError: (err: Error, variables, context) => {
+      // Rollback on error
+      console.error('Error updating profile, rolling back:', err);
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['userProfile', contextUser?.id], context.previousProfile);
       }
-
-      try {
-        const response = await fetch('/api/users/profile', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          const profileData = data.data;
-          
-          setUser(profileData);
-          setEditForm({
-            name: profileData.name || '',
-            image: profileData.image || ''
-          });
-          setError('');
-        } else {
-          const errorData = await response.json();
-          
-          if (response.status === 401) {
-            setError('Session expired. Please sign in again.');
-          } else if (response.status === 404) {
-            setError('Profile not found. Please contact support.');
-          } else if (response.status >= 500) {
-            setError('Server error. Please try again later.');
-          } else {
-            setError(errorData.error || errorData.message || `Request failed with status ${response.status}`);
-          }
-        }
-      } catch (err) {
-        console.error('Profile fetch error:', err);
-        if (err instanceof TypeError && err.message.includes('fetch')) {
-          setError('Network error. Please check your connection and try again.');
-        } else {
-          setError(`Unexpected error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [contextUser, contextLoading, isAuthenticated]);
+      setError(err.message);
+    },
+    
+    onSuccess: (data) => {
+      // Update cache with server response
+      queryClient.setQueryData(['userProfile', contextUser?.id], data);
+      
+      // Exit edit mode
+      setIsEditing(false);
+      setImageChanged(false);
+      setError('');
+      
+      console.log('✅ Profile updated successfully');
+    }
+  });
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,7 +190,7 @@ const ProfileSettings = () => {
         const result = e.target?.result;
         if (typeof result === 'string') {
           setEditForm(prev => ({ ...prev, image: result }));
-          setImageChanged(true); // Mark that image was changed
+          setImageChanged(true);
         }
       };
       reader.readAsDataURL(file);
@@ -117,12 +203,11 @@ const ProfileSettings = () => {
       return;
     }
 
-    setIsSaving(true);
     setError('');
 
     try {
       // Build request body - only include image if it was changed
-      const requestBody: any = {
+      const requestBody: UpdateProfileData = {
         name: editForm.name.trim(),
       };
 
@@ -131,41 +216,10 @@ const ProfileSettings = () => {
         requestBody.image = editForm.image;
       }
 
-      console.log('🔄 Saving profile with:', {
-        name: requestBody.name,
-        imageIncluded: !!requestBody.image,
-        imageChanged
-      });
-
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const updatedUser = data.data;
-        setUser(updatedUser);
-        setIsEditing(false);
-        setImageChanged(false); // Reset image changed flag
-        setError('');
-      } else {
-        if (response.status === 401) {
-          setError('Session expired. Please sign in again.');
-        } else {
-          setError(data.error || data.message || 'Failed to update profile');
-        }
-      }
+      await updateProfile(requestBody);
     } catch (err) {
       console.error('Profile update error:', err);
-      setError('Network error. Please check your connection.');
-    } finally {
-      setIsSaving(false);
+      // Error already handled in mutation
     }
   };
 
@@ -177,7 +231,7 @@ const ProfileSettings = () => {
       });
     }
     setIsEditing(false);
-    setImageChanged(false); // Reset image changed flag
+    setImageChanged(false);
     setError('');
   };
 
@@ -187,12 +241,6 @@ const ProfileSettings = () => {
       month: 'long',
       day: 'numeric'
     });
-  };
-
-  const generateUsername = (name: string, email: string) => {
-    const firstName = name.split(' ')[0].toLowerCase();
-    const emailNumbers = email.match(/\d+/g)?.join('') || '123';
-    return `${firstName}${emailNumbers}`;
   };
 
   const getProfileImage = () => {
@@ -205,7 +253,8 @@ const ProfileSettings = () => {
     return 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face';
   };
 
-  if (contextLoading || isLoading) {
+  // Loading state
+  if (contextLoading || profileLoading) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
         <div className="flex items-center justify-center h-64">
@@ -218,6 +267,7 @@ const ProfileSettings = () => {
     );
   }
 
+  // Not authenticated
   if (!isAuthenticated || !contextUser) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
@@ -229,6 +279,7 @@ const ProfileSettings = () => {
     );
   }
 
+  // Profile not found
   if (!user) {
     return (
       <div className="w-full bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 p-8">
@@ -237,7 +288,7 @@ const ProfileSettings = () => {
           <p className="text-gray-600 mb-4">{error || 'Unable to load profile data.'}</p>
           
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => refetch()}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors mt-4"
           >
             Retry

@@ -1,4 +1,4 @@
-// hooks/use-leaderboard.ts - WITH REACT QUERY CACHING
+// hooks/use-leaderboard.ts - INSTANT DUOLINGO-STYLE with SMART CACHING ⚡
 'use client'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './use-current-user'
@@ -18,7 +18,7 @@ interface UseLeaderboardOptions {
 }
 
 // ============================================================================
-// FETCH FUNCTIONS
+// FETCH FUNCTIONS with better error handling
 // ============================================================================
 
 async function fetchLeaderboardData(
@@ -68,11 +68,9 @@ async function fetchLeaderboardData(
   };
 }
 
-async function fetchUserRankData(userId: string | null): Promise<UserRankInfo> {
-  if (!userId) {
-    throw new Error('User ID required');
-  }
-
+async function fetchUserRankData(userId: string, userEmail?: string | null): Promise<UserRankInfo> {
+  console.log(`Fetching user rank info for ${userEmail}`);
+  
   const response = await fetch('/api/leaderboard/user');
   
   const contentType = response.headers.get('content-type');
@@ -86,17 +84,19 @@ async function fetchUserRankData(userId: string | null): Promise<UserRankInfo> {
     throw new Error(result.error || 'Failed to fetch user rank');
   }
 
-  console.log(`✅ User rank loaded: #${result.data.rank}, Level ${result.data.level}`);
+  console.log(`✅ User rank loaded for ${userEmail}: #${result.data.rank}, Level ${result.data.level}, Badges ${result.data.earnedBadges}/${result.data.totalBadges}`);
   
   return result.data;
 }
 
 // ============================================================================
-// REACT QUERY HOOKS
+// REACT QUERY HOOKS - INSTANT + SMART CACHING ⚡
 // ============================================================================
 
 /**
- * Hook for leaderboard data with caching and auto-refresh
+ * Hook for leaderboard data with instant updates and smart caching
+ * ⚡ INSTANT: Updates immediately on XP/badge events
+ * 💾 CACHED: Keeps data for 5 min, refetches when stale
  */
 export function useLeaderboard(options: UseLeaderboardOptions = {}) {
   const { limit = 25, page = 1, autoRefresh = false } = options;
@@ -108,14 +108,20 @@ export function useLeaderboard(options: UseLeaderboardOptions = {}) {
     isLoading: loading, 
     error: queryError,
     refetch,
+    isFetching,
     dataUpdatedAt
   } = useQuery({
     queryKey: ['leaderboard', limit, page],
     queryFn: () => fetchLeaderboardData(limit, page),
-    staleTime: 3 * 60 * 1000, // 3 minutes - leaderboard changes frequently
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    
+    // ⚡ INSTANT MODE - but longer cache for leaderboard
+    staleTime: 2 * 60 * 1000, // 2 minutes - leaderboard changes less frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true, // Update when user returns
+    refetchOnMount: true,
     retry: 1,
-    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Auto-refresh every 5 minutes if enabled
@@ -124,26 +130,41 @@ export function useLeaderboard(options: UseLeaderboardOptions = {}) {
 
     const interval = setInterval(() => {
       console.log('🔄 Auto-refreshing leaderboard...');
-      refetch();
+      queryClient.invalidateQueries({ 
+        queryKey: ['leaderboard'],
+        refetchType: 'active'
+      });
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(interval);
-  }, [autoRefresh, refetch]);
+  }, [autoRefresh, queryClient]);
 
-  // Listen for XP gain events to refresh leaderboard
+  // Real-time event listeners for instant cross-component updates
   useEffect(() => {
-    const handleXPGain = () => {
-      console.log('💎 XP gain detected, invalidating leaderboard cache...');
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-      queryClient.invalidateQueries({ queryKey: ['userRank'] });
+    const handleLeaderboardUpdate = () => {
+      console.log('💎 Leaderboard event detected, invalidating cache...');
+      // Instant invalidation - refetches immediately
+      queryClient.invalidateQueries({ 
+        queryKey: ['leaderboard'],
+        refetchType: 'active'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['userRank'],
+        refetchType: 'active'
+      });
     };
 
-    window.addEventListener('xpGained', handleXPGain);
-    window.addEventListener('badgesAwarded', handleXPGain);
+    // Listen for events that affect leaderboard
+    window.addEventListener('xpGained', handleLeaderboardUpdate);
+    window.addEventListener('badgesAwarded', handleLeaderboardUpdate);
+    window.addEventListener('lessonCompleted', handleLeaderboardUpdate);
+    window.addEventListener('rankUpdated', handleLeaderboardUpdate);
     
     return () => {
-      window.removeEventListener('xpGained', handleXPGain);
-      window.removeEventListener('badgesAwarded', handleXPGain);
+      window.removeEventListener('xpGained', handleLeaderboardUpdate);
+      window.removeEventListener('badgesAwarded', handleLeaderboardUpdate);
+      window.removeEventListener('lessonCompleted', handleLeaderboardUpdate);
+      window.removeEventListener('rankUpdated', handleLeaderboardUpdate);
     };
   }, [queryClient]);
 
@@ -170,6 +191,7 @@ export function useLeaderboard(options: UseLeaderboardOptions = {}) {
     stats,
     pagination,
     loading,
+    isFetching, // New: shows background refresh
     error,
     lastUpdated,
     refresh
@@ -177,47 +199,67 @@ export function useLeaderboard(options: UseLeaderboardOptions = {}) {
 }
 
 /**
- * Hook for getting detailed current user rank info - WITH CACHING
+ * Hook for getting detailed current user rank info
+ * ⚡ INSTANT: Always fresh data for user's own rank
+ * 💾 CACHED: Keeps data for 2 min for smooth navigation
  */
 export function useUserRank() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+  const userId = user?.id;
   
   const { 
     data: rankInfo, 
     isLoading: loading, 
     error: queryError,
-    refetch 
+    refetch,
+    isFetching
   } = useQuery({
-    queryKey: ['userRank', user?.id],
-    queryFn: () => fetchUserRankData(user?.id || null),
-    enabled: !!user,
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1,
+    queryKey: ['userRank', userId],
+    queryFn: () => fetchUserRankData(userId!, user?.email),
+    enabled: !!userId,
+    
+    // ⚡ INSTANT MODE
+    staleTime: 0, // Always refetch for latest data
+    gcTime: 2 * 60 * 1000, // Keep in cache 2 min
+    
+    // SMART REFETCHING
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    retry: 2,
   });
 
-  // Refresh on XP/badge events
+  // Real-time event listeners for instant updates
   useEffect(() => {
-    const handleXPGain = () => {
-      console.log('💎 XP gain detected, invalidating user rank cache...');
-      queryClient.invalidateQueries({ queryKey: ['userRank'] });
+    if (!userId) return;
+
+    const handleRankUpdate = () => {
+      console.log('💎 Rank event detected, invalidating user rank cache...');
+      queryClient.invalidateQueries({ 
+        queryKey: ['userRank', userId],
+        refetchType: 'active'
+      });
     };
 
-    window.addEventListener('xpGained', handleXPGain);
-    window.addEventListener('badgesAwarded', handleXPGain);
+    window.addEventListener('xpGained', handleRankUpdate);
+    window.addEventListener('badgesAwarded', handleRankUpdate);
+    window.addEventListener('lessonCompleted', handleRankUpdate);
+    window.addEventListener('rankUpdated', handleRankUpdate);
     
     return () => {
-      window.removeEventListener('xpGained', handleXPGain);
-      window.removeEventListener('badgesAwarded', handleXPGain);
+      window.removeEventListener('xpGained', handleRankUpdate);
+      window.removeEventListener('badgesAwarded', handleRankUpdate);
+      window.removeEventListener('lessonCompleted', handleRankUpdate);
+      window.removeEventListener('rankUpdated', handleRankUpdate);
     };
-  }, [queryClient]);
+  }, [queryClient, userId]);
 
   const error = queryError?.message || null;
 
   return {
     rankInfo: rankInfo || null,
     loading,
+    isFetching, // New: shows background refresh
     error,
     refresh: refetch
   };

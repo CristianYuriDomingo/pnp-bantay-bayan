@@ -277,11 +277,20 @@ const LeaderboardInfoCard: React.FC = () => {
   )
 }
 
-// Simplified User Rank Card
+// Fixed UserRankCard component with proper badge handling
 const UserRankCard: React.FC = () => {
-  const { rankData, rankInfo } = useUserRank()
-  const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank()
+  const { rankData, rankInfo } = useUserRank() // from use-rank.ts
+  const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank() // from use-leaderboard.ts
   const { user } = useCurrentUser()
+
+  // 🐛 DEBUG - Check what data we're getting
+  console.log('🐛 UserRankCard data:', {
+    rankData,
+    rankInfo,
+    leaderboardRankInfo,
+    loading,
+    user: user?.email
+  })
 
   if (!user || loading) {
     return (
@@ -292,10 +301,15 @@ const UserRankCard: React.FC = () => {
   }
 
   if (error || !leaderboardRankInfo || !rankData) {
+    console.error('❌ UserRankCard error:', error)
     return null
   }
 
   const validPercentage = Math.min(100, Math.max(0, leaderboardRankInfo.percentToNextLevel || 0))
+
+  // ✅ FIX: Safe badge access with fallbacks
+  const earnedBadges = leaderboardRankInfo.earnedBadges ?? 0
+  const totalBadges = leaderboardRankInfo.totalBadges ?? 0
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 mb-3 sm:mb-4">
@@ -353,12 +367,12 @@ const UserRankCard: React.FC = () => {
         </div>
       )}
 
-      {/* Badges Card */}
+      {/* Badges Card - ✅ FIXED */}
       <div className="bg-yellow-50 rounded-xl sm:rounded-2xl p-3 sm:p-4">
         <div className="flex items-center justify-between">
           <span className="text-xs sm:text-sm font-bold text-gray-700">Badges</span>
           <span className="text-xl sm:text-2xl font-black text-gray-900">
-            {leaderboardRankInfo.earnedBadges}/{leaderboardRankInfo.totalBadges}
+            {earnedBadges}/{totalBadges}
           </span>
         </div>
       </div>
