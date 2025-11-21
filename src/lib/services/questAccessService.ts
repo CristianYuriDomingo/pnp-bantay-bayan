@@ -2,8 +2,6 @@
 import { prisma } from '@/lib/prisma';
 import { 
   getCurrentDayOfWeek, 
-  isQuestDayAvailable,
-  getAvailableQuestDays 
 } from '@/lib/utils/timezone';
 import { checkAndResetWeek } from './weeklyResetService';
 
@@ -12,12 +10,13 @@ interface QuestAccessResult {
   reason: string;
   isMissed: boolean;
   needsDutyPass: boolean;
-  isCompleted: boolean; // NEW: Track if quest is already completed
+  isCompleted: boolean;
 }
 
 /**
  * Check if user can access a specific quest
  * UPDATED: Completed quests are now REPLAYABLE
+ * FIXED: Now checks consecutive completion for proper streak validation
  */
 export async function canAccessQuest(
   userId: string, 

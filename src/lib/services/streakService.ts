@@ -11,6 +11,22 @@ interface StreakCheckResult {
 }
 
 /**
+ * Helper: Check if two quest days are consecutive in the week
+ */
+function areConsecutiveDays(lastDay: string | null, currentDay: string): boolean {
+  if (!lastDay) return true; // First quest ever
+  
+  const weekDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  const lastIndex = weekDays.indexOf(lastDay.toLowerCase());
+  const currentIndex = weekDays.indexOf(currentDay.toLowerCase());
+  
+  if (lastIndex === -1 || currentIndex === -1) return false;
+  
+  // Current day should be exactly one day after last day
+  return currentIndex === lastIndex + 1;
+}
+
+/**
  * Check and update user's streak based on last activity
  * This should be called:
  * 1. When user logs in
@@ -26,6 +42,7 @@ export async function checkAndUpdateStreak(userId: string): Promise<StreakCheckR
       lastQuestCompletedAt: true,
       dutyPasses: true,
       timezone: true,
+      weeklyQuestStartDate: true,
     },
   });
 
@@ -75,7 +92,7 @@ export async function checkAndUpdateStreak(userId: string): Promise<StreakCheckR
   // More than 48 hours: Streak is broken (2+ days missed)
   if (hoursSinceLastQuest >= 48) {
     // Reset streak
-    const updatedUser = await prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: {
         currentStreak: 0,
@@ -105,8 +122,8 @@ export async function checkAndUpdateStreak(userId: string): Promise<StreakCheckR
 
 /**
  * Called when user completes a quest
- * Updates streak based on completed quest days, not just time elapsed
- * FIXED: Now properly handles multiple duty pass completions in the same session
+ * Updates streak based on CONSECUTIVE completed quest days, not just time elapsed
+ * FIXED: Now properly validates consecutive days before incrementing streak
  */
 export async function onQuestComplete(userId: string, questDay: string): Promise<StreakCheckResult> {
   const user = await prisma.user.findUnique({
@@ -115,7 +132,7 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
       currentStreak: true,
       longestStreak: true,
       lastQuestCompletedAt: true,
-      lastCompletedQuestDay: true, // NEW: Track which day was last completed
+      lastCompletedQuestDay: true,
       weeklyQuestStartDate: true,
       timezone: true,
     },
@@ -142,38 +159,43 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
 
   // If this is the first quest ever
   if (!user.lastQuestCompletedAt) {
+    // First quest must be Monday for streak to start
+    const isMonday = questDay.toLowerCase() === 'monday';
+    const initialStreak = isMonday ? 1 : 0;
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        currentStreak: 1,
-        longestStreak: Math.max(1, user.longestStreak),
+        currentStreak: initialStreak,
+        longestStreak: Math.max(initialStreak, user.longestStreak),
         lastQuestCompletedAt: now,
         lastCompletedQuestDay: questDay,
       },
     });
 
-    console.log('🎉 First quest completed! Streak started:', {
+    console.log('🎉 First quest completed!', {
       userId,
       questDay,
-      newStreak: 1,
+      newStreak: initialStreak,
       newLongest: updatedUser.longestStreak,
-      viaDutyPass: isCompletedViaDutyPass
+      viaDutyPass: isCompletedViaDutyPass,
+      message: isMonday ? 'Streak started!' : 'Quest completed (not Monday, no streak)'
     });
 
     return {
-      currentStreak: 1,
+      currentStreak: initialStreak,
       longestStreak: updatedUser.longestStreak,
       streakBroken: false,
       dutyPassUsed: isCompletedViaDutyPass,
-      message: 'First quest completed! Streak started!',
+      message: isMonday 
+        ? 'First quest completed! Streak started!' 
+        : 'Quest completed! Start from Monday to begin a streak.',
     };
   }
 
   // Check if this is a DIFFERENT quest day than the last one completed
   const isDifferentQuestDay = user.lastCompletedQuestDay !== questDay;
   
-  const hoursSinceLastQuest = getHoursBetween(user.lastQuestCompletedAt, now);
-
   // If completing the SAME quest day again (e.g., replaying Monday after already completing it)
   if (!isDifferentQuestDay) {
     // Just update timestamp, don't change streak
@@ -199,22 +221,57 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
     };
   }
 
-  // DIFFERENT quest day completed:
-  // 1. If within same session (< 24 hours) AND different day → INCREMENT (duty pass scenario)
-  // 2. If 24-48 hours AND different day → INCREMENT (normal next-day scenario)
-  // 3. If via duty pass → ALWAYS INCREMENT (streak protection)
-  
-  const shouldIncrementStreak = (
-    (hoursSinceLastQuest < 24 && isDifferentQuestDay) || // Same session, different quest day (duty pass)
-    (hoursSinceLastQuest >= 24 && hoursSinceLastQuest < 48) || // Normal next day
-    isCompletedViaDutyPass // Duty pass always protects streak
+  // CRITICAL CHECK: Are the days consecutive?
+  const isConsecutive = areConsecutiveDays(user.lastCompletedQuestDay, questDay);
+
+  if (!isConsecutive) {
+    // Days are NOT consecutive - this breaks the streak
+    console.log('⚠️ Non-consecutive quest completed:', {
+      userId,
+      lastDay: user.lastCompletedQuestDay,
+      currentDay: questDay,
+      message: 'Streak broken - days not consecutive'
+    });
+
+    // Update to reflect new quest completed, but reset streak to 1 or 0
+    // If they completed Monday, start a new streak at 1
+    // Otherwise, set streak to 0
+    const newStreak = questDay.toLowerCase() === 'monday' ? 1 : 0;
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        currentStreak: newStreak,
+        lastQuestCompletedAt: now,
+        lastCompletedQuestDay: questDay,
+      },
+    });
+
+    return {
+      currentStreak: newStreak,
+      longestStreak: user.longestStreak,
+      streakBroken: true,
+      dutyPassUsed: isCompletedViaDutyPass,
+      message: newStreak === 1
+        ? 'Streak restarted from Monday!'
+        : 'Quest completed, but streak was broken. Start from Monday to begin a new streak.',
+    };
+  }
+
+  // Days ARE consecutive - increment streak!
+  const hoursSinceLastQuest = getHoursBetween(user.lastQuestCompletedAt, now);
+
+  // Check if it's within valid timeframe or via duty pass
+  const isValidTimeframe = (
+    (hoursSinceLastQuest < 48) || // Within 48 hours is acceptable
+    isCompletedViaDutyPass // Duty pass allows any time
   );
 
-  if (shouldIncrementStreak) {
+  if (isValidTimeframe && isConsecutive) {
     const newStreak = user.currentStreak + 1;
     const newLongest = Math.max(newStreak, user.longestStreak);
 
-    const updatedUser = await prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: {
         currentStreak: newStreak,
@@ -231,7 +288,7 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
       newStreak,
       newLongest,
       hoursSinceLastQuest,
-      isDifferentQuestDay,
+      isConsecutive: true,
       viaDutyPass: isCompletedViaDutyPass,
       lastQuestCompletedAt: now
     });
@@ -247,29 +304,32 @@ export async function onQuestComplete(userId: string, questDay: string): Promise
     };
   }
 
-  // More than 48 hours without duty pass: Reset streak and start new one
-  const updatedUser = await prisma.user.update({
+  // Too much time has passed without duty pass: Reset streak
+  const newStreak = questDay.toLowerCase() === 'monday' ? 1 : 0;
+  
+  await prisma.user.update({
     where: { id: userId },
     data: {
-      currentStreak: 1,
+      currentStreak: newStreak,
       lastQuestCompletedAt: now,
       lastCompletedQuestDay: questDay,
     },
   });
 
-  console.log('⚠️ Streak was broken, starting new streak:', {
+  console.log('⚠️ Streak was broken (time expired):', {
     userId,
     questDay,
     oldStreak: user.currentStreak,
-    hoursSinceLastQuest
+    hoursSinceLastQuest,
+    newStreak
   });
 
   return {
-    currentStreak: 1,
+    currentStreak: newStreak,
     longestStreak: user.longestStreak,
     streakBroken: true,
     dutyPassUsed: false,
-    message: 'Streak was broken, starting new streak',
+    message: 'Streak was broken - too much time passed',
   };
 }
 
