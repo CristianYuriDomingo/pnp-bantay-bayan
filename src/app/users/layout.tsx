@@ -143,6 +143,12 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
       icon: '/DashboardImage/profile.png',
       alt: 'Profile'
     },
+    { 
+      name: 'Help', 
+      href: '/users/help', 
+      icon: '/DashboardImage/help.png',
+      alt: 'Help'
+    },
   ];
 
   if (isLoading) {
@@ -452,22 +458,22 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                 <button
                   onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
                   className={`flex flex-col items-center justify-center h-full w-full transition-all duration-200 rounded-lg mx-1
-                    ${pathname === '/users/profile'
+                    ${(pathname === '/users/profile' || pathname === '/users/help')
                       ? 'text-blue-600 dark:text-blue-400'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                 >
-                  <div className={`flex items-center justify-center w-7 h-7 mb-1 transition-transform duration-200 ${pathname === '/users/profile' ? 'scale-110' : ''}`}>
+                  <div className={`flex items-center justify-center w-7 h-7 mb-1 transition-transform duration-200 ${(pathname === '/users/profile' || pathname === '/users/help') ? 'scale-110' : ''}`}>
                     <Image
                       src="/DashboardImage/more.png"
                       className="w-7 h-7"
                       alt="More"
                       width={28}
                       height={28}
-                      style={{ filter: pathname === '/users/profile' ? 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(192deg) brightness(97%) contrast(89%)' : 'none' }}
+                      style={{ filter: (pathname === '/users/profile' || pathname === '/users/help') ? 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(192deg) brightness(97%) contrast(89%)' : 'none' }}
                     />
                   </div>
-                  <span className={`text-xs font-medium ${pathname === '/users/profile' ? 'font-bold' : ''}`}>
+                  <span className={`text-xs font-medium ${(pathname === '/users/profile' || pathname === '/users/help') ? 'font-bold' : ''}`}>
                     More
                   </span>
                 </button>
@@ -496,6 +502,20 @@ export default function UsersLayout({ children }: UsersLayoutProps) {
                           height={20}
                         />
                         <span className="text-sm font-medium">Profile</span>
+                      </Link>
+                      <Link
+                        href="/users/help"
+                        className="flex items-center px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <Image
+                          src="/DashboardImage/help.png"
+                          className="w-5 h-5 mr-3"
+                          alt="Help"
+                          width={20}
+                          height={20}
+                        />
+                        <span className="text-sm font-medium">Help</span>
                       </Link>
                       <div className="border-t border-gray-200 dark:border-gray-700"></div>
                       <button

@@ -1,2 +1,6 @@
 [2025-11-18T03:21:13.854Z] Janwella (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=31359e0ef07f26d3b726283a705f9a3453b9c9c9436ad32408562fe9c730f1eb
 [2025-11-18T04:10:24.825Z] Janwella Javier (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=cca955eb58c612e8c463d43cab8d2fac7cd8dd8ae64f650bb8ee3364c829bb29
+[2025-11-21T05:24:46.004Z] Sir Joey (mmfi.jdc@gmail.com) | http://localhost:3000/auth/verify-email?token=dcda054ca958c27dc837ead2269395746f471eece431df99f5677549a286e5db
+[2025-11-21T05:45:44.617Z] Panchot (ha4178246@gmail.com) | http://localhost:3000/auth/verify-email?token=24c410db8af150dd884573c7a97245b61fe89d49603e8f732b595c5b1936cdf9
+[2025-11-21T05:46:45.570Z] Panchot (ha4178246@gmail.com) | http://localhost:3000/auth/verify-email?token=218255689b6e2eff248c246cc2c82e9c474be5dbd1579c01ebf512f8c4aadc9c
+[2025-11-21T05:48:35.446Z] Yuri (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=0921a40a8c24d2851a92e83f2a199dcabe43a9bdd6c9a6e357fa4447cd0c2e13
