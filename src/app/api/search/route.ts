@@ -1,4 +1,3 @@
-//app/api/search/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -20,9 +19,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const searchTerm = query.trim().toLowerCase();
+    // Normalize search term - trim and handle spaces properly
+    const searchTerm = query.trim();
 
-    // Search with more sophisticated query
+    // Search with case-insensitive matching
     const modules = await prisma.module.findMany({
       where: {
         OR: [
@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
       },
       include: {
         lessons: {
-          // Remove the where clause here to get ALL lessons from matching modules
           orderBy: {
             createdAt: 'asc'
           }
@@ -80,19 +79,31 @@ export async function GET(request: NextRequest) {
       // Calculate relevance score
       let relevanceScore = 0;
       
-      // Module title match gets high score
-      if (module.title.toLowerCase().includes(searchTerm)) {
+      // Check if module title matches (case-insensitive)
+      const moduleMatches = module.title.toLowerCase().includes(searchTerm.toLowerCase());
+      if (moduleMatches) {
         relevanceScore += 10;
       }
       
-      // Filter lessons to only include matches - with null check
-      const matchingLessons = module.lessons.filter(lesson => 
-        lesson.title.toLowerCase().includes(searchTerm) ||
-        (lesson.description && lesson.description.toLowerCase().includes(searchTerm))
-      );
+      // Filter lessons to only include matches (case-insensitive)
+      const matchingLessons = module.lessons.filter(lesson => {
+        const titleMatch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase());
+        const descriptionMatch = lesson.description && 
+          lesson.description.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        return titleMatch || descriptionMatch;
+      });
 
       // Lesson matches get medium score
       relevanceScore += matchingLessons.length * 5;
+
+      // Add extra points for exact matches
+      const exactTitleMatch = matchingLessons.some(
+        lesson => lesson.title.toLowerCase() === searchTerm.toLowerCase()
+      );
+      if (exactTitleMatch) {
+        relevanceScore += 15;
+      }
 
       return {
         category: module.title,
@@ -100,31 +111,51 @@ export async function GET(request: NextRequest) {
         moduleId: module.id,
         totalLessons: module._count.lessons,
         relevanceScore,
+        moduleMatches, // Add this flag to track if module title matches
         lessons: matchingLessons.map(lesson => ({
           id: lesson.id,
           title: lesson.title,
           description: lesson.description,
-          path: `/lessons/${lesson.id}`, // Adjust path based on your routing
+          path: `/lessons/${lesson.id}`,
           moduleId: module.id,
           moduleName: module.title
-        }))
+        })),
+        // Include all lessons when module name matches but no lesson matches
+        allLessons: moduleMatches && matchingLessons.length === 0 
+          ? module.lessons.map(lesson => ({
+              id: lesson.id,
+              title: lesson.title,
+              description: lesson.description,
+              path: `/lessons/${lesson.id}`,
+              moduleId: module.id,
+              moduleName: module.title
+            }))
+          : []
       };
     }).filter(category => {
-      // Include categories with matching lessons or if module name matches
+      // Include if module name matches OR if there are matching lessons
       const hasMatchingLessons = category.lessons.length > 0;
-      const moduleNameMatches = category.category.toLowerCase().includes(searchTerm);
+      const hasAllLessons = category.allLessons && category.allLessons.length > 0;
       
       if (includeEmpty) {
-        return hasMatchingLessons || moduleNameMatches;
+        return hasMatchingLessons || category.moduleMatches || hasAllLessons;
       }
       
-      return hasMatchingLessons;
-    }).sort((a, b) => b.relevanceScore - a.relevanceScore); // Sort by relevance
+      // KEY FIX: Include module if its name matches, even without matching lessons
+      return hasMatchingLessons || category.moduleMatches;
+    }).map(category => {
+      // Merge lessons and allLessons for final output
+      return {
+        ...category,
+        lessons: category.lessons.length > 0 
+          ? category.lessons 
+          : (category.allLessons || [])
+      };
+    }).sort((a, b) => b.relevanceScore - a.relevanceScore);
 
     // Add search suggestions if no results found
     let suggestions: string[] = [];
     if (searchResults.length === 0) {
-      // Get popular search terms (you can implement this based on your needs)
       const popularModules = await prisma.module.findMany({
         take: 5,
         orderBy: {
