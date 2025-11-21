@@ -121,18 +121,19 @@ export default function QuestPath({ onNavigate }: QuestPathProps) {
 
   // React Query for data fetching with caching
   const {
-    data: questData,
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey: ['weeklyQuestStatus'],
-    queryFn: fetchWeeklyStatus,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    retry: 2,
-    refetchOnWindowFocus: false,
-  });
+  data: questData,
+  isLoading,
+  error,
+  refetch
+} = useQuery({
+  queryKey: ['weeklyQuestStatus'],
+  queryFn: fetchWeeklyStatus,
+  staleTime: 0, // Always consider data stale
+  gcTime: 10 * 60 * 1000, // 10 minutes
+  retry: 2,
+  refetchOnWindowFocus: true, // Changed from false to true
+  refetchOnMount: 'always', // Added this line
+});
 
   // Mutations for optimistic updates
   const useDutyPassMutation = useMutation({
