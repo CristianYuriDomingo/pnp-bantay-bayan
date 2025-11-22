@@ -92,6 +92,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       icon: '/AdminImage/badges.png',
       alt: 'Badges'
     },
+    { 
+      id: 'manual', 
+      label: 'User Manual', 
+      href: '/admin/manual',
+      description: 'Documentation & Guide',
+      icon: '/AdminImage/manual.png',
+      alt: 'User Manual'
+    },
   ];
   
   const isActive = (href: string) => {
@@ -336,13 +344,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <button
               onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
               className={`flex flex-col items-center justify-center h-full w-full transition-all duration-200 rounded-lg mx-1
-                ${(isActive('/admin/quiz') || isActive('/admin/badges'))
+                ${(isActive('/admin/quiz') || isActive('/admin/badges') || isActive('/admin/manual'))
                   ? 'text-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
                 }`}
             >
-              <MoreHorizontal className={`w-6 h-6 mb-1 transition-transform duration-200 ${(isActive('/admin/quiz') || isActive('/admin/badges')) ? 'scale-110' : ''}`} />
-              <span className={`text-xs font-medium ${(isActive('/admin/quiz') || isActive('/admin/badges')) ? 'font-bold' : ''}`}>
+              <MoreHorizontal className={`w-6 h-6 mb-1 transition-transform duration-200 ${(isActive('/admin/quiz') || isActive('/admin/badges') || isActive('/admin/manual')) ? 'scale-110' : ''}`} />
+              <span className={`text-xs font-medium ${(isActive('/admin/quiz') || isActive('/admin/badges') || isActive('/admin/manual')) ? 'font-bold' : ''}`}>
                 More
               </span>
             </button>

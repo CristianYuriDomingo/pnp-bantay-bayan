@@ -1,4 +1,4 @@
-// app/api/users/quizzes/[id]/submit/route.ts
+// FILE: app/api/users/quizzes/[id]/submit/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -43,8 +43,11 @@ export async function POST(
       );
     }
 
-    // Check if the answer is correct by comparing with correctAnswer index
-    const isCorrect = selectedAnswer === question.correctAnswer;
+    // Check if the answer is correct
+    // selectedAnswer is the ORIGINAL index (sent from frontend after conversion)
+    // question.correctAnswer is also the ORIGINAL index (stored in database)
+    // -1 means timeout (no answer selected)
+    const isCorrect = selectedAnswer !== -1 && selectedAnswer === question.correctAnswer;
 
     // Return the result with correct answer and explanation
     return NextResponse.json({
@@ -54,7 +57,6 @@ export async function POST(
       correctAnswerText: question.options[question.correctAnswer],
       isCorrect,
       explanation: question.explanation,
-      // Optional: include the question and options for context
       question: question.question,
       options: question.options
     });
@@ -115,7 +117,8 @@ export async function PUT(
         };
       }
 
-      const isCorrect = answer.selectedAnswer === question.correctAnswer;
+      // selectedAnswer is ORIGINAL index, question.correctAnswer is also ORIGINAL index
+      const isCorrect = answer.selectedAnswer !== -1 && answer.selectedAnswer === question.correctAnswer;
       
       return {
         questionId: question.id,

@@ -1,9 +1,10 @@
-// app/users/leaderboard/page.tsx
+// app/users/leaderboard/page.tsx - COMPLETE FIXED VERSION
 'use client'
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useLeaderboard, useUserRank as useUserLeaderboardRank } from '@/hooks/use-leaderboard'
 import { useUserRank } from '@/hooks/use-rank'
+import { useUserBadges } from '@/hooks/use-user-badges'
 import { LeaderboardEntry, LeaderboardPaginationLimit } from '@/types/leaderboard'
 import { TrendingUp, Zap, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
@@ -277,17 +278,19 @@ const LeaderboardInfoCard: React.FC = () => {
   )
 }
 
-// Fixed UserRankCard component with proper badge handling
-const UserRankCard: React.FC = () => {
-  const { rankData, rankInfo } = useUserRank() // from use-rank.ts
-  const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank() // from use-leaderboard.ts
+// ✅ FIXED UserRankCard component - Now receives currentUserEntry as prop
+const UserRankCard: React.FC<{ currentUserEntry?: LeaderboardEntry | null }> = ({ currentUserEntry }) => {
+  const { rankData, rankInfo } = useUserRank()
+  const { rankInfo: leaderboardRankInfo, loading, error } = useUserLeaderboardRank()
+  const { statistics: badgeStats } = useUserBadges()
   const { user } = useCurrentUser()
 
-  // 🐛 DEBUG - Check what data we're getting
   console.log('🐛 UserRankCard data:', {
     rankData,
     rankInfo,
     leaderboardRankInfo,
+    currentUserEntry,
+    badgeStats,
     loading,
     user: user?.email
   })
@@ -300,81 +303,90 @@ const UserRankCard: React.FC = () => {
     )
   }
 
-  if (error || !leaderboardRankInfo || !rankData) {
+  if (error) {
     console.error('❌ UserRankCard error:', error)
-    return null
+    return (
+      <div className="bg-red-50 rounded-xl p-4 text-center mb-3 sm:mb-4">
+        <p className="text-red-600 text-sm font-semibold">Failed to load rank data</p>
+        <p className="text-xs text-red-500 mt-1">{error}</p>
+      </div>
+    )
   }
 
-  const validPercentage = Math.min(100, Math.max(0, leaderboardRankInfo.percentToNextLevel || 0))
+  // ✅ FIX: Prioritize currentUserEntry rank, fallback to leaderboardRankInfo
+  const rank = currentUserEntry?.rank ?? leaderboardRankInfo?.rank ?? 0
+  const level = currentUserEntry?.level ?? leaderboardRankInfo?.level ?? 1
+  const totalXP = currentUserEntry?.totalXP ?? leaderboardRankInfo?.totalXP ?? 0
+  const xpToNextLevel = leaderboardRankInfo?.xpToNextLevel ?? 0
+  const percentToNextLevel = leaderboardRankInfo?.percentToNextLevel ?? 0
+  const nextPNPRank = leaderboardRankInfo?.nextPNPRank
+  const xpToNextRank = leaderboardRankInfo?.xpToNextRank ?? 0
+  const earnedBadges = currentUserEntry?.earnedBadges ?? badgeStats?.totalEarned ?? 0
+  const totalBadges = currentUserEntry?.totalBadges ?? badgeStats?.totalAvailable ?? 0
+  const validPercentage = Math.min(100, Math.max(0, percentToNextLevel))
+  const currentRank = rankData?.currentRank ?? currentUserEntry?.pnpRank ?? 'PCpl'
 
-  // ✅ FIX: Safe badge access with fallbacks
-  const earnedBadges = leaderboardRankInfo.earnedBadges ?? 0
-  const totalBadges = leaderboardRankInfo.totalBadges ?? 0
+  // ✅ Debug: Log to see what rank we're getting
+  console.log('📊 Current rank value:', rank, 'from currentUserEntry:', currentUserEntry?.rank, 'or leaderboardRankInfo:', leaderboardRankInfo?.rank)
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 mb-3 sm:mb-4">
-      {/* Header: Your Rank */}
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
           <p className="text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">YOUR RANK</p>
-          <p className="text-2xl sm:text-3xl font-black text-gray-900">#{leaderboardRankInfo.rank}</p>
+          <p className="text-2xl sm:text-3xl font-black text-gray-900">
+            #{rank > 0 ? rank : '?'}
+          </p>
         </div>
         <div>
-          <PNPRankBadge rank={rankData.currentRank} size="sm" showName={false} showIcon={true} />
+          <PNPRankBadge rank={currentRank} size="sm" showName={false} showIcon={true} />
         </div>
       </div>
 
-      {/* Level Display */}
       <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2 sm:py-3 mb-2 sm:mb-3">
         <div className="flex items-center justify-between text-white">
           <span className="text-xs sm:text-sm font-bold uppercase tracking-wider">Level</span>
-          <span className="text-2xl sm:text-3xl font-black">{leaderboardRankInfo.level}</span>
+          <span className="text-2xl sm:text-3xl font-black">{level}</span>
         </div>
       </div>
 
-      {/* Total XP Card */}
       <div className="bg-gray-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-2 sm:mb-3">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center">
           <span className="text-xs sm:text-sm font-semibold text-gray-700">Total XP</span>
-          <span className="text-lg sm:text-xl font-bold text-blue-600">{leaderboardRankInfo.totalXP}</span>
+          <span className="text-lg sm:text-xl font-bold text-blue-600">{totalXP}</span>
         </div>
-        <div className="w-full bg-gray-300 rounded-full h-2 sm:h-3">
-          <div 
-            className="bg-gradient-to-r from-blue-500 to-blue-400 h-full rounded-full transition-all"
-            style={{ width: `${validPercentage}%` }}
-          ></div>
-        </div>
-        {leaderboardRankInfo.xpToNextLevel > 0 && (
-          <p className="text-[10px] sm:text-xs text-gray-600 mt-1.5 sm:mt-2 font-medium">
-            {leaderboardRankInfo.xpToNextLevel} XP to Level {leaderboardRankInfo.level + 1}
-          </p>
-        )}
       </div>
 
-      {/* Next Rank Card */}
-      {leaderboardRankInfo.nextPNPRank && leaderboardRankInfo.xpToNextRank && leaderboardRankInfo.xpToNextRank > 0 && (
+      {nextPNPRank && xpToNextRank > 0 && (
         <div className="bg-blue-50 rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-2 sm:mb-3">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <TrendingUp size={14} className="text-blue-600 sm:w-4 sm:h-4" />
               <span className="text-xs sm:text-sm font-bold text-gray-700">Next Rank</span>
             </div>
-            <PNPRankBadge rank={leaderboardRankInfo.nextPNPRank} size="xs" showIcon={true} />
+            <PNPRankBadge rank={nextPNPRank} size="xs" showIcon={true} />
           </div>
           <p className="text-xs sm:text-sm font-semibold text-gray-700">
-            Need <span className="text-blue-600 text-sm sm:text-base font-bold">{leaderboardRankInfo.xpToNextRank} XP</span>
+            Need <span className="text-blue-600 text-sm sm:text-base font-bold">{xpToNextRank} XP</span>
           </p>
         </div>
       )}
 
-      {/* Badges Card - ✅ FIXED */}
       <div className="bg-yellow-50 rounded-xl sm:rounded-2xl p-3 sm:p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-xs sm:text-sm font-bold text-gray-700">Badges</span>
           <span className="text-xl sm:text-2xl font-black text-gray-900">
             {earnedBadges}/{totalBadges}
           </span>
         </div>
+        {totalBadges > 0 && (
+          <div className="w-full bg-yellow-200 rounded-full h-1.5 overflow-hidden">
+            <div 
+              className="bg-yellow-500 h-full rounded-full transition-all duration-500"
+              style={{ width: `${(earnedBadges / totalBadges) * 100}%` }}
+            ></div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -400,7 +412,6 @@ export default function LeaderboardPage() {
   const topThree = leaderboard.slice(0, 3)
   const restOfLeaderboard = leaderboard.slice(3)
 
-  // Set right column content
   useEffect(() => {
     setRightColumnContent(
       <div className="space-y-2">
@@ -410,29 +421,22 @@ export default function LeaderboardPage() {
           </div>
           {user && (
             <div className="p-4 sm:p-6">
-              <UserRankCard />
+              {/* ✅ FIXED: Pass currentUserEntry to UserRankCard */}
+              <UserRankCard currentUserEntry={currentUserEntry} />
             </div>
           )}
         </div>
-
-        {/* Footer Links */}
         <div className="pt-3 sm:pt-4 pb-2 px-3 sm:px-4">
           <div className="flex flex-wrap justify-center gap-x-3 sm:gap-x-4 gap-y-2 text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wide">
-            <Link href="/users/privacy" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-              Privacy
-            </Link>
-            <Link href="/users/about" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-              About
-            </Link>
-            <Link href="/users/terms" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-              Terms
-            </Link>
+            <Link href="/users/privacy" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacy</Link>
+            <Link href="/users/about" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">About</Link>
+            <Link href="/users/terms" className="hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Terms</Link>
           </div>
         </div>
       </div>
     )
     return () => setRightColumnContent(null)
-  }, [user, setRightColumnContent])
+  }, [user, currentUserEntry, setRightColumnContent]) // ✅ Added currentUserEntry to dependencies
 
   const handleLimitChange = (newLimit: LeaderboardPaginationLimit) => {
     setLimit(newLimit)
@@ -462,10 +466,7 @@ export default function LeaderboardPage() {
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl sm:rounded-2xl p-5 sm:p-6 text-center max-w-md">
               <p className="text-red-600 dark:text-red-400 font-semibold text-base sm:text-lg mb-2">Oops!</p>
               <p className="text-red-500 dark:text-red-400 text-xs sm:text-sm mb-3 sm:mb-4">{error}</p>
-              <button
-                onClick={handleRefresh}
-                className="px-4 sm:px-5 py-2 bg-red-500 text-white rounded-lg sm:rounded-xl text-sm font-medium hover:bg-red-600 transition-colors shadow-sm"
-              >
+              <button onClick={handleRefresh} className="px-4 sm:px-5 py-2 bg-red-500 text-white rounded-lg sm:rounded-xl text-sm font-medium hover:bg-red-600 transition-colors shadow-sm">
                 Try Again
               </button>
             </div>
@@ -477,39 +478,27 @@ export default function LeaderboardPage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* Significantly reduced padding on mobile */}
       <div className="px-2 sm:px-4 md:px-6 lg:px-12 py-3 sm:py-6">
-        {/* Top 3 Podium */}
         <PodiumDisplay topThree={topThree} currentUserId={user?.id} />
 
-        {/* Controls */}
         <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 mb-3 sm:mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-3">
               <label className="text-xs sm:text-sm font-medium text-gray-700">Show:</label>
-              <select
-                value={limit}
-                onChange={(e) => handleLimitChange(Number(e.target.value) as LeaderboardPaginationLimit)}
-                className="border border-gray-300 rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white"
-              >
+              <select value={limit} onChange={(e) => handleLimitChange(Number(e.target.value) as LeaderboardPaginationLimit)} className="border border-gray-300 rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white">
                 <option value={10}>Top 10</option>
                 <option value={25}>Top 25</option>
                 <option value={50}>Top 50</option>
                 <option value={100}>Top 100</option>
               </select>
             </div>
-
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               {lastUpdated && (
                 <p className="text-[10px] sm:text-xs text-gray-500 font-medium flex-1 sm:flex-none">
                   Updated {lastUpdated.toLocaleTimeString()}
                 </p>
               )}
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <button onClick={handleRefresh} disabled={loading} className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500 text-white rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <RefreshCw size={14} className={`${loading ? 'animate-spin' : ''} sm:w-4 sm:h-4`} />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
@@ -517,7 +506,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        {/* Leaderboard Table */}
         <div className="bg-white rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-6">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -541,12 +529,7 @@ export default function LeaderboardPage() {
                 {restOfLeaderboard.map((entry) => {
                   const isCurrentUser = user?.id === entry.userId
                   return (
-                    <tr 
-                      key={entry.userId}
-                      className={`hover:bg-blue-50 transition-colors ${
-                        isCurrentUser ? 'bg-blue-50 border-l-2 sm:border-l-4 border-blue-500' : ''
-                      }`}
-                    >
+                    <tr key={entry.userId} className={`hover:bg-blue-50 transition-colors ${isCurrentUser ? 'bg-blue-50 border-l-2 sm:border-l-4 border-blue-500' : ''}`}>
                       <td className="px-2 sm:px-4 py-2 sm:py-4">
                         <PositionBadge rank={entry.rank} size="sm" />
                       </td>
@@ -562,9 +545,7 @@ export default function LeaderboardPage() {
                             <p className="font-medium text-gray-800 text-xs sm:text-sm truncate">
                               {entry.displayName}
                               {isCurrentUser && (
-                                <span className="ml-1.5 sm:ml-2 text-[9px] sm:text-xs bg-blue-500 text-white px-1.5 sm:px-2 py-0.5 rounded-full font-bold">
-                                  YOU
-                                </span>
+                                <span className="ml-1.5 sm:ml-2 text-[9px] sm:text-xs bg-blue-500 text-white px-1.5 sm:px-2 py-0.5 rounded-full font-bold">YOU</span>
                               )}
                             </p>
                           </div>
@@ -576,24 +557,18 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
-                        <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full font-semibold text-xs sm:text-sm ${
-                          isCurrentUser ? 'bg-blue-500 text-white' : 'bg-purple-100 text-purple-700'
-                        }`}>
+                        <span className={`inline-flex items-center justify-center w-7 h-7 sm:w-9 sm:h-9 rounded-full font-semibold text-xs sm:text-sm ${isCurrentUser ? 'bg-blue-500 text-white' : 'bg-purple-100 text-purple-700'}`}>
                           {entry.level}
                         </span>
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
-                        <div className={`flex items-center justify-center gap-0.5 sm:gap-1 font-semibold text-xs sm:text-sm ${
-                          isCurrentUser ? 'text-blue-600' : 'text-blue-600'
-                        }`}>
+                        <div className={`flex items-center justify-center gap-0.5 sm:gap-1 font-semibold text-xs sm:text-sm ${isCurrentUser ? 'text-blue-600' : 'text-blue-600'}`}>
                           <Zap size={12} fill="currentColor" className="sm:w-3.5 sm:h-3.5" />
                           {entry.totalXP}
                         </div>
                       </td>
                       <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
-                        <span className={`font-medium text-xs sm:text-sm ${
-                          isCurrentUser ? 'text-blue-700 font-semibold' : 'text-gray-700'
-                        }`}>
+                        <span className={`font-medium text-xs sm:text-sm ${isCurrentUser ? 'text-blue-700 font-semibold' : 'text-gray-700'}`}>
                           {entry.earnedBadges}/{entry.totalBadges}
                         </span>
                       </td>
@@ -604,7 +579,6 @@ export default function LeaderboardPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           {pagination.total > limit && (
             <div className="border-t border-gray-200 px-3 sm:px-4 py-2 sm:py-3 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -612,20 +586,12 @@ export default function LeaderboardPage() {
                   {((page - 1) * limit) + 1}-{Math.min(page * limit, pagination.total)} of {pagination.total}
                 </p>
                 <div className="flex gap-1.5 sm:gap-2">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-0.5 sm:gap-1 bg-white"
-                  >
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-0.5 sm:gap-1 bg-white">
                     <ChevronLeft size={14} className="sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Previous</span>
                     <span className="sm:hidden">Prev</span>
                   </button>
-                  <button
-                    onClick={() => setPage(p => p + 1)}
-                    disabled={!pagination.hasMore}
-                    className="px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-0.5 sm:gap-1 bg-white"
-                  >
+                  <button onClick={() => setPage(p => p + 1)} disabled={!pagination.hasMore} className="px-2 sm:px-3 py-1 sm:py-1.5 border border-gray-300 rounded-lg sm:rounded-xl text-[10px] sm:text-sm font-medium hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-0.5 sm:gap-1 bg-white">
                     <span>Next</span>
                     <ChevronRight size={14} className="sm:w-4 sm:h-4" />
                   </button>
@@ -635,7 +601,6 @@ export default function LeaderboardPage() {
           )}
         </div>
 
-        {/* Show current user if not in visible range */}
         {currentUserEntry && !leaderboard.find(e => e.userId === user?.id) && (
           <div className="bg-blue-50 border-2 border-blue-500 rounded-xl sm:rounded-2xl p-3 sm:p-4">
             <p className="text-xs sm:text-sm text-blue-800 font-semibold mb-2 sm:mb-3 flex items-center">
@@ -647,12 +612,7 @@ export default function LeaderboardPage() {
                 <div className="flex items-center gap-2 sm:gap-3">
                   <PositionBadge rank={currentUserEntry.rank} size="md" />
                   <div className="relative">
-                    <UserAvatar 
-                      image={currentUserEntry.image} 
-                      name={currentUserEntry.displayName} 
-                      size={40}
-                      customBorderColor="#fecf6b"
-                    />
+                    <UserAvatar image={currentUserEntry.image} name={currentUserEntry.displayName} size={40} customBorderColor="#fecf6b" />
                     <div className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 bg-blue-500 rounded-full border-2 border-white"></div>
                   </div>
                   <div className="min-w-0">

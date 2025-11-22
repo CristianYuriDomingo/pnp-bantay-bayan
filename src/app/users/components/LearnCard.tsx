@@ -1,4 +1,4 @@
-// components/LearnCard.tsx - With Auto-Refresh
+// components/LearnCard.tsx - With Auto-Refresh (Quiz Badges Excluded)
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -169,7 +169,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
   const completedLessons = moduleProgress?.completedLessons?.length || 0;
   const totalLessons = moduleProgress?.totalLessons || 0;
 
-  // Filter badges for this module AND its lessons
+  // Filter badges for this module AND its lessons (EXCLUDING QUIZ BADGES)
   const moduleBadges: BadgeDisplay[] = React.useMemo(() => {
     if (!badges || badgesLoading || !moduleLessons.length) return [];
     
@@ -179,11 +179,17 @@ const LearnCard: React.FC<LearnCardProps> = ({
       .filter(badge => {
         if (!badge.isEarned) return false;
         
-        const isModuleBadge = badge.triggerValue === moduleId || 
-                             badge.category.toLowerCase().includes(title.toLowerCase().split(' ')[0]);
+        // 🚫 EXCLUDE ALL QUIZ BADGES
+        if (badge.triggerType === 'quiz_mastery' || badge.triggerType === 'parent_quiz_mastery') {
+          return false;
+        }
         
+        // Only include module completion badges
+        const isModuleBadge = badge.triggerType === 'module_complete' && badge.triggerValue === moduleId;
+        
+        // Only include lesson completion badges for lessons in THIS module
         const isLessonBadge = badge.triggerType === 'lesson_complete' && 
-                             lessonIds.includes(badge.triggerValue);
+                            lessonIds.includes(badge.triggerValue);
         
         return isModuleBadge || isLessonBadge;
       })
@@ -199,20 +205,23 @@ const LearnCard: React.FC<LearnCardProps> = ({
 
     return earnedBadges
       .sort((a, b) => {
-        const aIsModule = a.triggerValue === moduleId || a.triggerType === 'module_complete';
-        const bIsModule = b.triggerValue === moduleId || b.triggerType === 'module_complete';
+        // Module badges first
+        const aIsModule = a.triggerType === 'module_complete';
+        const bIsModule = b.triggerType === 'module_complete';
         
         if (aIsModule && !bIsModule) return -1;
         if (!aIsModule && bIsModule) return 1;
         
+        // Then by rarity
         const rarityOrder: Record<string, number> = { 'Legendary': 0, 'Epic': 1, 'Rare': 2, 'Common': 3 };
         const rarityDiff = (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
         if (rarityDiff !== 0) return rarityDiff;
         
+        // Finally by date
         return new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime();
       })
       .slice(0, 3);
-  }, [badges, badgesLoading, moduleId, title, moduleLessons]);
+  }, [badges, badgesLoading, moduleId, moduleLessons]);
 
   const handleLessonClick = (lessonId: string) => {
     closeModal();
@@ -229,7 +238,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
 
   // Function to get badge source description
   const getBadgeSourceDescription = (badge: BadgeDisplay) => {
-    if (badge.triggerValue === moduleId || badge.triggerType === 'module_complete') {
+    if (badge.triggerType === 'module_complete' && badge.triggerValue === moduleId) {
       return `Module completion badge`;
     }
     
@@ -291,7 +300,7 @@ const LearnCard: React.FC<LearnCardProps> = ({
           {moduleBadges.length > 0 && (
             <div className="absolute top-2 left-2 flex space-x-2 z-20">
               {moduleBadges.slice(0, 3).map((badge) => {
-                const isModuleBadge = badge.triggerValue === moduleId || badge.triggerType === 'module_complete';
+                const isModuleBadge = badge.triggerType === 'module_complete';
                 
                 return (
                   <div 

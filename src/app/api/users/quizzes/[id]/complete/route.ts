@@ -28,7 +28,7 @@ export async function POST(
     const userId = user.id;
     const quizId = params.id;
     const body = await request.json();
-    const { answers, timeSpent } = body;
+    const { answers, timeSpent, questionIds } = body;  // Added questionIds
 
     // Fetch quiz with correct answers
     const quiz = await prisma.quiz.findUnique({
@@ -51,10 +51,27 @@ export async function POST(
     }
 
     // Calculate score
+    // IMPORTANT: Match answers by questionId, not by array index
+    // because questions may have been shuffled on the frontend
     let correctAnswers = 0;
-    const detailedAnswers = quiz.questions.map((question, index) => {
+    const detailedAnswers = questionIds.map((questionId: string, index: number) => {
+      const question = quiz.questions.find(q => q.id === questionId);
       const userAnswer = answers[index];
-      const isCorrect = userAnswer === question.correctAnswer;
+      
+      if (!question) {
+        return {
+          questionId,
+          question: 'Question not found',
+          userAnswer,
+          correctAnswer: -1,
+          isCorrect: false,
+          explanation: null
+        };
+      }
+
+      // Both userAnswer and question.correctAnswer are ORIGINAL indices
+      // -1 means user didn't answer (timeout)
+      const isCorrect = userAnswer !== -1 && userAnswer === question.correctAnswer;
       if (isCorrect) correctAnswers++;
 
       return {
@@ -72,18 +89,23 @@ export async function POST(
     const timeAllowed = totalQuestions * quiz.timer;
     const timeEfficiency = Math.max(0, ((timeAllowed - timeSpent) / timeAllowed) * 100);
     
-    // Calculate mastery score (70% accuracy + 30% time efficiency)
-    const masteryScore = (percentage * 0.7) + (timeEfficiency * 0.3);
+    // Calculate mastery score (95% accuracy + 5% time efficiency)
+    const masteryScore = (percentage * 0.95) + (timeEfficiency * 0.05);
 
     // Debug logging
     console.log('=== QUIZ COMPLETION DEBUG ===');
+    console.log('Question IDs from frontend:', questionIds);
+    console.log('User Answers:', answers);
     console.log('Correct Answers:', correctAnswers);
     console.log('Total Questions:', totalQuestions);
     console.log('Percentage:', percentage);
-    console.log('Time Spent:', timeSpent);
-    console.log('Time Allowed:', timeAllowed);
-    console.log('Time Efficiency:', timeEfficiency);
     console.log('Mastery Score:', masteryScore);
+    console.log('Detailed:', detailedAnswers.map((d: { questionId: string; userAnswer: number; correctAnswer: number; isCorrect: boolean }) => ({ 
+      qId: d.questionId, 
+      user: d.userAnswer, 
+      correct: d.correctAnswer, 
+      isCorrect: d.isCorrect 
+    })));
     console.log('=============================');
 
     // Determine mastery level
@@ -122,8 +144,11 @@ export async function POST(
       }
     });
 
+    let isNewBestScore = false;
+
     if (existingMastery) {
       if (masteryScore > existingMastery.bestMasteryScore) {
+        isNewBestScore = true;
         await prisma.quizMastery.update({
           where: { id: existingMastery.id },
           data: {
@@ -146,6 +171,7 @@ export async function POST(
         });
       }
     } else {
+      isNewBestScore = true;
       await prisma.quizMastery.create({
         data: {
           userId,
@@ -170,7 +196,6 @@ export async function POST(
     const earnedBadges = badgeResult.newBadges;
     let totalXPGained = earnedBadges.reduce((sum, badge) => sum + (badge.xpValue || 0), 0);
 
-    // Dispatch badge event if badges were earned
     if (earnedBadges.length > 0) {
       console.log(`🏆 User earned ${earnedBadges.length} badges from quiz completion`);
     }
@@ -200,7 +225,8 @@ export async function POST(
       timeEfficiency,
       answers: detailedAnswers,
       earnedBadges,
-      totalXPGained
+      totalXPGained,
+      isNewBestScore
     });
 
   } catch (error) {

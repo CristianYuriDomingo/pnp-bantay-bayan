@@ -69,7 +69,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
             </h3>
 
             <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
-              Score = 70% accuracy + 30% speed. Earn badges at 90%+ mastery: Perfect (100%), Gold (90%+), Silver (75%+), Bronze (60%+).
+              Score = 95% accuracy + 5% speed bonus. Earn badges at 90%+ mastery: Perfect (100%), Gold (90%+), Silver (75%+), Bronze (60%+).
             </p>
           </div>
         </div>
@@ -93,7 +93,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
           
           {/* Modal Content */}
           <div 
-            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700"
+            className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700 pointer-events-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header - Fixed */}
@@ -118,22 +118,26 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                   
                   <div className="p-5 space-y-4 text-sm text-gray-700 dark:text-gray-300">
                     <div className="flex items-center gap-3">
-                      <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">70%</div>
-                      <span className="font-medium">Accuracy</span>
+                      <div className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">95%</div>
+                      <span className="font-medium">Accuracy (main factor)</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">30%</div>
-                      <span className="font-medium">Speed</span>
+                      <div className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">5%</div>
+                      <span className="font-medium">Speed (bonus)</span>
                     </div>
                     <div className="bg-blue-50 dark:bg-gray-800 rounded-lg p-4 mt-3">
                       <div className="font-bold text-sm mb-2">EXAMPLE:</div>
                       <div className="space-y-1 text-sm">
-                        <div>• Got 8/10 correct = 80% accuracy</div>
-                        <div>• Took 180s = 40% efficiency</div>
+                        <div>• Got 9/10 correct = 90% accuracy</div>
+                        <div>• Took 180s of 300s = 40% time efficiency</div>
                         <div className="pt-2 mt-2 border-t border-gray-300 dark:border-gray-600 font-bold text-blue-600 dark:text-blue-400">
-                          Final = (80 × 0.7) + (40 × 0.3) = 68%
+                          Final = (90 × 0.95) + (40 × 0.05) = 87.5%
                         </div>
                       </div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/30 rounded-lg p-4 border border-green-200 dark:border-green-700">
+                      <div className="font-bold text-green-700 dark:text-green-400 text-sm">💡 Key Insight</div>
+                      <div className="text-sm mt-1">Accuracy matters most! Speed is just a small bonus, so focus on getting answers right.</div>
                     </div>
                   </div>
                 </div>
@@ -157,7 +161,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                           />
                         </div>
                         <span className="font-bold text-xs text-gray-900">Perfect</span>
-                        <span className="text-[10px] text-gray-700">100%</span>
+                        <span className="text-[10px] text-gray-700">100% accuracy</span>
                       </div>
                       <div className="bg-gradient-to-b from-yellow-100 to-yellow-200 rounded-lg p-3 flex flex-col items-center justify-center">
                         <div className="w-12 h-12 relative mb-2">
@@ -170,7 +174,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                           />
                         </div>
                         <span className="font-bold text-xs text-gray-900">Gold</span>
-                        <span className="text-[10px] text-gray-700">90%+</span>
+                        <span className="text-[10px] text-gray-700">90%+ mastery</span>
                       </div>
                       <div className="bg-gradient-to-b from-gray-200 to-gray-300 rounded-lg p-3 flex flex-col items-center justify-center">
                         <div className="w-12 h-12 relative mb-2">
@@ -183,7 +187,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                           />
                         </div>
                         <span className="font-bold text-xs text-gray-900">Silver</span>
-                        <span className="text-[10px] text-gray-700">75%+</span>
+                        <span className="text-[10px] text-gray-700">75%+ mastery</span>
                       </div>
                       <div className="bg-gradient-to-b from-orange-100 to-orange-200 rounded-lg p-3 flex flex-col items-center justify-center">
                         <div className="w-12 h-12 relative mb-2">
@@ -196,7 +200,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                           />
                         </div>
                         <span className="font-bold text-xs text-gray-900">Bronze</span>
-                        <span className="text-[10px] text-gray-700">60%+</span>
+                        <span className="text-[10px] text-gray-700">60%+ mastery</span>
                       </div>
                     </div>
                   </div>
@@ -216,15 +220,14 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                         <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700">
                           <div className="font-semibold mb-2">Requirements by Quiz Length:</div>
                           <div className="space-y-1">
-                            <div>• 1-2 questions: Perfect (100%)</div>
-                            <div>• 3-5 questions: 80%+ mastery</div>
-                            <div>• 6+ questions: 90%+ mastery</div>
+                            <div>• 1-2 questions: Perfect (100%) required</div>
+                            <div>• 3+ questions: 90%+ mastery required</div>
                           </div>
                         </div>
                       </div>
                     </div>
                     <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4">
-                      <div className="font-bold mb-2">Master All Sub-Quizzes</div>
+                      <div className="font-bold mb-2">🏆 Master All Sub-Quizzes</div>
                       <div>Achieve 90%+ mastery on ALL sub-quizzes to earn the ultimate parent quiz badge!</div>
                     </div>
                   </div>
@@ -239,19 +242,19 @@ const QuizCard: React.FC<QuizCardProps> = ({ history }) => {
                   <div className="p-5 space-y-3 text-sm text-gray-700 dark:text-gray-300">
                     <div className="flex gap-3 items-start">
                       <span className="text-blue-500 text-base">✦</span>
-                      <span><span className="font-bold">Accuracy is king:</span> Worth 70% vs 30% for speed</span>
+                      <span><span className="font-bold">Accuracy is king:</span> Worth 95% vs only 5% for speed</span>
                     </div>
                     <div className="flex gap-3 items-start">
                       <span className="text-blue-500 text-base">✦</span>
-                      <span><span className="font-bold">Perfect mastery:</span> Get 100% correct!</span>
+                      <span><span className="font-bold">Perfect mastery:</span> Get 100% correct for automatic Perfect rank!</span>
                     </div>
                     <div className="flex gap-3 items-start">
                       <span className="text-blue-500 text-base">✦</span>
-                      <span><span className="font-bold">Retake strategy:</span> Only best score counts</span>
+                      <span><span className="font-bold">Retake strategy:</span> Only your best score counts</span>
                     </div>
                     <div className="flex gap-3 items-start">
                       <span className="text-blue-500 text-base">✦</span>
-                      <span><span className="font-bold">Fresh challenge:</span> Questions shuffle each time</span>
+                      <span><span className="font-bold">Fresh challenge:</span> Questions shuffle each attempt</span>
                     </div>
                   </div>
                 </div>

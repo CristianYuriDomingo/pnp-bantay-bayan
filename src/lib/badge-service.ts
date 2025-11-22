@@ -435,11 +435,11 @@ export class BadgeService {
         return result;
       }
 
+      // Standard threshold: 90% for all quizzes
+      // Only exception: very short quizzes (1-2 questions) require 100%
       let threshold = 90;
       if (quiz.questions.length <= 2) {
         threshold = 100;
-      } else if (quiz.questions.length <= 5) {
-        threshold = 80;
       }
 
       console.log(`Quiz has ${quiz.questions.length} questions, using threshold: ${threshold}%`);

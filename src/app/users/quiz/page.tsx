@@ -30,6 +30,7 @@ interface QuizMastery {
   masteryLevel: string | null;
   bestScore: number;
   bestPercentage: number;
+  bestMasteryScore: number;
   attemptCount: number;
 }
 
@@ -207,7 +208,7 @@ const SubQuizModal = ({
                           </h3>
                           {isAttempted && (
                             <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded whitespace-nowrap">
-                              Best: {Math.round(mastery.bestPercentage)}%
+                              Best: {Math.round(mastery.bestMasteryScore)}%
                             </span>
                           )}
                         </div>
@@ -443,7 +444,6 @@ export default function Quiz() {
   if (loading) {
     return (
       <div className="h-full overflow-y-auto">
-        {/* Ultra responsive padding: minimal on small screens */}
         <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
           <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
@@ -467,7 +467,6 @@ export default function Quiz() {
   if (error) {
     return (
       <div className="h-full overflow-y-auto">
-        {/* Ultra responsive padding: minimal on small screens */}
         <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
           <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
             <div className="w-full flex justify-center mb-2">
@@ -490,7 +489,6 @@ export default function Quiz() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {/* Ultra responsive padding: minimal on small screens */}
       <div className="px-2 sm:px-4 md:px-6 lg:px-20 py-4">
         <div className="w-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
           <div className="w-full flex justify-center mb-2">

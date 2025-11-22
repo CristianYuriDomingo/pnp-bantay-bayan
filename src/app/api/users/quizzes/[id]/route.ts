@@ -1,10 +1,10 @@
-// FILE: app/api/users/quizzes/[id]/route.ts - Updated to handle parent quizzes
+// FILE: app/api/users/quizzes/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// GET - Fetch quiz questions for users (without correct answers)
+// GET - Fetch quiz questions for users
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -25,12 +25,12 @@ export async function GET(
             lesson: true,
             image: true,
             options: true,
+            correctAnswer: true,  // Added: Need this for frontend to track correct answers
           },
           orderBy: {
             createdAt: 'asc'
           }
         },
-        // Include children if this is a parent quiz
         children: {
           select: {
             id: true,
@@ -54,7 +54,6 @@ export async function GET(
             createdAt: 'asc'
           }
         },
-        // Include parent info if this is a sub-quiz
         parent: {
           select: {
             id: true,
@@ -72,7 +71,6 @@ export async function GET(
       );
     }
 
-    // If this is a parent quiz, return error since parent quizzes don't have questions
     if (quiz.isParent) {
       return NextResponse.json(
         { 
@@ -84,7 +82,7 @@ export async function GET(
       );
     }
 
-    // For regular quizzes, shuffle questions order for each user session
+    // Shuffle questions order for each user session
     const shuffledQuestions = quiz.questions.sort(() => Math.random() - 0.5);
 
     return NextResponse.json({

@@ -26,11 +26,34 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   try {
-    const stats = await RankCalculator.getRankStatistics()
+    // Get basic statistics from the database
+    const { PrismaClient } = await import('@prisma/client')
+    const prisma = new PrismaClient()
+    
+    const totalUsers = await prisma.user.count()
+    
+    // Get all users with their current rank
+    const users = await prisma.user.findMany({
+      select: {
+        currentRank: true
+      }
+    })
+    
+    // Count ranks manually
+    const rankCounts: Record<string, number> = {}
+    users.forEach(user => {
+      const rank = user.currentRank || 'Cadet'
+      rankCounts[rank] = (rankCounts[rank] || 0) + 1
+    })
+    
+    await prisma.$disconnect()
     
     return NextResponse.json({
       success: true,
-      statistics: stats
+      statistics: {
+        totalUsers,
+        rankDistribution: rankCounts
+      }
     })
   } catch (error) {
     console.error('Error getting rank statistics:', error)

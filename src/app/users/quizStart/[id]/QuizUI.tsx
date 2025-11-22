@@ -480,6 +480,7 @@ interface AnswerFeedback {
 interface UserAnswer {
   questionId: string;
   answer: number | null;
+  originalAnswer: number | null;
   correct: boolean;
 }
 
@@ -494,8 +495,11 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 const prepareQuestionsWithShuffledOptions = (questions: any[]): ShuffledQuestion[] => {
   return questions.map(question => {
-    const originalCorrectAnswerIndex = 0;
+    // Use correctAnswer from database (not hardcoded 0)
+    // This is the index of the correct answer in the original options array
+    const originalCorrectAnswerIndex = question.correctAnswer ?? 0;
     const shuffledOptions = shuffleArray(question.options);
+    // Find where the correct answer ended up after shuffling
     const correctAnswerIndex = shuffledOptions.indexOf(question.options[originalCorrectAnswerIndex]);
 
     return {
@@ -612,11 +616,12 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     fetchQuizData();
   }, [quizId]);
 
-  const submitAnswer = async (questionId: string, selectedAnswerIndex: number, currentQuestionData: ShuffledQuestion) => {
+  const submitAnswer = async (
+    questionId: string, 
+    originalAnswerIndex: number,  // NOW receives ORIGINAL index
+    currentQuestionData: ShuffledQuestion
+  ) => {
     try {
-      const originalAnswerIndex = selectedAnswerIndex === -1 ? -1 : 
-        currentQuestionData.options.indexOf(currentQuestionData.shuffledOptions[selectedAnswerIndex]);
-
       const response = await fetch(`/api/users/quizzes/${quizId}/submit`, {
         method: 'POST',
         headers: {
@@ -624,7 +629,7 @@ export default function QuizUI({ quizId }: QuizUIProps) {
         },
         body: JSON.stringify({
           questionId,
-          selectedAnswer: originalAnswerIndex,
+          selectedAnswer: originalAnswerIndex, // Send ORIGINAL index to backend
         }),
       });
 
@@ -632,12 +637,13 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       
       const feedback = await response.json();
 
+      // Convert correct answer from original to shuffled index for UI display
       const shuffledCorrectAnswerIndex = feedback.correctAnswer === -1 ? -1 :
         currentQuestionData.shuffledOptions.indexOf(currentQuestionData.options[feedback.correctAnswer]);
 
       const modifiedFeedback = {
         ...feedback,
-        correctAnswer: shuffledCorrectAnswerIndex,
+        correctAnswer: shuffledCorrectAnswerIndex, // Shuffled index for UI
         explanation: feedback.isCorrect ? feedback.explanation : undefined,
         options: currentQuestionData.shuffledOptions
       };
@@ -654,10 +660,10 @@ export default function QuizUI({ quizId }: QuizUIProps) {
       return modifiedFeedback;
     } catch (error) {
       console.error('Error submitting answer:', error);
-      const isCorrect = selectedAnswerIndex === currentQuestionData.correctAnswerIndex;
+      const isCorrect = originalAnswerIndex === currentQuestionData.originalCorrectAnswerIndex;
       const fallbackFeedback = {
         questionId,
-        selectedAnswer: selectedAnswerIndex,
+        selectedAnswer: originalAnswerIndex,
         correctAnswer: currentQuestionData.correctAnswerIndex,
         correctAnswerText: currentQuestionData.shuffledOptions[currentQuestionData.correctAnswerIndex],
         isCorrect,
@@ -679,43 +685,39 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     }
   };
 
-  const submitCompleteQuiz = async () => {
-    try {
-      setIsLoadingMastery(true);
-      const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+ const submitCompleteQuiz = async () => {
+  try {
+    setIsLoadingMastery(true);
+    const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
 
-      const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          answers: userAnswers.map((ua, index) => {
-            if (ua.answer === null) return -1;
-            return shuffledQuestions[index].options.indexOf(
-              shuffledQuestions[index].shuffledOptions[ua.answer]
-            );
-          }),
-          timeSpent: totalTimeSpent,
-          score: score,
-          totalQuestions: shuffledQuestions.length,
-        }),
-      });
+    const response = await fetch(`/api/users/quizzes/${quizId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        answers: userAnswers.map(ua => ua.originalAnswer ?? -1),
+        questionIds: userAnswers.map(ua => ua.questionId),  // ADD THIS LINE
+        timeSpent: totalTimeSpent,
+        score: score,
+        totalQuestions: shuffledQuestions.length,
+      }),
+    });
 
-      if (response.ok) {
-        const completionData = await response.json();
-        setMasteryData(completionData);
-      } else {
-        console.warn('Failed to save quiz completion to database');
-        setMasteryData({});
-      }
-    } catch (error) {
-      console.error('Error submitting complete quiz:', error);
+    if (response.ok) {
+      const completionData = await response.json();
+      setMasteryData(completionData);
+    } else {
+      console.warn('Failed to save quiz completion to database');
       setMasteryData({});
-    } finally {
-      setIsLoadingMastery(false);
     }
-  };
+  } catch (error) {
+    console.error('Error submitting complete quiz:', error);
+    setMasteryData({});
+  } finally {
+    setIsLoadingMastery(false);
+  }
+};
 
   useEffect(() => {
     if (quizStarted && timeLeft > 0 && !showFeedback && !isQuizComplete) {
@@ -735,7 +737,8 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     await submitAnswer(currentQuestionData.id, -1, currentQuestionData);
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
-      answer: null, 
+      answer: null,
+      originalAnswer: -1,  // Use -1 instead of null for "no answer"
       correct: false 
     }]);
   };
@@ -744,15 +747,27 @@ export default function QuizUI({ quizId }: QuizUIProps) {
     if (showFeedback || timeLeft === 0) return;
 
     play('click', { volume: 0.3 });
-    setSelectedAnswer(answerIndex);
+    setSelectedAnswer(answerIndex); // Keep SHUFFLED index for UI highlighting
     setShowFeedback(true);
 
     const currentQuestionData = shuffledQuestions[currentQuestion];
-    const feedback = await submitAnswer(currentQuestionData.id, answerIndex, currentQuestionData);
+    
+    // Calculate ORIGINAL index FIRST before sending to backend
+    const originalAnswerIndex = currentQuestionData.options.indexOf(
+      currentQuestionData.shuffledOptions[answerIndex]
+    );
+
+    // Send ORIGINAL index to backend
+    const feedback = await submitAnswer(
+      currentQuestionData.id, 
+      originalAnswerIndex,  // <-- Send ORIGINAL index, not shuffled
+      currentQuestionData
+    );
 
     setUserAnswers(prev => [...prev, { 
       questionId: currentQuestionData.id, 
-      answer: answerIndex, 
+      answer: answerIndex,                  // Shuffled (for UI)
+      originalAnswer: originalAnswerIndex,  // Original (for backend)
       correct: feedback?.isCorrect || false
     }]);
   };
