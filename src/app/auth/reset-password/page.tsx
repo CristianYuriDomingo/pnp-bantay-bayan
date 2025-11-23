@@ -46,52 +46,78 @@ function ResetPasswordForm() {
     }
   }, [token]);
 
-  // Real-time password validation
+  // Real-time password strength calculation
   useEffect(() => {
     if (formData.password) {
       const strength = calculatePasswordStrength(formData.password);
       setPasswordStrength(strength);
+    } else {
+      setPasswordStrength({ score: 0, label: '', color: '', suggestions: [] });
     }
+  }, [formData.password]);
+
+  // Validate form whenever formData or touched changes
+  useEffect(() => {
     validateForm();
-  }, [formData]);
+  }, [formData, touched]);
 
   const validateForm = () => {
     const newErrors: ValidationErrors = {};
 
-    // Password validation
-    if (touched.password && formData.password) {
-      const passwordErrors = FieldValidators.password(formData.password);
-      if (passwordErrors.length > 0) {
-        newErrors.password = passwordErrors[0].message;
+    // Preserve general error if it exists
+    if (errors.general && !token) {
+      newErrors.general = errors.general;
+    }
+
+    // Password validation - only if touched
+    if (touched.password) {
+      if (!formData.password) {
+        newErrors.password = 'Password is required';
+      } else {
+        const passwordErrors = FieldValidators.password(formData.password);
+        if (passwordErrors.length > 0) {
+          newErrors.password = passwordErrors[0].message;
+        }
       }
     }
 
-    // Confirm password validation
-    if (touched.confirmPassword && formData.confirmPassword) {
-      if (formData.password !== formData.confirmPassword) {
+    // Confirm password validation - only if touched
+    if (touched.confirmPassword) {
+      if (!formData.confirmPassword) {
+        newErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
         newErrors.confirmPassword = 'Passwords do not match';
       }
     }
 
-    setErrors(prev => ({ ...prev, ...newErrors }));
+    setErrors(newErrors);
+    return Object.keys(newErrors).filter(key => key !== 'general').length === 0;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear field-specific errors
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
   };
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }));
+  };
+
+  const isFormValid = () => {
+    // Check if both fields have values
+    if (!formData.password || !formData.confirmPassword) {
+      return false;
+    }
+    // Check if passwords match
+    if (formData.password !== formData.confirmPassword) {
+      return false;
+    }
+    // Check password strength (optional - remove if you want to allow weak passwords)
+    const passwordErrors = FieldValidators.password(formData.password);
+    if (passwordErrors.length > 0) {
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,20 +131,19 @@ function ResetPasswordForm() {
     // Mark all fields as touched
     setTouched({ password: true, confirmPassword: true });
     
-    // Validate form
-    validateForm();
-    
-    if (Object.keys(errors).filter(key => key !== 'general').length > 0) {
-      return;
-    }
-
+    // Final validation
     if (!formData.password || !formData.confirmPassword) {
-      setErrors({ general: 'Please fill in all required fields' });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setErrors({ confirmPassword: 'Passwords do not match' });
+      setErrors(prev => ({ ...prev, confirmPassword: 'Passwords do not match' }));
+      return;
+    }
+
+    const passwordErrors = FieldValidators.password(formData.password);
+    if (passwordErrors.length > 0) {
+      setErrors(prev => ({ ...prev, password: passwordErrors[0].message }));
       return;
     }
 
@@ -162,8 +187,24 @@ function ResetPasswordForm() {
   const getFieldStatus = (fieldName: string) => {
     if (!touched[fieldName]) return null;
     if (errors[fieldName]) return 'error';
-    if (formData[fieldName as keyof typeof formData]) return 'success';
-    return null;
+    
+    const value = formData[fieldName as keyof typeof formData];
+    if (!value) return null;
+    
+    // Additional check for confirmPassword
+    if (fieldName === 'confirmPassword') {
+      if (formData.password === formData.confirmPassword) return 'success';
+      return null;
+    }
+    
+    // Additional check for password
+    if (fieldName === 'password') {
+      const passwordErrors = FieldValidators.password(formData.password);
+      if (passwordErrors.length === 0) return 'success';
+      return null;
+    }
+    
+    return 'success';
   };
 
   const renderFieldIcon = (fieldName: string) => {
@@ -248,125 +289,125 @@ function ResetPasswordForm() {
         {/* Form Container */}
         {token && (
           <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-            <div className="space-y-5 mb-6">
-              {/* Password Field */}
-              <div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-5 mb-6">
+                {/* Password Field */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="New Password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      onBlur={() => handleBlur('password')}
+                      required
+                      className={`w-full pl-10 pr-20 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                        errors.password ? 'border-red-300 bg-red-50' : 
+                        getFieldStatus('password') === 'success' ? 'border-green-300 bg-green-50' : 
+                        'border-gray-300'
+                      }`}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                      {renderFieldIcon('password')}
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    placeholder="New Password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    onBlur={() => handleBlur('password')}
-                    onFocus={() => setTouched(prev => ({ ...prev, password: true }))}
-                    required
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
-                      errors.password ? 'border-red-300 bg-red-50' : 
-                      getFieldStatus('password') === 'success' ? 'border-green-300 bg-green-50' : 
-                      'border-gray-300'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowPassword(!showPassword);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-10"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                
-                {/* Password Strength Indicator */}
-                {formData.password.length > 0 && (
-                  <div className="mt-2 animate-fadeIn">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-700">Password Strength:</span>
-                      <span className={`text-xs font-medium ${
-                        passwordStrength.score <= 2 ? 'text-red-600' : 
-                        passwordStrength.score <= 3 ? 'text-yellow-600' : 
-                        passwordStrength.score <= 4 ? 'text-blue-600' : 'text-green-600'
-                      }`}>
-                        {passwordStrength.label}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                      ></div>
-                    </div>
-                    {passwordStrength.suggestions.length > 0 && (
-                      <div className="mt-1">
-                        <p className="text-xs text-gray-600">Missing: {passwordStrength.suggestions.join(', ')}</p>
+                  
+                  {/* Password Strength Indicator */}
+                  {formData.password.length > 0 && (
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700">Password Strength:</span>
+                        <span className={`text-xs font-medium ${
+                          passwordStrength.score <= 2 ? 'text-red-600' : 
+                          passwordStrength.score <= 3 ? 'text-yellow-600' : 
+                          passwordStrength.score <= 4 ? 'text-blue-600' : 'text-green-600'
+                        }`}>
+                          {passwordStrength.label}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                )}
-                
-                {errors.password && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <XCircle className="w-4 h-4" />
-                    {errors.password}
-                  </p>
-                )}
-              </div>
-
-              {/* Confirm Password Field */}
-              <div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    placeholder="Confirm New Password"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    onBlur={() => handleBlur('confirmPassword')}
-                    required
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
-                      errors.confirmPassword ? 'border-red-300 bg-red-50' : 
-                      getFieldStatus('confirmPassword') === 'success' ? 'border-green-300 bg-green-50' : 
-                      'border-gray-300'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowConfirmPassword(!showConfirmPassword);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors z-10"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color}`}
+                          style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        ></div>
+                      </div>
+                      {passwordStrength.suggestions.length > 0 && (
+                        <div className="mt-1">
+                          <p className="text-xs text-gray-600">Missing: {passwordStrength.suggestions.join(', ')}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {errors.password && touched.password && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <XCircle className="w-4 h-4" />
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
-                {errors.confirmPassword && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <XCircle className="w-4 h-4" />
-                    {errors.confirmPassword}
-                  </p>
-                )}
-              </div>
 
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isLoading || Object.keys(errors).length > 0}
-                className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Updating Password...' : 'Update Password'}
-              </button>
-            </div>
+                {/* Confirm Password Field */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      placeholder="Confirm New Password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      onBlur={() => handleBlur('confirmPassword')}
+                      required
+                      className={`w-full pl-10 pr-20 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 ${
+                        errors.confirmPassword ? 'border-red-300 bg-red-50' : 
+                        getFieldStatus('confirmPassword') === 'success' ? 'border-green-300 bg-green-50' : 
+                        'border-gray-300'
+                      }`}
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+                      {renderFieldIcon('confirmPassword')}
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  {errors.confirmPassword && touched.confirmPassword && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <XCircle className="w-4 h-4" />
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading || !isFormValid()}
+                  className="w-full bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Updating Password...' : 'Update Password'}
+                </button>
+              </div>
+            </form>
 
             {/* Security Notice */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -389,6 +430,20 @@ function ResetPasswordForm() {
           >
             Back to Sign In
           </Link>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-gray-500 text-xs">
+            By resetting your password, you agree to our{' '}
+            <Link href="/terms" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Terms
+            </Link>
+            {' '}and{' '}
+            <Link href="/privacy" className="text-blue-600 hover:text-blue-700 transition-colors">
+              Privacy Policy
+            </Link>.
+          </p>
         </div>
       </div>
     </div>

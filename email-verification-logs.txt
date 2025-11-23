@@ -4,3 +4,4 @@
 [2025-11-21T05:45:44.617Z] Panchot (ha4178246@gmail.com) | http://localhost:3000/auth/verify-email?token=24c410db8af150dd884573c7a97245b61fe89d49603e8f732b595c5b1936cdf9
 [2025-11-21T05:46:45.570Z] Panchot (ha4178246@gmail.com) | http://localhost:3000/auth/verify-email?token=218255689b6e2eff248c246cc2c82e9c474be5dbd1579c01ebf512f8c4aadc9c
 [2025-11-21T05:48:35.446Z] Yuri (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=0921a40a8c24d2851a92e83f2a199dcabe43a9bdd6c9a6e357fa4447cd0c2e13
+[2025-11-23T00:44:04.569Z] Janwella (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=47bc51549c2015422b26ce9784bc50a537764c9dfe3ee667b9750e830a620e2c
