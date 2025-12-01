@@ -5,3 +5,7 @@
 [2025-11-21T05:46:45.570Z] Panchot (ha4178246@gmail.com) | http://localhost:3000/auth/verify-email?token=218255689b6e2eff248c246cc2c82e9c474be5dbd1579c01ebf512f8c4aadc9c
 [2025-11-21T05:48:35.446Z] Yuri (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=0921a40a8c24d2851a92e83f2a199dcabe43a9bdd6c9a6e357fa4447cd0c2e13
 [2025-11-23T00:44:04.569Z] Janwella (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=47bc51549c2015422b26ce9784bc50a537764c9dfe3ee667b9750e830a620e2c
+[2025-11-23T07:35:23.894Z] Cristian (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=e124f501173c10f43ebd9c2e423f55b66ab055477db57bf72ad33735dc368159
+[2025-11-24T14:00:27.749Z] Yuriz (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=4853c145fd27d23b7f47f7f1bfe5effcb50a9316e0b29edbfb2f59b3b396a33d
+[2025-11-24T15:48:06.561Z] Yuri Domz (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=89382f9ccaf20a49a52dad5c3c56f9bc433194ffa462972bf2765c6fa804c9d1
+[2025-11-25T00:40:27.780Z] Bren Bondoc (dcristianyuri@gmail.com) | http://localhost:3000/auth/verify-email?token=7d6fdd5f237b26557c0f8aa1bf20042a2303c9d4268808a271ffafa92494e798

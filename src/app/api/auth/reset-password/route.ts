@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
-// Password validation regex
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+// Password validation regex - FIXED to match registration route
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]{8,}$/;
 
 interface ValidationError {
   field: string;
@@ -40,7 +40,7 @@ function validatePassword(password: string, confirmPassword: string): Validation
   if (!PASSWORD_REGEX.test(password)) {
     errors.push({ 
       field: 'password', 
-      message: 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&)' 
+      message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character' 
     });
   }
 
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log(`Password successfully reset for user: ${user.email}`);
+    console.log(`✅ Password successfully reset for user: ${user.email}`);
 
     return NextResponse.json(
       { 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('💥 Reset password error:', error);
     
     return NextResponse.json(
       { 

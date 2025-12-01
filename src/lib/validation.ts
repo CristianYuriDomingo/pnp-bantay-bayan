@@ -9,10 +9,10 @@ export interface ValidationResult {
   errors: ValidationError[];
 }
 
-// Regex patterns
+// Regex patterns - FIXED to match backend
 export const PATTERNS = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+  PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]{8,}$/,
   NAME: /^[a-zA-Z\s\-']{2,50}$/,
   PHONE: /^\+?[\d\s\-\(\)]{10,15}$/,
   USERNAME: /^[a-zA-Z0-9_]{3,20}$/
@@ -56,11 +56,12 @@ export function calculatePasswordStrength(password: string): PasswordStrength {
   if (/\d/.test(password)) score += 1;
   else suggestions.push('One number');
 
-  if (/[@$!%*?&]/.test(password)) score += 1;
-  else suggestions.push('One special character (@$!%*?&)');
+  // FIXED: Updated special character check to match backend
+  if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) score += 1;
+  else suggestions.push('One special character');
 
   // Bonus checks
-  if (/[^a-zA-Z0-9@$!%*?&]/.test(password)) score += 0.5; // Extra special chars
+  if (/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) score += 0.5; // Extra special chars
   
   // Penalty for common patterns
   if (/(.)\1{2,}/.test(password)) score -= 0.5; // Repeated characters
@@ -131,7 +132,7 @@ export class FieldValidators {
     if (!PATTERNS.PASSWORD.test(password)) {
       errors.push({ 
         field: 'password', 
-        message: 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&)' 
+        message: 'Password must contain uppercase, lowercase, number, and special character' 
       });
     }
 

@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { X } from 'lucide-react';
 
 export default function Home() {
   const [showHeaderButton, setShowHeaderButton] = useState(false);
-  const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'about' | null>(null);
+  const [showModal, setShowModal] = useState<'privacy' | 'terms' | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -22,6 +23,17 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
   const handleGetStarted = () => {
     router.push('/auth/signin');
   };
@@ -30,56 +42,91 @@ export default function Home() {
     router.push('/auth/signin');
   };
 
-  const openModal = (modal: 'privacy' | 'terms' | 'about') => {
-    setActiveModal(modal);
-    document.body.style.overflow = 'hidden';
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToAbout = () => {
+    const featuresSection = document.getElementById('features-section');
+    if (featuresSection) {
+      featuresSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const openModal = (type: 'privacy' | 'terms') => {
+    setShowModal(type);
   };
 
   const closeModal = () => {
-    setActiveModal(null);
-    document.body.style.overflow = 'unset';
+    setShowModal(null);
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-white text-gray-800">
       {/* Navigation Bar */}
       <nav className="fixed w-full h-20 bg-white/95 backdrop-blur-md z-50 border-b border-blue-100 shadow-sm">
-        <div className="relative flex items-center h-full w-full px-4 md:px-8 lg:px-16 max-w-7xl mx-auto transition-all duration-300">
+        <div className="relative flex items-center h-full w-full px-4 md:px-8 lg:px-16 max-w-7xl mx-auto">
+          {/* Logo - centered on small screens, left on large screens */}
           <div className={`flex items-center transition-all duration-300 ${
-            showHeaderButton ? 'relative' : 'absolute left-1/2 -translate-x-1/2 md:relative md:left-auto md:translate-x-0'
+            showHeaderButton ? 'relative' : 'absolute left-1/2 -translate-x-1/2 lg:relative lg:left-auto lg:translate-x-0'
           }`}>
             <Image
               src="/DashboardImage/logo.png"
               alt="Bantay Bayan Logo"
               width={64}
               height={64}
-              className="h-16 w-auto object-contain"
+              className="h-16 w-auto object-contain cursor-pointer"
               priority
+              onClick={scrollToTop}
             />
           </div>
 
+          {/* Right side container */}
           <div className="flex items-center gap-8 ml-auto">
+            {/* Navigation Links - Hidden on small screens */}
+            <div className="hidden lg:flex items-center gap-8">
+              <button
+                onClick={() => openModal('privacy')}
+                className="text-sm font-semibold transition-colors text-gray-600 hover:text-blue-600"
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => openModal('terms')}
+                className="text-sm font-semibold transition-colors text-gray-600 hover:text-blue-600"
+              >
+                Terms of Use
+              </button>
+              <button
+                onClick={scrollToAbout}
+                className="text-sm font-semibold text-gray-600 hover:text-blue-600 transition-colors"
+              >
+                About
+              </button>
+            </div>
+
+            {/* CTA Button */}
             <button
               onClick={handleGetStarted}
-              className={`relative px-8 py-3 text-sm font-bold rounded-2xl text-white transition-all duration-300 ${
+              className={`relative px-6 py-2.5 text-sm font-bold rounded-xl text-white transition-all duration-300 uppercase tracking-wide ${
                 showHeaderButton ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
               }`}
               style={{
                 background: 'linear-gradient(to bottom, #60a5fa 0%, #3b82f6 50%, #2563eb 100%)',
-                boxShadow: '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)',
+                boxShadow: '0 4px 0 #1e40af, 0 6px 8px rgba(37, 99, 235, 0.4)',
                 transform: showHeaderButton ? 'translateY(0)' : 'translateY(-8px)'
               }}
               onMouseDown={(e) => {
-                e.currentTarget.style.transform = 'translateY(4px)';
-                e.currentTarget.style.boxShadow = '0 2px 0 #1e40af, 0 4px 8px rgba(37, 99, 235, 0.3)';
+                e.currentTarget.style.transform = 'translateY(2px)';
+                e.currentTarget.style.boxShadow = '0 2px 0 #1e40af, 0 4px 6px rgba(37, 99, 235, 0.3)';
               }}
               onMouseUp={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)';
+                e.currentTarget.style.boxShadow = '0 4px 0 #1e40af, 0 6px 8px rgba(37, 99, 235, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 6px 0 #1e40af, 0 8px 12px rgba(37, 99, 235, 0.4)';
+                e.currentTarget.style.boxShadow = '0 4px 0 #1e40af, 0 6px 8px rgba(37, 99, 235, 0.4)';
               }}
             >
               BEGIN SERVICE
@@ -88,162 +135,33 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 md:px-8 lg:px-16 min-h-screen flex items-center">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-16 w-full max-w-7xl mx-auto">
-          <div className="flex-1 flex justify-center">
-            <div className="relative w-full max-w-md">
-              <Image
-                src="/MainImage/LandingPage.png"
-                alt="Bantay Bayan Safety Education"
-                width={384}
-                height={384}
-                className="w-full h-auto mx-auto object-contain"
-                priority
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 max-w-xl text-center md:text-left">
-            <div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight text-gray-700">
-                Strengthen public awareness through
-                <span className="text-blue-600"> gamified learning</span>!
-              </h1>
-
-              <div className="flex flex-col gap-4 max-w-md mx-auto md:mx-0">
-                <button
-                  onClick={handleGetStarted}
-                  className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl text-white transition-all duration-150 active:translate-y-1"
-                  style={{
-                    backgroundColor: '#3b82f6',
-                    boxShadow: '0 4px 0 #1e40af',
-                  }}
-                >
-                  BEGIN SERVICE
-                </button>
-
-                <button
-                  onClick={handleLoginClick}
-                  className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl bg-white transition-all duration-150 active:translate-y-1"
-                  style={{
-                    border: '2px solid #d1d5db',
-                    color: '#3b82f6',
-                    boxShadow: '0 4px 0 #d1d5db',
-                  }}
-                >
-                  CONTINUE YOUR DUTY
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 px-4 md:px-8 lg:px-16 bg-white">
-        <div className="max-w-7xl mx-auto">
-          {[
-            {
-              title: "Learn About Safety and Civic Responsibility",
-              description: "Master local laws, emergency response, proper citizen behavior, and reporting awareness through educational modules. Learn about community responsibility, crime prevention, and public safety procedures that help you become a more informed and responsible citizen.",
-              visual: (
-                <Image
-                  src="/MainImage/LandingPage1.png"
-                  alt="Interactive Learning Platform"
-                  width={640}
-                  height={320}
-                  className="w-full h-full object-cover"
-                />
-              ),
-              reverse: false
-            },
-            {
-              title: "Play Interactive Mini-Games",
-              description: "Engage with fun games including drag-and-drop, identification challenges, true or false quizzes, and scenario-based decision making. Practice suspect identification, memorize emergency hotlines through puzzles, guess PNP ranks using insignia, and play games like 'Confiscate or Allow' for prohibited items.",
-              visual: (
-                <Image
-                  src="/MainImage/LandingPage2.png"
-                  alt="Achievement Recognition System"
-                  width={640}
-                  height={320}
-                  className="w-full h-full object-cover"
-                />
-              ),
-              reverse: true
-            },
-            {
-              title: "Complete Quests and Earn Rewards",
-              description: "Take on daily quests, weekly quests, and special event quests to gain XP and level up. Earn PNP-style ranks starting from Cadet and progressing through Pat, PCpl, and beyond to Officer and Star ranks. Collect badges for completing lessons, quizzes, and weekly quests while competing on leaderboards based on total XP, badges, and level.",
-              visual: (
-                <Image
-                  src="/MainImage/LandingPage3.png"
-                  alt="Community Safety Network"
-                  width={640}
-                  height={320}
-                  className="w-full h-full object-cover"
-                />
-              ),
-              reverse: false
-            }
-          ].map((section, index) => (
-            <div key={index} className={`grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32 ${section.reverse ? 'lg:grid-flow-col-dense' : ''}`}>
-              <div className={`${section.reverse ? 'lg:col-start-2' : ''} text-center lg:text-left`}>
-                <h2 className="text-4xl md:text-5xl font-bold mb-8 text-gray-800">
-                  {section.title}
-                </h2>
-                <p className="text-xl text-gray-600 leading-relaxed mb-8 text-justify">
-                  {section.description}
-                </p>
-              </div>
-              <div className={section.reverse ? 'lg:col-start-1' : ''}>
-                {section.visual}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="py-24 px-4 md:px-8 lg:px-16 bg-gradient-to-br from-blue-600 to-blue-800 text-white">
-        <div className="text-center max-w-4xl mx-auto">
-          <h2 className="text-5xl md:text-6xl font-bold mb-8">
-            Ready to Become a Community Guardian?
-          </h2>
-          <p className="text-2xl mb-12 opacity-90">
-            Join the community in learning about safety, civic duty, and public awareness through engaging gameplay.
-          </p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-12 px-4 md:px-8 lg:px-16 bg-gray-800 text-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-300">&copy; 2025 Bantay Bayan. All rights reserved.</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-              <button onClick={() => openModal('privacy')} className="text-gray-300 hover:text-white transition-colors">Privacy</button>
-              <button onClick={() => openModal('terms')} className="text-gray-300 hover:text-white transition-colors">Terms</button>
-              <button onClick={() => openModal('about')} className="text-gray-300 hover:text-white transition-colors">About Us</button>
-            </div>
-          </div>
-        </div>
-      </footer>
-
       {/* Modal */}
-      {activeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" onClick={closeModal}>
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={closeModal}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <h2 className="text-2xl font-bold text-gray-800">
-                {activeModal === 'privacy' && 'Privacy Policy'}
-                {activeModal === 'terms' && 'Terms of Use'}
-                {activeModal === 'about' && 'About Us'}
+                {showModal === 'privacy' ? 'Privacy Policy' : 'Terms of Use'}
               </h2>
-              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+              <button
+                onClick={closeModal}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
             </div>
-            
-            <div className="px-6 py-6">
-              {activeModal === 'privacy' && (
+
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] px-6 py-6">
+              {showModal === 'privacy' && (
                 <div className="space-y-4 text-gray-700">
                   <p className="text-gray-600 italic">Your privacy is important to us</p>
                   <p>This explains how Bantay Bayan collects, uses, and protects your information. We are committed to keeping your data safe and giving you control over your privacy.</p>
@@ -321,7 +239,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeModal === 'terms' && (
+              {showModal === 'terms' && (
                 <div className="space-y-4 text-gray-700">
                   <p className="text-gray-600 italic">Please read these terms carefully</p>
                   <p>By using our app, you agree to follow these terms. Please read them carefully to understand your rights and responsibilities.</p>
@@ -382,59 +300,149 @@ export default function Home() {
                   <p className="mt-3 font-semibold">Last Updated: January 2025</p>
                 </div>
               )}
-
-              {activeModal === 'about' && (
-                <div className="space-y-4 text-gray-700">
-                  <p className="text-gray-600 italic">Learn more about our mission and values</p>
-
-                  <h3 className="text-xl font-bold mt-6">Our Mission</h3>
-                  <p>To empower every Filipino to become an informed, proactive, and safety-conscious member of the community through engaging education and gamified learning experiences.</p>
-
-                  <h3 className="text-xl font-bold mt-6">What is Bantay Bayan?</h3>
-                  <p>Bantay Bayan is a community-driven mobile app created to promote public safety, awareness, and responsible citizenship. We combine education, gamification, and real-life civic lessons to make learning about laws, safety, and proper citizen behavior easy and engaging.</p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                    <div>
-                      <h4 className="font-bold text-lg">Safety First</h4>
-                      <p>Promoting public safety and community awareness through education</p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg">Community-Driven</h4>
-                      <p>Empowering every Filipino to become a proactive community member</p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg">Educational</h4>
-                      <p>Learn about laws, safety protocols, and proper citizen behavior</p>
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-lg">Engaging Learning</h4>
-                      <p>Gamification makes learning about civic duties fun and memorable</p>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-bold mt-6">What You'll Learn</h3>
-                  <p>Through lessons, quests, and mini-games, Bantay Bayan helps users:</p>
-                  <ul className="list-disc pl-6 space-y-1">
-                    <li>Understand community responsibilities</li>
-                    <li>Learn how to respond during emergencies</li>
-                    <li>Identify proper and improper behaviors</li>
-                    <li>Build confidence in reporting and awareness</li>
-                  </ul>
-
-                  <h3 className="text-xl font-bold mt-6">Our Story</h3>
-                  <p>We believe that a safer community starts with educated citizens. Bantay Bayan is here to guide, teach, and inspire every user—one lesson at a time.</p>
-
-                  <h3 className="text-xl font-bold mt-6">Join Our Journey</h3>
-                  <p>Whether you're a seasoned learner or just starting out, we're excited to have you as part of our community. Together, we can build safer communities and achieve great things, one quest at a time.</p>
-
-                  <h3 className="text-xl font-bold mt-6">Contact Us</h3>
-                  <p>Have questions or feedback? We'd love to hear from you. Reach out to us through our support channels, and we'll get back to you as soon as possible.</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Main Content */}
+      <div className="pt-20">
+        {/* Hero Section */}
+        <section className="pt-12 pb-20 px-4 md:px-8 lg:px-16 min-h-screen flex items-center">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-16 w-full max-w-7xl mx-auto">
+            <div className="flex-1 flex justify-center">
+              <div className="relative w-full max-w-md">
+                <Image
+                  src="/MainImage/LandingPage.png"
+                  alt="Bantay Bayan Safety Education"
+                  width={384}
+                  height={384}
+                  className="w-full h-auto mx-auto object-contain"
+                  priority
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 max-w-xl text-center">
+              <div>
+                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 leading-tight text-gray-700 text-center">
+                  Strengthen public awareness through
+                  <span className="text-blue-600"> gamified learning</span>!
+                </h1>
+
+                <div className="flex flex-col gap-4 max-w-md mx-auto">
+                  <button
+                    onClick={handleGetStarted}
+                    className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl text-white transition-all duration-150 active:translate-y-1 uppercase tracking-wide"
+                    style={{
+                      backgroundColor: '#3b82f6',
+                      boxShadow: '0 4px 0 #1e40af',
+                    }}
+                  >
+                    BEGIN SERVICE
+                  </button>
+
+                  <button
+                    onClick={handleLoginClick}
+                    className="relative w-full px-8 py-4 text-lg font-bold rounded-2xl bg-white transition-all duration-150 active:translate-y-1 uppercase tracking-wide"
+                    style={{
+                      border: '2px solid #d1d5db',
+                      color: '#3b82f6',
+                      boxShadow: '0 4px 0 #d1d5db',
+                    }}
+                  >
+                    CONTINUE YOUR DUTY
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features-section" className="py-24 px-4 md:px-8 lg:px-16 bg-white">
+          <div className="max-w-7xl mx-auto">
+            {[
+              {
+                title: "Learn About Safety and Civic Responsibility",
+                description: "Master local laws, emergency response, proper citizen behavior, and reporting awareness through educational modules. Learn about community responsibility, crime prevention, and public safety procedures that help you become a more informed and responsible citizen.",
+                visual: (
+                  <Image
+                    src="/MainImage/LandingPage1.png"
+                    alt="Interactive Learning Platform"
+                    width={640}
+                    height={320}
+                    className="w-full h-full object-cover"
+                  />
+                ),
+                reverse: false
+              },
+              {
+                title: "Play Interactive Mini-Games",
+                description: "Engage with fun games including drag-and-drop, identification challenges, true or false quizzes, and scenario-based decision making. Practice suspect identification, memorize emergency hotlines through puzzles, guess PNP ranks using insignia, and play games like 'Confiscate or Allow' for prohibited items.",
+                visual: (
+                  <Image
+                    src="/MainImage/LandingPage2.png"
+                    alt="Achievement Recognition System"
+                    width={640}
+                    height={320}
+                    className="w-full h-full object-cover"
+                  />
+                ),
+                reverse: true
+              },
+              {
+                title: "Complete Quests and Earn Rewards",
+                description: "Take on daily quests, weekly quests, and special event quests to gain XP and level up. Earn PNP-style ranks starting from Cadet and progressing through Pat, PCpl, and beyond to Officer and Star ranks. Collect badges for completing lessons, quizzes, and weekly quests while competing on leaderboards based on total XP, badges, and level.",
+                visual: (
+                  <Image
+                    src="/MainImage/LandingPage3.png"
+                    alt="Community Safety Network"
+                    width={640}
+                    height={320}
+                    className="w-full h-full object-cover"
+                  />
+                ),
+                reverse: false
+              }
+            ].map((section, index) => (
+              <div key={index} className={`grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32 ${section.reverse ? 'lg:grid-flow-col-dense' : ''}`}>
+                <div className={`${section.reverse ? 'lg:col-start-2' : ''} text-center lg:text-left`}>
+                  <h2 className="text-4xl md:text-5xl font-bold mb-8 text-gray-800">
+                    {section.title}
+                  </h2>
+                  <p className="text-xl text-gray-600 leading-relaxed mb-8 text-justify">
+                    {section.description}
+                  </p>
+                </div>
+                <div className={section.reverse ? 'lg:col-start-1' : ''}>
+                  {section.visual}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-24 px-4 md:px-8 lg:px-16 bg-gradient-to-br from-blue-600 to-blue-800 text-white">
+          <div className="text-center max-w-4xl mx-auto">
+            <h2 className="text-5xl md:text-6xl font-bold mb-8">
+              Ready to Become a Community Guardian?
+            </h2>
+            <p className="text-2xl mb-12 opacity-90">
+              Join the community in learning about safety, civic duty, and public awareness through engaging gameplay.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      {/* Footer */}
+      <footer className="py-12 px-4 md:px-8 lg:px-16 bg-gray-800 text-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="border-t border-gray-700 pt-8 flex justify-center items-center">
+            <p className="text-gray-300">&copy; 2025 Bantay Bayan. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
